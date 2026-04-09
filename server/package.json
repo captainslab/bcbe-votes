@@ -8,6 +8,7 @@
     "build": "tsc -p .",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "import:meetings": "tsx src/scripts/importMeetingListing.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

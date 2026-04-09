@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { importMeetingById, importMeetingRange, reimportMeeting } from "../ingestion/workflow/importService";
+import { importMeetingById, reimportMeeting } from "../ingestion/workflow/importService";
 import { validateRequest } from "../middleware/validateRequest";
 import { adminAuth } from "../middleware/adminAuth";
 import { db, schema } from "../db";
 import { desc } from "drizzle-orm";
+import { importMeetingListing } from "../ingestion/workflow/meetingListingImport";
 
 const router = Router();
 
@@ -22,12 +23,15 @@ router.post(
         .optional(),
     }),
   ),
-  async (req, res, next) => {
+    async (req, res, next) => {
     try {
       const body = req.body ?? {};
       const startMid = body.startMid ? Number(body.startMid) : undefined;
       const endMid = body.endMid ? Number(body.endMid) : undefined;
-      const result = await importMeetingRange(startMid, endMid);
+      const result = await importMeetingListing({
+        ...(startMid !== undefined ? { startMid } : {}),
+        ...(endMid !== undefined ? { endMid } : {}),
+      });
       res.json({ status: "ok", ...result });
     } catch (err) {
       next(err);

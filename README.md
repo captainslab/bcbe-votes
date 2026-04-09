@@ -103,7 +103,14 @@ Admin (Basic Auth; automation only)
 - `npm run dev` — start Express with tsx watcher
 - `npm run typecheck` — TypeScript check
 - `npm run build` — compile to `dist`
+- `npm run import:meetings` — ingest the live BCBE Simbli meeting listing
+- `npm run import:meetings -- --dry-run` — preview extracted meeting rows without writing
 - `npm run db:generate` / `npm run db:push` — Drizzle kit helpers (requires DATABASE_URL)
+
+## Ingestion status
+
+- Meeting listing ingestion is live and idempotent.
+- Minutes URL derivation and meeting detail parsing are still deferred.
 
 ## Production notes
 
