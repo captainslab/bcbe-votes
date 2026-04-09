@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useMeeting } from "../api/hooks";
+import { Badge } from "../components/Badge";
 
 export const MeetingDetail = () => {
   const { id } = useParams();
@@ -39,16 +40,30 @@ export const MeetingDetail = () => {
             key={item.id}
             className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-slate-500">{item.agendaSection || "Agenda item"}</div>
-              {item.isNonUnanimous && (
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                  Non-unanimous
-                </span>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
+                  {item.verificationStatus}
+                </Badge>
+                <Badge tone={item.isNonUnanimous ? "amber" : "emerald"}>
+                  {item.isNonUnanimous ? "Non-unanimous" : "Unanimous"}
+                </Badge>
+                <Badge tone="slate">{item.detectedPattern || "vote"}</Badge>
+              </div>
             </div>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{item.itemTitle}</p>
-            <p className="text-sm text-slate-600 line-clamp-2">{item.sourceExcerpt}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {item.summaryText || item.itemTitle}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">{item.motionText || item.itemTitle}</p>
+            <p className="mt-2 text-sm text-slate-600 line-clamp-2">{item.sourceExcerpt}</p>
+            <p className="mt-2 text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">Source URL:</span>{" "}
+              <span className="break-all">{item.summarySource || data.sourceUrl}</span>
+            </p>
+            {item.summarySource && (
+              <p className="mt-1 text-xs text-slate-500">Traceable source preserved on the record.</p>
+            )}
           </Link>
         ))}
       </div>

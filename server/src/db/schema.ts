@@ -106,9 +106,9 @@ export const voteRecords = pgTable(
     voteItemId: integer("vote_item_id")
       .references(() => voteItems.id, { onDelete: "cascade" })
       .notNull(),
-    boardMemberId: integer("board_member_id")
-      .references(() => boardMembers.id, { onDelete: "set null" })
-      .notNull(),
+    boardMemberId: integer("board_member_id").references(() => boardMembers.id, {
+      onDelete: "set null",
+    }),
     voteValue: voteValueEnum("vote_value").notNull(),
   },
   (table) => ({

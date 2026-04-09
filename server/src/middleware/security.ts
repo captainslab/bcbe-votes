@@ -5,11 +5,7 @@ import { Express } from "express";
 import { config } from "../config/env";
 
 export const applySecurity = (app: Express) => {
-  app.use(
-    helmet({
-      contentSecurityPolicy: false, // adjust if CSP is configured later
-    }),
-  );
+  app.use(helmet());
 
   app.use(
     cors({

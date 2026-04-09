@@ -56,7 +56,7 @@ CREATE TABLE vote_items (
 CREATE TABLE vote_records (
   id serial PRIMARY KEY,
   vote_item_id integer NOT NULL REFERENCES vote_items(id) ON DELETE CASCADE,
-  board_member_id integer NOT NULL REFERENCES board_members(id) ON DELETE SET NULL,
+  board_member_id integer REFERENCES board_members(id) ON DELETE SET NULL,
   vote_value vote_value NOT NULL,
   CONSTRAINT vote_record_unique UNIQUE (vote_item_id, board_member_id)
 );

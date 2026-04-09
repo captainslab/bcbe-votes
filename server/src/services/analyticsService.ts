@@ -60,6 +60,7 @@ export const getSummaryStats = async () => {
   );
 
   memberVoteRows.forEach((row) => {
+    if (row.memberId == null) return;
     const stats = memberStats.get(row.memberId);
     if (!stats) return;
     stats.totalVotes += 1;
@@ -136,6 +137,7 @@ export const getMemberStats = async () => {
   );
 
   memberVoteRows.forEach((row) => {
+    if (row.memberId == null) return;
     const s = stats.get(row.memberId);
     if (!s) return;
     s.totalVotes += 1;
@@ -177,6 +179,7 @@ export const getPairwiseAlignment = async () => {
 
   const byVoteItem = new Map<number, { memberId: number; voteValue: string }[]>();
   records.forEach((r) => {
+    if (r.memberId == null) return;
     const arr = byVoteItem.get(r.voteItemId) ?? [];
     arr.push({ memberId: r.memberId, voteValue: r.voteValue });
     byVoteItem.set(r.voteItemId, arr);

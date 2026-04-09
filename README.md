@@ -2,6 +2,14 @@
 
 Public-facing voter transparency platform for Baldwin County Board of Education. Tracks motions, voting records, alignment, and dissent with full source traceability pulled automatically from Simbli.
 
+## Product direction
+
+- Public record first, not commentary or campaign material.
+- Scraper-first ingestion; no manual production entry.
+- Every vote should expose a plain-language summary, original motion text, source excerpt, source URL, verification status, and detected pattern.
+- Member analytics should emphasize yes rate, dissent rate, majority alignment, and pairwise alignment.
+- The public UI should stay readable on desktop and mobile with cards, tables, and source-linked detail views.
+
 ## Tech stack
 
 - Frontend: React (Vite + TypeScript + Tailwind)
@@ -77,11 +85,18 @@ Admin (Basic Auth; automation only)
 ## Frontend pages
 
 - Dashboard: totals, non-unanimous count, dissent and yes-rate leaderboards, recent votes
-- Votes & Vote detail: summary, motion text, vote grid, source excerpt/link
-- Meetings & Meeting detail: meeting metadata with linked vote items
-- Members & Member detail: per-member stats and pairwise alignment
-- Alliances: pairwise alignment table
+- Votes & Vote detail: summary, motion text, vote grid, source excerpt, and official source
+- Meetings & Meeting detail: meeting metadata with linked vote items and traceable source URLs
+- Members & Member detail: per-member stats, yes rate, dissent rate, majority alignment, and pairwise alignment
+- Alliances: pairwise alignment table with member names
 - Admin: trigger automated imports (batch or single MID) with Basic Auth
+
+## Frontend shell
+
+- Civic, source-forward shell with persistent navigation and a dashboard hero.
+- Default votes view is non-unanimous items.
+- Vote and meeting detail pages preserve source excerpts and official URLs.
+- Member and alliance views prioritize readable names over raw identifiers.
 
 ## Development scripts (server)
 

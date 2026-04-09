@@ -1,13 +1,15 @@
-import { useAlignment } from "../api/hooks";
+import { useAlignment, useMembers } from "../api/hooks";
 
 export const Alliances = () => {
   const { data, isLoading, error } = useAlignment();
+  const members = useMembers();
 
   if (isLoading) return <p>Loading alliances…</p>;
   if (error) return <p className="text-red-600">Failed to load alliances.</p>;
   if (!data) return null;
 
   const sorted = [...data].sort((a, b) => b.alignmentRate - a.alignmentRate);
+  const memberNameById = new Map((members.data ?? []).map((member) => [member.memberId, member.name]));
 
   return (
     <div className="space-y-4">
@@ -30,8 +32,12 @@ export const Alliances = () => {
           <tbody className="divide-y divide-slate-200">
             {sorted.map((row) => (
               <tr key={`${row.memberAId}-${row.memberBId}`} className="hover:bg-slate-50">
-                <td className="px-4 py-3 text-slate-800">{row.memberAId}</td>
-                <td className="px-4 py-3 text-slate-800">{row.memberBId}</td>
+                <td className="px-4 py-3 text-slate-800">
+                  {memberNameById.get(row.memberAId) || `Member ${row.memberAId}`}
+                </td>
+                <td className="px-4 py-3 text-slate-800">
+                  {memberNameById.get(row.memberBId) || `Member ${row.memberBId}`}
+                </td>
                 <td className="px-4 py-3 text-slate-700">{row.overlap}</td>
                 <td className="px-4 py-3 text-slate-700">
                   {(row.alignmentRate * 100).toFixed(1)}%

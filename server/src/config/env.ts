@@ -25,8 +25,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   RATE_LIMIT_WINDOW_MINUTES: z.string().default("15"),
   RATE_LIMIT_MAX: z.string().default("300"),
-  ADMIN_BASIC_USER: z.string().default("admin"),
-  ADMIN_BASIC_PASS: z.string().default("changeme"),
+  ADMIN_BASIC_USER: z.string().default(""),
+  ADMIN_BASIC_PASS: z.string().default(""),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   ENABLE_REQUEST_LOGS: z.string().optional(),
 });

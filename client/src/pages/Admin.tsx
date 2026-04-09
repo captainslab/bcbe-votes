@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useState } from "react";
 import { api, setAdminAuth } from "../api/client";
 
@@ -8,8 +9,8 @@ export const Admin = () => {
   const [endMid, setEndMid] = useState("");
   const [simbliId, setSimbliId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [user, setUser] = useState("admin");
-  const [pass, setPass] = useState("change-me");
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
 
   const handleBatch = async () => {
     try {
@@ -20,7 +21,11 @@ export const Admin = () => {
       });
       setMessage(`Batch started: processed ${res.data.processed ?? 0}`);
     } catch (err) {
-      setMessage("Failed to start batch import");
+      setMessage(
+        axios.isAxiosError(err) && err.response?.status === 503
+          ? "Admin access is not configured"
+          : "Failed to start batch import",
+      );
     }
   };
 
@@ -30,7 +35,11 @@ export const Admin = () => {
       await api.post(`/admin/import-meeting/${simbliId}`);
       setMessage("Meeting import triggered");
     } catch (err) {
-      setMessage("Failed to import meeting");
+      setMessage(
+        axios.isAxiosError(err) && err.response?.status === 503
+          ? "Admin access is not configured"
+          : "Failed to import meeting",
+      );
     }
   };
 
@@ -44,7 +53,8 @@ export const Admin = () => {
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-        Admin routes are protected with HTTP Basic Auth. Use operational credentials only.
+        Admin routes are protected with HTTP Basic Auth. Use operational credentials only, and
+        configure them outside the app.
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -55,6 +65,7 @@ export const Admin = () => {
             <input
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
               value={user}
+              placeholder="Admin username"
               onChange={(e) => setUser(e.target.value)}
             />
           </label>
@@ -64,6 +75,8 @@ export const Admin = () => {
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
               value={pass}
               type="password"
+              autoComplete="current-password"
+              placeholder="Admin password"
               onChange={(e) => setPass(e.target.value)}
             />
           </label>

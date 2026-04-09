@@ -1,9 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { useMember, useMemberAlignment } from "../api/hooks";
+import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
+import { StatCard } from "../components/StatCard";
 
 export const MemberDetail = () => {
   const { id } = useParams();
   const { data, isLoading, error } = useMember(id);
+  const membersQuery = useMembers();
   const alignment = useMemberAlignment(id);
 
   if (isLoading) return <p>Loading member…</p>;
@@ -11,6 +13,8 @@ export const MemberDetail = () => {
   if (!data) return null;
 
   const stats = data.stats;
+  const memberNameById = new Map((membersQuery.data ?? []).map((member) => [member.memberId, member.name]));
+  const totalVotes = Math.max(stats?.totalVotes ?? 0, 1);
 
   return (
     <div className="space-y-6">
@@ -25,23 +29,14 @@ export const MemberDetail = () => {
       </div>
 
       {stats && (
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-500">Total votes</p>
-            <p className="text-2xl font-semibold text-slate-900">{stats.totalVotes}</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-500">Dissent rate</p>
-            <p className="text-2xl font-semibold text-slate-900">
-              {(stats.dissentRate * 100).toFixed(1)}%
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-500">Alignment</p>
-            <p className="text-2xl font-semibold text-slate-900">
-              {(stats.majorityAlignmentRate * 100).toFixed(1)}%
-            </p>
-          </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <StatCard label="Total votes" value={stats.totalVotes} />
+          <StatCard label="Yes rate" value={`${((stats.yesCount / totalVotes) * 100).toFixed(1)}%`} />
+          <StatCard label="Dissent rate" value={`${(stats.dissentRate * 100).toFixed(1)}%`} />
+          <StatCard
+            label="Majority alignment"
+            value={`${(stats.majorityAlignmentRate * 100).toFixed(1)}%`}
+          />
         </div>
       )}
 
@@ -63,7 +58,8 @@ export const MemberDetail = () => {
               {alignment.data?.map((pair) => (
                 <tr key={`${pair.memberAId}-${pair.memberBId}`} className="hover:bg-slate-50">
                   <td className="px-4 py-3 text-slate-800">
-                    Member {pair.memberAId === Number(id) ? pair.memberBId : pair.memberAId}
+                    {memberNameById.get(pair.memberAId === Number(id) ? pair.memberBId : pair.memberAId) ||
+                      `Member ${pair.memberAId === Number(id) ? pair.memberBId : pair.memberAId}`}
                   </td>
                   <td className="px-4 py-3 text-slate-700">{pair.overlap}</td>
                   <td className="px-4 py-3 text-slate-700">

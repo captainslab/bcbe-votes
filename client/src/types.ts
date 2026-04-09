@@ -18,9 +18,9 @@ export type Meeting = {
 
 export type VoteRecord = {
   id: number;
-  boardMemberId: number;
+  boardMemberId: number | null;
   voteValue: string;
-  boardMember?: BoardMember;
+  boardMember?: BoardMember | null;
 };
 
 export type VoteItem = {
@@ -36,6 +36,7 @@ export type VoteItem = {
   isNonUnanimous: boolean;
   voteTally: Record<string, number>;
   sourceExcerpt?: string | null;
+  summarySource?: string | null;
   verificationStatus: string;
   detectedPattern?: string | null;
   confidenceScore?: string | number | null;

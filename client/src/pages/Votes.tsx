@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useVotes } from "../api/hooks";
+import { Badge } from "../components/Badge";
 
 export const Votes = () => {
   const [nonUnanimousOnly, setNonUnanimousOnly] = useState(true);
@@ -38,23 +39,29 @@ export const Votes = () => {
             key={vote.id}
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-slate-500">
                 {vote.meeting?.date ? new Date(vote.meeting.date).toLocaleDateString() : "—"} ·{" "}
                 {vote.meeting?.title}
               </div>
-              {vote.isNonUnanimous ? (
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                  Non-unanimous
-                </span>
-              ) : (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                  Unanimous
-                </span>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
+                  {vote.verificationStatus}
+                </Badge>
+                <Badge tone={vote.isNonUnanimous ? "amber" : "emerald"}>
+                  {vote.isNonUnanimous ? "Non-unanimous" : "Unanimous"}
+                </Badge>
+                <Badge tone="slate">{vote.detectedPattern || "vote"}</Badge>
+              </div>
             </div>
-            <p className="mt-2 text-lg font-semibold text-slate-900">{vote.itemTitle}</p>
-            <p className="mt-1 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt}</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">{vote.summaryText || vote.itemTitle}</p>
+            <p className="mt-1 text-sm text-slate-700">{vote.motionText || vote.itemTitle}</p>
+            <p className="mt-2 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt}</p>
+            {vote.meeting?.sourceUrl && (
+              <p className="mt-3 text-xs text-slate-500">
+                Source: <span className="break-all">{vote.meeting.sourceUrl}</span>
+              </p>
+            )}
           </Link>
         ))}
       </div>

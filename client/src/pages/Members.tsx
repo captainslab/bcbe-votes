@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useMembers } from "../api/hooks";
+import { StatCard } from "../components/StatCard";
 
 export const Members = () => {
   const { data, isLoading, error } = useMembers();
@@ -8,11 +9,23 @@ export const Members = () => {
   if (error) return <p className="text-red-600">Failed to load members.</p>;
   if (!data) return null;
 
+  const highestYesRate = data.length
+    ? Math.max(...data.map((m) => (m.totalVotes ? (m.yesCount / m.totalVotes) * 100 : 0)))
+    : 0;
+  const highestDissentRate = data.length ? Math.max(...data.map((m) => m.dissentRate * 100)) : 0;
+
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="space-y-6">
+      <div className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Board Members</h1>
-        <p className="text-sm text-slate-600">Per-member voting behavior and dissent history.</p>
+        <p className="text-sm text-slate-600">
+          Per-member voting behavior, approval rates, dissent history, and participation counts.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard label="Members tracked" value={data.length} helper="From imported voting records" />
+        <StatCard label="Highest yes rate" value={`${highestYesRate.toFixed(1)}%`} />
+        <StatCard label="Highest dissent rate" value={`${highestDissentRate.toFixed(1)}%`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
