@@ -110,6 +110,7 @@ Admin (Basic Auth; automation only)
 - `npm run probe:agenda-item -- --enSiteId=... --agendaId=...` — probe the agenda/item loader and inspect returned content fields
 - `npm run probe:agenda-tree -- --query='board' --meetingTitle='Special Board Meeting' --meetingDate='2026-04-07'` — replay live search, enumerate meeting agenda nodes, and probe each item for decision-bearing content
 - `npm run probe:minutes-votes -- --queries=carried,no --maxItems=4` — collect live minutes-backed agenda items, inspect `Minutes` / `VotingHTML`, and emit structured vote extraction fields
+- `npm run prove:minutes-votes -- --queries=carried,no,failed,unanimous --maxItems=8 [--probeOutput=/tmp/probe.json] [--persist]` — normalize live minutes-backed agenda items into VoteItem/VoteRecord-style proof output, or re-run the proof against a saved `probe:minutes-votes` capture, then bucket vote patterns, flag failure cases, and optionally persist only persist-ready samples when `DATABASE_URL` is available
 - `npm run import:meeting-detail -- --dry-run --simbliId=28157` — preview one live meeting detail page
 - `npm run db:generate` / `npm run db:push` — Drizzle kit helpers (requires DATABASE_URL)
 
