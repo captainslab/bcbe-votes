@@ -18,6 +18,10 @@ export const VoteDetail = () => {
   if (error) return <p className="text-red-600">Failed to load vote.</p>;
   if (!data) return null;
 
+  const summarySourceUrl =
+    data.summarySource && /^https?:\/\//i.test(data.summarySource) ? data.summarySource : null;
+  const officialSourceUrl = summarySourceUrl || data.meeting?.sourceUrl;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -92,17 +96,22 @@ export const VoteDetail = () => {
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Official source</h2>
-            {data.meeting?.sourceUrl ? (
+            {officialSourceUrl ? (
               <a
-                href={data.meeting.sourceUrl}
+                href={officialSourceUrl}
                 target="_blank"
                 className="mt-2 break-all text-sm font-semibold text-slate-800 underline"
                 rel="noreferrer"
               >
-                {data.meeting.sourceUrl}
+                {officialSourceUrl}
               </a>
             ) : (
               <p className="mt-2 text-sm text-slate-600">Not available.</p>
+            )}
+            {data.summarySource && !summarySourceUrl && (
+              <p className="mt-2 text-xs text-slate-500">
+                Summary source: <span className="break-all">{data.summarySource}</span>
+              </p>
             )}
           </div>
         </div>

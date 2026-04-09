@@ -12,6 +12,7 @@ export type Meeting = {
   simbliId: string;
   sourceUrl: string;
   minutesUrl?: string | null;
+  voteItemCount?: number;
   ingestionStatus: string;
   verificationStatus: string;
 };

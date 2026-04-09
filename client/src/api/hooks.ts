@@ -15,7 +15,7 @@ export const useMeetings = () =>
   useQuery({
     queryKey: ["meetings"],
     queryFn: async () => {
-      const res = await api.get<Meeting[]>("/meetings");
+      const res = await api.get<Meeting[]>("/meetings", { params: { limit: 200 } });
       return res.data;
     },
   });
@@ -34,7 +34,7 @@ export const useVotes = (nonUnanimousOnly = true) =>
   useQuery({
     queryKey: ["votes", nonUnanimousOnly],
     queryFn: async () => {
-      const res = await api.get<VoteItem[]>(`/votes`, { params: { nonUnanimousOnly } });
+      const res = await api.get<VoteItem[]>(`/votes`, { params: { nonUnanimousOnly, limit: 200 } });
       return res.data;
     },
   });

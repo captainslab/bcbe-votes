@@ -36,7 +36,10 @@ router.get(
   ),
   async (req, res, next) => {
     try {
-      const { limit = 50, offset = 0 } = req.query as { limit?: number; offset?: number };
+      const { query } = res.locals.validatedRequest as {
+        query?: { limit?: number; offset?: number };
+      };
+      const { limit = 200, offset = 0 } = query ?? {};
       const meetings = await listMeetings(limit, offset);
       res.json(meetings);
     } catch (err) {
@@ -54,7 +57,8 @@ router.get(
   ),
   async (req, res, next) => {
     try {
-      const meeting = await getMeeting(Number(req.params.id));
+      const { params } = res.locals.validatedRequest as { params: { id: number } };
+      const meeting = await getMeeting(params.id);
       if (!meeting) throw new HttpError(404, "Meeting not found");
       res.json(meeting);
     } catch (err) {
@@ -79,11 +83,14 @@ router.get(
   ),
   async (req, res, next) => {
     try {
-      const { limit = 50, offset = 0, nonUnanimousOnly = true } = req.query as {
-        limit?: number;
-        offset?: number;
-        nonUnanimousOnly?: boolean;
+      const { query } = res.locals.validatedRequest as {
+        query?: {
+          limit?: number;
+          offset?: number;
+          nonUnanimousOnly?: boolean;
+        };
       };
+      const { limit = 50, offset = 0, nonUnanimousOnly = true } = query ?? {};
       const votes = await listVotes(nonUnanimousOnly, limit, offset);
       res.json(votes);
     } catch (err) {
@@ -101,7 +108,8 @@ router.get(
   ),
   async (req, res, next) => {
     try {
-      const vote = await getVote(Number(req.params.id));
+      const { params } = res.locals.validatedRequest as { params: { id: number } };
+      const vote = await getVote(params.id);
       if (!vote) throw new HttpError(404, "Vote not found");
       res.json(vote);
     } catch (err) {
@@ -128,7 +136,8 @@ router.get(
   ),
   async (req, res, next) => {
     try {
-      const memberId = Number(req.params.id);
+      const { params } = res.locals.validatedRequest as { params: { id: number } };
+      const memberId = params.id;
       const member = await getMember(memberId);
       if (!member) throw new HttpError(404, "Member not found");
       const stats = (await getMemberStats()).find((s) => s.memberId === memberId);
@@ -167,7 +176,8 @@ router.get(
   ),
   async (req, res, next) => {
     try {
-      const memberId = Number(req.params.id);
+      const { params } = res.locals.validatedRequest as { params: { id: number } };
+      const memberId = params.id;
       const alignment = await getMemberAlignment(memberId);
       res.json(alignment);
     } catch (err) {

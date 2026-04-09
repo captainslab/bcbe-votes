@@ -2,12 +2,24 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db, schema } from "../db";
 import { normalizeWhitespace } from "../utils/text";
 
-export const listMeetings = async (limit = 50, offset = 0) => {
-  return db.query.meetings.findMany({
+export const listMeetings = async (limit = 200, offset = 0) => {
+  const meetings = await db.query.meetings.findMany({
     limit,
     offset,
     orderBy: (m, { desc: orderDesc }) => [orderDesc(m.date)],
+    with: {
+      voteItems: {
+        columns: {
+          id: true,
+        },
+      },
+    },
   });
+
+  return meetings.map(({ voteItems, ...meeting }) => ({
+    ...meeting,
+    voteItemCount: voteItems.length,
+  }));
 };
 
 export const getMeeting = async (id: number) => {

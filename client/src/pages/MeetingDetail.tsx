@@ -10,6 +10,8 @@ export const MeetingDetail = () => {
   if (error) return <p className="text-red-600">Failed to load meeting.</p>;
   if (!data) return null;
 
+  const voteItemCount = data.voteItems?.length ?? 0;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -34,38 +36,86 @@ export const MeetingDetail = () => {
       </div>
 
       <div className="space-y-4">
-        {data.voteItems?.map((item) => (
-          <Link
-            to={`/votes/${item.id}`}
-            key={item.id}
-            className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-slate-500">{item.agendaSection || "Agenda item"}</div>
-              <div className="flex flex-wrap gap-2">
-                <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
-                  {item.verificationStatus}
-                </Badge>
-                <Badge tone={item.isNonUnanimous ? "amber" : "emerald"}>
-                  {item.isNonUnanimous ? "Non-unanimous" : "Unanimous"}
-                </Badge>
-                <Badge tone="slate">{item.detectedPattern || "vote"}</Badge>
-              </div>
+        {voteItemCount === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">No extracted vote items yet</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This meeting is indexed, but the current persisted dataset does not yet include
+              structured vote items for it.
+            </p>
+            <div className="mt-4 space-y-2 text-sm text-slate-700">
+              <p>
+                <span className="font-semibold text-slate-900">Minutes source:</span>{" "}
+                {data.minutesUrl ? "available" : "not captured for this meeting"}
+              </p>
+              {data.sourceUrl && (
+                <a
+                  href={data.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block font-semibold text-slate-800 underline"
+                >
+                  Open official meeting page
+                </a>
+              )}
             </div>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              {item.summaryText || item.itemTitle}
-            </p>
-            <p className="mt-1 text-sm text-slate-700">{item.motionText || item.itemTitle}</p>
-            <p className="mt-2 text-sm text-slate-600 line-clamp-2">{item.sourceExcerpt}</p>
-            <p className="mt-2 text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">Source URL:</span>{" "}
-              <span className="break-all">{item.summarySource || data.sourceUrl}</span>
-            </p>
-            {item.summarySource && (
-              <p className="mt-1 text-xs text-slate-500">Traceable source preserved on the record.</p>
-            )}
-          </Link>
-        ))}
+          </div>
+        ) : (
+          data.voteItems?.map((item) => {
+            const summarySourceUrl =
+              item.summarySource && /^https?:\/\//i.test(item.summarySource)
+                ? item.summarySource
+                : null;
+            const officialSourceUrl = summarySourceUrl || data.sourceUrl;
+
+            return (
+              <div
+                key={item.id}
+                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm text-slate-500">{item.agendaSection || "Agenda item"}</div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
+                      {item.verificationStatus}
+                    </Badge>
+                    <Badge tone={item.isNonUnanimous ? "amber" : "emerald"}>
+                      {item.isNonUnanimous ? "Non-unanimous" : "Unanimous"}
+                    </Badge>
+                    <Badge tone="slate">{item.detectedPattern || "vote"}</Badge>
+                  </div>
+                </div>
+                <Link to={`/votes/${item.id}`} className="block">
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {item.summaryText || item.itemTitle}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">{item.motionText || item.itemTitle}</p>
+                  <p className="mt-2 text-sm text-slate-600 line-clamp-2">{item.sourceExcerpt}</p>
+                </Link>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                  <Link to={`/votes/${item.id}`} className="font-semibold text-slate-800 underline">
+                    Open vote detail
+                  </Link>
+                  {officialSourceUrl && (
+                    <a
+                      href={officialSourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="break-all font-semibold text-slate-800 underline"
+                    >
+                      Official source
+                    </a>
+                  )}
+                </div>
+                {item.summarySource && !summarySourceUrl && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Summary source: <span className="break-all">{item.summarySource}</span>
+                  </p>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

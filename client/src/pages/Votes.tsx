@@ -28,7 +28,7 @@ export const Votes = () => {
             checked={nonUnanimousOnly}
             onChange={(e) => setNonUnanimousOnly(e.target.checked)}
           />
-          Highlight non-unanimous only
+          Show only non-unanimous votes
         </label>
       </div>
 

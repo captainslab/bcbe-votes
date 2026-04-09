@@ -12,7 +12,9 @@ export const Meetings = () => {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Meetings</h1>
-        <p className="text-sm text-slate-600">Source-linked board meetings with motion data.</p>
+        <p className="text-sm text-slate-600">
+          Indexed board meetings with source links and extracted vote-item status.
+        </p>
       </div>
       <div className="grid gap-4">
         {data.map((meeting) => (
@@ -21,11 +23,29 @@ export const Meetings = () => {
             key={meeting.id}
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
           >
-            <div className="text-sm text-slate-500">
-              {new Date(meeting.date).toLocaleDateString()} · {meeting.type}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-slate-500">
+                {new Date(meeting.date).toLocaleDateString()} · {meeting.type}
+              </div>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  (meeting.voteItemCount ?? 0) > 0
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {(meeting.voteItemCount ?? 0) > 0
+                  ? `${meeting.voteItemCount} vote item${meeting.voteItemCount === 1 ? "" : "s"}`
+                  : "No vote items yet"}
+              </span>
             </div>
             <p className="mt-1 text-lg font-semibold text-slate-900">{meeting.title}</p>
-            <p className="text-xs text-slate-500">Source: {meeting.sourceUrl}</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {(meeting.voteItemCount ?? 0) > 0
+                ? "Open to review extracted vote items and source links."
+                : "Open for meeting details and source links; structured vote items are not available yet."}
+            </p>
+            <p className="mt-2 text-xs text-slate-500 break-all">Source: {meeting.sourceUrl}</p>
           </Link>
         ))}
       </div>
