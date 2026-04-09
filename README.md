@@ -105,12 +105,14 @@ Admin (Basic Auth; automation only)
 - `npm run build` — compile to `dist`
 - `npm run import:meetings` — ingest the live BCBE Simbli meeting listing
 - `npm run import:meetings -- --dry-run` — preview extracted meeting rows without writing
+- `npm run import:meeting-detail -- --dry-run --simbliId=28157` — preview one live meeting detail page
 - `npm run db:generate` / `npm run db:push` — Drizzle kit helpers (requires DATABASE_URL)
 
 ## Ingestion status
 
 - Meeting listing ingestion is live and idempotent.
-- Minutes URL derivation and meeting detail parsing are still deferred.
+- Meeting detail pages currently expose a JS-backed shell (`app-viewmeeting`) rather than populated agenda rows.
+- Minutes URL derivation and vote extraction are still deferred.
 
 ## Production notes
 
