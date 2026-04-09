@@ -105,15 +105,20 @@ Admin (Basic Auth; automation only)
 - `npm run build` — compile to `dist`
 - `npm run import:meetings` — ingest the live BCBE Simbli meeting listing
 - `npm run import:meetings -- --dry-run` — preview extracted meeting rows without writing
+- `npm run import:search-meetings` — drive the live Simbli search flow, then ingest searched meetings
+- `npm run import:search-meetings -- --dry-run` — preview the search/import payloads without writing
 - `npm run import:meeting-detail -- --dry-run --simbliId=28157` — preview one live meeting detail page
 - `npm run db:generate` / `npm run db:push` — Drizzle kit helpers (requires DATABASE_URL)
 
 ## Ingestion status
 
 - Meeting listing ingestion is live and idempotent.
+- Search-based meeting discovery now uses the live search UI, `SearchMeetingModule`, and `GetSearchedMeetingData` to recover numeric meeting IDs and agenda IDs.
 - Meeting detail pages use a client-side `OnClientSelectedIndexChanged` redirect to `/SB_Meetings/ViewMeeting.aspx?S={siteId}&MID={mid}`.
 - Public detail HTML still exposes a JS-backed shell (`app-viewmeeting`) rather than populated agenda rows.
-- Minutes URL derivation and vote extraction are still deferred.
+- The public detail shell boots a permission call at `/Services/api/GetMeetingPermission/?sct={sToken}&endid={enDID}&enmid={enMeetingID}&enuid={enCuUID}` and refreshes auth via `/CoreServices/api/Login/RefreshToken`.
+- That permission call is session-gated; calling it without the bootstrap IDs returns `500` with `{"Message":"An error has occurred."}`.
+- Agenda/content extraction still points at `/CoreServices/api/Search/GetSearchedMeetingData/` and the next vote-specific loader remains to be proven.
 
 ## Production notes
 

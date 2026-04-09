@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "import:meetings": "tsx src/scripts/importMeetingListing.ts",
     "import:meeting-detail": "tsx src/scripts/importMeetingDetail.ts",
+    "import:search-meetings": "tsx src/scripts/importSearchMeetings.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
