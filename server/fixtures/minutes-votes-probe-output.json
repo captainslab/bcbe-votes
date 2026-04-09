@@ -1,0 +1,263 @@
+{
+  "samples": [
+    {
+      "query": "carried",
+      "meetingDate": "2026-02-19T16:30:00",
+      "meetingTitle": "Regular Board Meeting",
+      "agendaTitle": "EXECUTIVE SESSION",
+      "agendaId": "DhSVnCjvYuPCslshiQdiUl9uw==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=DhSVnCjvYuPCslshiQdiUl9uw==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 27794,
+        "Meeting": {
+          "Title": "Regular Board Meeting",
+          "TitleDateTime": "02/19/2026 - 04:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "DhSVnCjvYuPCslshiQdiUl9uw==",
+          "EncrParentID": "uTbOqwcwJLoXpsTBd7v6JA==",
+          "Title": "EXECUTIVE SESSION",
+          "Sequence": "35",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "Mr. Woerner made a motion to convene into executive session for good name and character, seconded by Mr. Christenberry. Mr. Myrick called for the vote. All voiced approval. Mr. Myrick declared the motion carried.",
+          "VotingHTML": [
+            "<u>Motion made by:</u>&nbsp;Jason Woerner",
+            "<u>Motion seconded by:</u>&nbsp;Cecil Christenberry",
+            "Unanimously Approved"
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    },
+    {
+      "query": "carried",
+      "meetingDate": "2025-11-20T17:30:00",
+      "meetingTitle": "ORGANIZATIONAL MEETING",
+      "agendaTitle": "ELECTION OF VICE-PRESIDENT",
+      "agendaId": "1SgDIQEGKu7slshKKyQcIgtQw==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=1SgDIQEGKu7slshKKyQcIgtQw==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 27119,
+        "Meeting": {
+          "Title": "ORGANIZATIONAL MEETING",
+          "TitleDateTime": "11/20/2025 - 05:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "1SgDIQEGKu7slshKKyQcIgtQw==",
+          "EncrParentID": "NwsVFiBT7cZ2Fbrxq5Hslsh2w==",
+          "Title": "ELECTION OF VICE-PRESIDENT",
+          "Sequence": "g",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "Mr. Myrick opened the floor for nominations for Vice President. Mr. Christenberry made a motion to nominate Mrs. Bradley, seconded by Mr. Woerner. There being no further nominations, Mr. Myrick called for the vote. All voiced approval. Mr. Myrick declared the motion carried. Mrs. Bradley is Board Vice-President.",
+          "VotingHTML": [
+            "<u>Motion made by:</u>&nbsp;Cecil Christenberry",
+            "<u>Motion seconded by:</u>&nbsp;Jason Woerner",
+            "<li class='d-block w-100 font15'>Tony Myrick - Yes</li><li class='d-block w-100 font15'>April Bradley - Yes</li><li class='d-block w-100 font15'>Kenneth Bradley - Yes</li><li class='d-block w-100 font15'>Andrea Lindsey - Yes</li><li class='d-block w-100 font15'>Rondi Kirby - Yes</li><li class='d-block w-100 font15'>Jason Woerner - Yes</li><li class='d-block w-100 font15'>Cecil Christenberry - Yes</li>"
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    },
+    {
+      "query": "carried",
+      "meetingDate": "2025-10-23T17:30:00",
+      "meetingTitle": "Regular Board Meeting",
+      "agendaTitle": "EXECUTIVE SESSION",
+      "agendaId": "TUtn5MvqslshAgsdSn0UfGeBw==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=TUtn5MvqslshAgsdSn0UfGeBw==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 26936,
+        "Meeting": {
+          "Title": "Regular Board Meeting",
+          "TitleDateTime": "10/23/2025 - 05:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "TUtn5MvqslshAgsdSn0UfGeBw==",
+          "EncrParentID": "RZfCWslsh8KZsL8veAMNTfNlA==",
+          "Title": "EXECUTIVE SESSION",
+          "Sequence": "33",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "Mrs. Bradley made a motion to convene into executive session for discussion of real estate, seconded by Mrs. Kirby. Mr. Christenberry called for the vote. All voiced approval. Mr. Christenberry declared the motion carried. Following the executive session, the meeting was adjourned.",
+          "VotingHTML": [
+            null,
+            null,
+            null
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    },
+    {
+      "query": "carried",
+      "meetingDate": "2025-07-29T16:30:00",
+      "meetingTitle": "Special Board Meeting",
+      "agendaTitle": "OWNER/ENGINEER PROPOSALS",
+      "agendaId": "D9Wql6WmvQLwB0pIp8GOJQ==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=D9Wql6WmvQLwB0pIp8GOJQ==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 26222,
+        "Meeting": {
+          "Title": "Special Board Meeting",
+          "TitleDateTime": "07/29/2025 - 04:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "D9Wql6WmvQLwB0pIp8GOJQ==",
+          "EncrParentID": "jutt1kXhPDOSAva7VyZAIw==",
+          "Title": "OWNER/ENGINEER PROPOSALS",
+          "Sequence": "2",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "The superintendent recommends adoption of a motion \"to approve the contract with Sawgrass Consulting, LLC., for engineering services, in a form similar to the attached, related to surveys for athletic enhancement projects as stipulated in the agenda exhibit.\" Mr. Bradley made a motion to correct the wording of the motion to \"...related to site surveys for new cafeterias, renovation of existing cafeterias and media centers...,\" seconded by Mrs. Kirby. Mr. Christenberry called for the vote. All voiced approval. Mr. Christenberry declared the motion carried. Mr. Woerner made a motion to approve the amended motion, seconded by Mrs. Bradley. Mr. Christenberry called for the vote. All voiced approval. Mr. Christenberry declared the motion carried.",
+          "VotingHTML": [
+            "<u>Motion made by:</u>&nbsp;Jason Woerner",
+            "<u>Motion seconded by:</u>&nbsp;April Bradley",
+            "Unanimously Approved"
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    },
+    {
+      "query": "carried",
+      "meetingDate": "2025-07-17T17:30:00",
+      "meetingTitle": "Regular Board Meeting",
+      "agendaTitle": "EXECUTIVE SESSION",
+      "agendaId": "eesIMFhnWefLaPXB8ZCVPQ==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=eesIMFhnWefLaPXB8ZCVPQ==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 26009,
+        "Meeting": {
+          "Title": "Regular Board Meeting",
+          "TitleDateTime": "07/17/2025 - 05:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "eesIMFhnWefLaPXB8ZCVPQ==",
+          "EncrParentID": "25slshW2ls4u5ypluskUt1XhesVA==",
+          "Title": "EXECUTIVE SESSION",
+          "Sequence": "28",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "Mrs. Bradley made a motion to convene into executive session for discussion of possible/pending litigation, seconded by Mrs. Lindsey. Mr. Christenberry called for a roll call vote. All voiced approval. Mr. Christenberry declared the motion carried. Following the executive session, the meeting adjourned.",
+          "VotingHTML": [
+            "<u>Motion made by:</u>&nbsp;April Bradley",
+            "<u>Motion seconded by:</u>&nbsp;Andrea Lindsey",
+            "Unanimously Approved"
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    },
+    {
+      "query": "no",
+      "meetingDate": "2026-02-19T16:30:00",
+      "meetingTitle": "Regular Board Meeting",
+      "agendaTitle": "BID ADDENDUM - BALDWIN COUNTY EARLY LEARNING ACADEMY",
+      "agendaId": "X4QGuthIou63Jslshe8ohN3cA==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=X4QGuthIou63Jslshe8ohN3cA==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 27794,
+        "Meeting": {
+          "Title": "Regular Board Meeting",
+          "TitleDateTime": "02/19/2026 - 04:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "X4QGuthIou63Jslshe8ohN3cA==",
+          "EncrParentID": "uTbOqwcwJLoXpsTBd7v6JA==",
+          "Title": "BID ADDENDUM - BALDWIN COUNTY EARLY LEARNING ACADEMY",
+          "Sequence": "34",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "The motion was made from the table \"to amend the bid for the Baldwin County Early Learning Academy to delay the bid opening until further notice.\"",
+          "VotingHTML": [
+            "<u>Motion made by:</u>&nbsp;Rondi Kirby",
+            "<u>Motion seconded by:</u>&nbsp;Kenneth Bradley",
+            "Unanimously Approved"
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    },
+    {
+      "query": "abstain",
+      "meetingDate": "2024-11-21T17:30:00",
+      "meetingTitle": "ORGANIZATIONAL MEETING",
+      "agendaTitle": "BOARD COMPENSATION",
+      "agendaId": "uairToFVtTb3Gpluslfxdfq7Q==",
+      "sourceType": "DotNetStandardEntities.SearchEntities.Meeting.MinutesSearch",
+      "requestPath": "/Services/api/GetCompleteAgendaItem_V1/?sct=ZekKE44z6voP8TArAiQr1KqQ7APJMDvo3Mr5tEPYHAow2XgYXKhCVFLu2pHhFaTMoGVOGKg8vFV2Yz70u3sDLEVU4nY7qDAdNvoAJgGmnzjBEfmMTseZAXEzpY4u1Boz&sid=5NRPgquRlNnivNRBQhp7jw==&iid=uairToFVtTb3Gpluslfxdfq7Q==&uid=",
+      "rawPayloadSample": {
+        "MeetingId": 24159,
+        "Meeting": {
+          "Title": "ORGANIZATIONAL MEETING",
+          "TitleDateTime": "11/21/2024 - 05:30 PM",
+          "IsPublished": true,
+          "IsMinutesPublished": false
+        },
+        "itemDetails": {
+          "EncrID": "uairToFVtTb3Gpluslfxdfq7Q==",
+          "EncrParentID": "dUDZslsht6x6nS7oDSeuYpoag==",
+          "Title": "BOARD COMPENSATION",
+          "Sequence": "h",
+          "Level": 1
+        },
+        "Minutes": {
+          "Minutes": "This item is placed on the agenda to consider an increase in board members' monthly compensation to $900/month per Act 2024-331, amended Section 16-1-26, Code of Alabama. Mrs. Bradley made a motion to increase the board members' monthly compensation to $900, seconded by Mrs. Kirby. Mr. Christenberry called for the vote. All voiced approval, except for Mr. Bradley and Mrs. Lindsey, who voted \"no\" and Mr. Myrick, who abstained. Mr. Christenberry declared the motion carries.",
+          "VotingHTML": [
+            "<u>Motion made by:</u>&nbsp;April Bradley",
+            "<u>Motion seconded by:</u>&nbsp;Rondi Kirby",
+            "<li class='d-block w-100 font15'>Jason Woerner - Yes</li><li class='d-block w-100 font15'>Andrea Lindsey - No</li><li class='d-block w-100 font15'>Tony Myrick - Abstain</li><li class='d-block w-100 font15'>Rondi Kirby - Yes</li><li class='d-block w-100 font15'>Cecil Christenberry - Yes</li><li class='d-block w-100 font15'>April Bradley - Yes</li><li class='d-block w-100 font15'>Kenneth Bradley - No</li>"
+          ]
+        },
+        "ShowMinutes": true,
+        "UserPermission": {
+          "CanSeeMinutes": true
+        }
+      }
+    }
+  ]
+}

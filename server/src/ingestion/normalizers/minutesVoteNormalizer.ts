@@ -16,10 +16,14 @@ export type MinutesVoteBucket =
 
 export type MinutesVoteFailureCode =
   | "multi-motion-item"
-  | "collapsed-voting-html"
-  | "narrative-only-outcome"
   | "ambiguous-result-summary"
-  | "missing-motion-text";
+  | "missing-motion-text"
+  | "conflicting-tally";
+
+export type MinutesVoteSignalCode =
+  | MinutesVoteFailureCode
+  | "collapsed-voting-html"
+  | "narrative-only-outcome";
 
 export type MinutesVoteProofInput = {
   meetingDate: string;
@@ -46,6 +50,7 @@ export type NormalizedMinutesVoteProof = {
   confidenceLabel: "high" | "medium" | "low";
   verificationStatus: ParsedVoteItem["verificationStatus"];
   persistReady: boolean;
+  signalCodes: MinutesVoteSignalCode[];
   confidenceRules: string[];
   verificationRules: string[];
   failureCodes: MinutesVoteFailureCode[];
@@ -303,11 +308,18 @@ const deriveWarnings = (flags: DetectionFlags) => {
 const deriveFailureCodes = (flags: DetectionFlags) => {
   const failures: MinutesVoteFailureCode[] = [];
   if (flags.multiMotionItem) failures.push("multi-motion-item");
-  if (flags.collapsedVotingHtml) failures.push("collapsed-voting-html");
-  if (flags.narrativeOnlyOutcome) failures.push("narrative-only-outcome");
   if (flags.ambiguousResultSummary) failures.push("ambiguous-result-summary");
   if (flags.missingMotionText) failures.push("missing-motion-text");
+  if (flags.conflictingTally) failures.push("conflicting-tally");
   return failures;
+};
+
+const deriveSignalCodes = (flags: DetectionFlags) => {
+  const signalCodes: MinutesVoteSignalCode[] = [];
+  if (flags.collapsedVotingHtml) signalCodes.push("collapsed-voting-html");
+  if (flags.narrativeOnlyOutcome) signalCodes.push("narrative-only-outcome");
+  signalCodes.push(...deriveFailureCodes(flags));
+  return signalCodes;
 };
 
 export const normalizeMinutesVoteProof = (
@@ -342,12 +354,17 @@ export const normalizeMinutesVoteProof = (
         explicitTally.no !== (derivedTally.no ?? 0) ||
         (explicitTally.abstain ?? 0) !== (derivedTally.abstain ?? 0)),
   );
+  const normalizedResultText = normalizeWhitespace(input.extractedVote.finalResultText ?? "");
+  const repeatedOutcomeMarkers =
+    normalizedResultText.match(
+      /\b(all voiced approval|declared the motion|unanimously approved|motion carr(?:ies|ied)|approved|passed|carried)\b/gi,
+    ) ?? [];
   const ambiguousResultSummary = Boolean(
-    input.extractedVote.finalResultText &&
-      (/made a motion/i.test(input.extractedVote.finalResultText) ||
-        ((input.extractedVote.finalResultText.match(/\b(all voiced approval|declared the motion|carried|approved|passed)\b/gi) ?? [])
-          .length > 2 &&
-          voteRecords.length === 0)),
+    normalizedResultText &&
+      (/\b(made a motion|motion was made|motion made by|motion seconded by|seconded by|called for (?:the )?vote)\b/i.test(
+        normalizedResultText,
+      ) ||
+        repeatedOutcomeMarkers.length > 3),
   );
   const missingMotionText = motionTextCandidates.length === 0;
 
@@ -428,6 +445,7 @@ export const normalizeMinutesVoteProof = (
     confidenceLabel,
     verificationStatus,
     persistReady: !multiMotionItem && bucket !== "summary-only",
+    signalCodes: deriveSignalCodes(flags),
     confidenceRules: minutesVotePatternRules[bucket].confidence,
     verificationRules: minutesVotePatternRules[bucket].verification,
     failureCodes: deriveFailureCodes(flags),

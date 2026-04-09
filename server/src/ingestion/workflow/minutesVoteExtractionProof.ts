@@ -11,6 +11,7 @@ import { extractMinutesVoteSummary } from "../parsers/minutesVoteParser";
 import { parseSearchMeetingModuleResponse } from "../parsers/searchMeetingParser";
 import { normalizeWhitespace } from "../../utils/text";
 import type { ParsedVoteItem } from "../parsers/simbliParser";
+import type { MinutesVoteSignalCode } from "../normalizers/minutesVoteNormalizer";
 
 export type MinutesVoteExtractionProofOptions = {
   queries: string[];
@@ -98,6 +99,37 @@ type ProbeOutputSample = {
   };
 };
 
+type ShowcaseCase = {
+  query: string;
+  meetingDate: string;
+  meetingTitle: string;
+  meetingId: number;
+  agendaId: string;
+  agendaTitle: string | null;
+  bucket: ReturnType<typeof normalizeMinutesVoteProof>["bucket"];
+  verificationStatus: ReturnType<typeof normalizeMinutesVoteProof>["verificationStatus"];
+  confidenceScore: number;
+  result: ParsedVoteItem["result"] | null;
+  voteTally: ParsedVoteItem["voteTally"];
+  voteRecordCount: number;
+  warningCodes: MinutesVoteSignalCode[];
+  warnings: string[];
+};
+
+type RemainingFailureModeCase = {
+  agendaId: string;
+  meetingId: number;
+  meetingDate: string;
+  meetingTitle: string;
+  agendaTitle: string | null;
+  warnings: string[];
+};
+
+type RemainingFailureModes = Record<
+  "collapsed-voting-html" | "narrative-only-outcome" | "ambiguous-result-summary" | "multi-motion-item",
+  RemainingFailureModeCase[]
+>;
+
 const tallyBy = <T extends string>(values: T[]) =>
   Object.fromEntries(
     Object.entries(
@@ -107,6 +139,77 @@ const tallyBy = <T extends string>(values: T[]) =>
       }, {}),
     ).sort((left, right) => right[1] - left[1]),
   );
+
+const sortSamplesByStrength = (left: ProofSample, right: ProofSample) =>
+  right.normalized.voteRecords.length - left.normalized.voteRecords.length ||
+  right.normalized.confidenceScore - left.normalized.confidenceScore ||
+  left.agendaTitle?.localeCompare(right.agendaTitle ?? "") ||
+  0;
+
+const toShowcaseCase = (sample: ProofSample): ShowcaseCase => ({
+  query: sample.query,
+  meetingDate: sample.meetingDate,
+  meetingTitle: sample.meetingTitle,
+  meetingId: sample.meetingId,
+  agendaId: sample.agendaId,
+  agendaTitle: sample.agendaTitle,
+  bucket: sample.normalized.bucket,
+  verificationStatus: sample.normalized.verificationStatus,
+  confidenceScore: sample.normalized.confidenceScore,
+  result: sample.normalized.voteItem.result ?? null,
+  voteTally: sample.normalized.voteItem.voteTally,
+  voteRecordCount: sample.normalized.voteRecords.length,
+  warningCodes: sample.normalized.signalCodes,
+  warnings: sample.normalized.warnings,
+});
+
+const selectShowcaseCase = (
+  samples: ProofSample[],
+  predicate: (sample: ProofSample) => boolean,
+) => samples.filter(predicate).sort(sortSamplesByStrength)[0] ?? null;
+
+const buildRemainingFailureModes = (samples: ProofSample[]): RemainingFailureModes => ({
+  "collapsed-voting-html": samples
+    .filter((sample) => sample.normalized.signalCodes.includes("collapsed-voting-html"))
+    .map((sample) => ({
+      agendaId: sample.agendaId,
+      meetingId: sample.meetingId,
+      meetingDate: sample.meetingDate,
+      meetingTitle: sample.meetingTitle,
+      agendaTitle: sample.agendaTitle,
+      warnings: sample.normalized.warnings,
+    })),
+  "narrative-only-outcome": samples
+    .filter((sample) => sample.normalized.signalCodes.includes("narrative-only-outcome"))
+    .map((sample) => ({
+      agendaId: sample.agendaId,
+      meetingId: sample.meetingId,
+      meetingDate: sample.meetingDate,
+      meetingTitle: sample.meetingTitle,
+      agendaTitle: sample.agendaTitle,
+      warnings: sample.normalized.warnings,
+    })),
+  "ambiguous-result-summary": samples
+    .filter((sample) => sample.normalized.signalCodes.includes("ambiguous-result-summary"))
+    .map((sample) => ({
+      agendaId: sample.agendaId,
+      meetingId: sample.meetingId,
+      meetingDate: sample.meetingDate,
+      meetingTitle: sample.meetingTitle,
+      agendaTitle: sample.agendaTitle,
+      warnings: sample.normalized.warnings,
+    })),
+  "multi-motion-item": samples
+    .filter((sample) => sample.normalized.signalCodes.includes("multi-motion-item"))
+    .map((sample) => ({
+      agendaId: sample.agendaId,
+      meetingId: sample.meetingId,
+      meetingDate: sample.meetingDate,
+      meetingTitle: sample.meetingTitle,
+      agendaTitle: sample.agendaTitle,
+      warnings: sample.normalized.warnings,
+    })),
+});
 
 const hasDatabaseUrl = async () => {
   try {
@@ -526,13 +629,51 @@ export const runMinutesVoteExtractionProof = async (
     Boolean(options.persist),
   );
   const distributionByVoteShape = tallyBy(samples.map((sample) => sample.normalized.bucket));
+  const showcaseCases = {
+    unanimousWithMemberVotes: (() => {
+      const sample = selectShowcaseCase(
+        samples,
+        (candidate) => candidate.normalized.bucket === "unanimous-with-member-votes",
+      );
+      return sample ? toShowcaseCase(sample) : null;
+    })(),
+    mixedOrTallyBearing: (() => {
+      const sample = selectShowcaseCase(
+        samples,
+        (candidate) =>
+          candidate.normalized.bucket === "mixed-narrative" ||
+          candidate.normalized.bucket === "tally-only",
+      );
+      return sample ? toShowcaseCase(sample) : null;
+    })(),
+    narrativeOnly: (() => {
+      const sample = selectShowcaseCase(
+        samples,
+        (candidate) =>
+          candidate.normalized.bucket === "unanimous-narrative-only" ||
+          candidate.normalized.bucket === "summary-only",
+      );
+      return sample ? toShowcaseCase(sample) : null;
+    })(),
+  };
+  const missingShowcaseCases = Object.entries(showcaseCases)
+    .filter(([, sample]) => !sample)
+    .map(([caseName]) => caseName);
+  const remainingFailureModes = buildRemainingFailureModes(samples);
 
   return {
     queries,
+    proofInput: {
+      source: options.probeOutputPath ? "saved-probe-output" : "live-discovery",
+      probeOutputPath: options.probeOutputPath ?? null,
+    },
     queryErrors,
     discoveredMinutesRows,
     sampledItems: samples.length,
     distributionByVoteShape,
+    showcaseCases,
+    missingShowcaseCases,
+    remainingFailureModes,
     exactFailureCases: samples
       .flatMap((sample) =>
         sample.normalized.failureCodes.map((failureCode) => ({
@@ -553,16 +694,16 @@ export const runMinutesVoteExtractionProof = async (
       ]),
     ),
     persistence,
-    samples: samples.map((sample) => ({
-      query: sample.query,
-      meetingDate: sample.meetingDate,
-      meetingTitle: sample.meetingTitle,
-      meetingId: sample.meetingId,
+      samples: samples.map((sample) => ({
+        query: sample.query,
+        meetingDate: sample.meetingDate,
+        meetingTitle: sample.meetingTitle,
+        meetingId: sample.meetingId,
       agendaId: sample.agendaId,
       agendaTitle: sample.agendaTitle,
-      requestUrl: sample.requestUrl,
-      extractedVote: sample.extractedVote,
-      normalized: sample.normalized,
-    })),
+        requestUrl: sample.requestUrl,
+        extractedVote: sample.extractedVote,
+        normalized: sample.normalized,
+      })),
   };
 };

@@ -1,6 +1,9 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { runMinutesVoteExtractionProof } from "../ingestion/workflow/minutesVoteExtractionProof";
 
 const args = process.argv.slice(2);
+const defaultProbeOutputPath = resolve(process.cwd(), "fixtures/minutes-votes-probe-output.json");
 
 const readArg = (name: string) => {
   const prefix = `--${name}=`;
@@ -14,7 +17,11 @@ const queries = (readArg("queries") || "carried,no,failed,unanimous,ayes,nays,ab
   .filter(Boolean);
 const maxItems = Number(readArg("maxItems") || "8");
 const remoteDebugPort = Number(readArg("remoteDebugPort") || "9222");
-const probeOutputPath = readArg("probeOutput");
+const requestedProbeOutputPath = readArg("probeOutput");
+const useLiveDiscovery = args.includes("--live") && !requestedProbeOutputPath;
+const probeOutputPath =
+  requestedProbeOutputPath ??
+  (!useLiveDiscovery && existsSync(defaultProbeOutputPath) ? defaultProbeOutputPath : undefined);
 const persist = args.includes("--persist");
 
 const main = async () => {
@@ -27,6 +34,10 @@ const main = async () => {
   });
 
   console.log(JSON.stringify(result, null, 2));
+
+  if (result.missingShowcaseCases.length > 0) {
+    process.exitCode = 1;
+  }
 };
 
 main().catch((error) => {

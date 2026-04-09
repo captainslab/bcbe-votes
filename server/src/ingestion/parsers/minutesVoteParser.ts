@@ -397,24 +397,41 @@ const collectClueSentences = (sentences: string[], votingLines: string[]) => {
   return uniq([...clueSentences, ...votingLines.filter((line) => voteCluePattern.test(line))]);
 };
 
-const buildFinalResultText = (sentences: string[], clueSentences: string[], tally: ExtractedVoteTally | null) => {
-  const resultSentences = sentences.filter((sentence) => resultPattern.test(sentence));
+const buildFinalResultText = (
+  sentences: string[],
+  votingLines: string[],
+  clueSentences: string[],
+  tally: ExtractedVoteTally | null,
+) => {
+  const resultSentences = uniq(
+    sentences.filter(
+      (line) =>
+        resultPattern.test(line) &&
+        !/\b(motion made by|motion seconded by)\b/i.test(line),
+    ),
+  );
   if (resultSentences.length > 0) {
     return normalizeWhitespace(resultSentences.join(" "));
   }
 
-  const voteCallMatch = clueSentences.find((sentence) =>
-    /\bcalled for the vote\b/i.test(sentence),
+  const resultVotingLines = uniq(
+    votingLines.filter(
+      (line) =>
+        resultPattern.test(line) &&
+        !/\b(motion made by|motion seconded by)\b/i.test(line),
+    ),
   );
-  if (voteCallMatch) {
-    return normalizeWhitespace(
-      [voteCallMatch, ...sentences.filter((sentence) => resultPattern.test(sentence))].join(" "),
-    );
+  if (resultVotingLines.length > 0) {
+    return normalizeWhitespace(resultVotingLines.join(" "));
+  }
+
+  const resultClues = clueSentences.filter((sentence) => resultPattern.test(sentence));
+  if (resultClues.length > 0) {
+    return normalizeWhitespace(resultClues.join(" "));
   }
 
   if (tally?.rawText) return tally.rawText;
-  if (clueSentences.length > 0) return normalizeWhitespace(clueSentences.join(" "));
-  return null;
+  return clueSentences.length > 0 ? normalizeWhitespace(clueSentences[clueSentences.length - 1]) : null;
 };
 
 const toVotingLines = (value: string | null | undefined) => {
@@ -551,7 +568,7 @@ export const extractMinutesVoteSummary = (
     ...votingLines.flatMap((line) => extractMemberVotesFromText(line, "voting-html")),
   ];
   const { memberVotes, failureReasons: voteFailures } = mergeMemberVotes(extractedVotes);
-  const finalResultText = buildFinalResultText(sentences, voteBearingClues, tally);
+  const finalResultText = buildFinalResultText(sentences, votingLines, voteBearingClues, tally);
   const summaryText = sentences[0] ?? normalizeWhitespace(response.itemDetails.Title) ?? null;
   const motionText = extractMotionText(minutesText, response.itemDetails.Title);
   const voteShape = deriveVoteShape(
