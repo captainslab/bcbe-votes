@@ -2,7 +2,7 @@ import axios from "axios";
 import { withRetry } from "../../utils/retry";
 
 const SITE_ID = "200015";
-const SEARCH_URL = `https://simbli.eboardsolutions.com/Search/ShowSearchResults.aspx?S=${SITE_ID}`;
+const SEARCH_URL = `https://simbli.eboardsolutions.com/Index.aspx?S=${SITE_ID}`;
 
 type ChromeTarget = {
   id: string;
@@ -34,6 +34,13 @@ export type SearchBrowserRun = {
   searchedMeetingDataText: string;
 };
 
+export type SearchMeetingModuleBrowserRun = {
+  searchUrl: string;
+  searchRequestBody: string;
+  searchResponseText: string;
+  searchRequestUrl: string;
+};
+
 type SearchBrowserOptions = {
   query?: string;
   timeoutMs?: number;
@@ -61,12 +68,14 @@ const openSearchTarget = async (port: number, url: string) => {
     delayMs: 500,
   });
 
-  const existing = targets.find((target) => target.url.includes("/Search/ShowSearchResults.aspx"));
+  const existing =
+    targets.find((target) => target.url.includes("/Index.aspx?S=200015")) ??
+    targets.find((target) => target.url.includes("/Search/ShowSearchResults.aspx"));
   if (existing?.webSocketDebuggerUrl) {
     return existing.webSocketDebuggerUrl;
   }
 
-  const created = await axios.get<ChromeTarget>(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`, {
+  const created = await axios.put<ChromeTarget>(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(url)}`, undefined, {
     timeout: 10_000,
   });
 
@@ -159,26 +168,31 @@ const clickSearchPopup = async (
       const popup = document.querySelector('#dvMySearchPopup');
       const input = popup?.querySelector('input[placeholder="Enter your search keyword here"]');
       if (!input) throw new Error('Simbli search input not found');
+      const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
       input.focus();
-      input.value = ${JSON.stringify(searchText)};
+      setValue?.call(input, ${JSON.stringify(searchText)});
       input.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(searchText)}, inputType: 'insertText' }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
       const meetingToggle = popup?.querySelector('#meetingToggle');
       if (meetingToggle && 'checked' in meetingToggle && !meetingToggle.checked) meetingToggle.click();
+      const keywordButton = popup?.querySelector('button[aria-label="Search Keyword"]');
+      keywordButton?.click();
     })()`,
   });
+
+  await wait(1_000);
 
   await waitFor(async () => {
     const result = await send<{ result: { value: boolean } }>("Runtime.evaluate", {
       expression: `(() => {
         const popup = document.querySelector('#dvMySearchPopup');
         const button = popup ? [...popup.querySelectorAll('button')].find((el) => (el.textContent || '').trim() === 'Search') : null;
-        return Boolean(button && !button.hasAttribute('disabled') && !button.disabled);
+        return Boolean(button) && !button.classList.contains('disabled-btn');
       })()`,
       returnByValue: true,
     });
-    return Boolean(result.result.value);
-  }, 10_000);
+    return result.result.value;
+  }, 15_000);
 
   await send("Runtime.evaluate", {
     expression: `(() => {
@@ -196,6 +210,93 @@ const getResponseBody = async (
 ) => {
   const body = await send<{ body: string }>("Network.getResponseBody", { requestId });
   return body.body;
+};
+
+export const fetchSearchMeetingModule = async (
+  options: SearchBrowserOptions = {},
+): Promise<SearchMeetingModuleBrowserRun> => {
+  const { query, timeoutMs, remoteDebugPort } = { ...defaultOptions, ...options };
+  const searchUrl = SEARCH_URL;
+  const webSocketDebuggerUrl = await openSearchTarget(remoteDebugPort, searchUrl);
+  const { socket, send, on } = await createCdpSession(webSocketDebuggerUrl);
+
+  const events: CapturedEvent[] = [];
+  const recordEvent = (type: "request" | "response") => (params: Record<string, unknown>) => {
+    const request = params.request as
+      | { url?: string; method?: string; postData?: string }
+      | undefined;
+    const response = params.response as { url?: string; status?: number } | undefined;
+    const url = request?.url ?? response?.url;
+    if (!url || !url.includes("SearchMeetingModule")) {
+      return;
+    }
+
+    const capturedEvent: CapturedEvent = {
+      type,
+      url,
+      requestId: String(params.requestId ?? ""),
+      postData: request?.postData ?? null,
+    };
+    if (request?.method) capturedEvent.method = request.method;
+    if (response?.status) capturedEvent.status = response.status;
+    events.push(capturedEvent);
+  };
+
+  on("Network.requestWillBeSent", recordEvent("request"));
+  on("Network.responseReceived", recordEvent("response"));
+
+  try {
+    await send("Page.enable");
+    await send("Runtime.enable");
+    await send("Network.enable");
+
+    await send("Page.navigate", { url: searchUrl });
+    await waitFor(async () => {
+      const result = await send<{ result: { value: { href: string; title: string; hasTopSearchButton: boolean } } }>(
+        "Runtime.evaluate",
+        {
+          expression: `({
+            href: location.href,
+            title: document.title,
+            hasTopSearchButton: !!document.getElementById('topSearchButton')
+          })`,
+          returnByValue: true,
+        },
+      );
+      return (
+        result.result.value.title.includes("Search") ||
+        result.result.value.href.includes("/Index.aspx?S=200015") ||
+        result.result.value.hasTopSearchButton
+      );
+    }, timeoutMs);
+
+    await clickSearchPopup(send, query);
+    await wait(8_000);
+
+    const searchResponse = events
+      .filter((event) => event.type === "response" && event.url.includes("SearchMeetingModule"))
+      .slice(-1)[0];
+    if (!searchResponse?.requestId) {
+      throw new Error("SearchMeetingModule response was not captured");
+    }
+
+    const searchRequest = events
+      .filter((event) => event.type === "request" && event.url.includes("SearchMeetingModule"))
+      .slice(-1)[0];
+    if (!searchRequest?.postData) {
+      throw new Error("SearchMeetingModule request body was not captured");
+    }
+
+    const searchResponseText = await getResponseBody(send, searchResponse.requestId);
+    return {
+      searchUrl,
+      searchRequestUrl: "https://simbli.eboardsolutions.com/CoreServices/api/Search/SearchMeetingModule",
+      searchRequestBody: searchRequest.postData,
+      searchResponseText,
+    };
+  } finally {
+    socket.close();
+  }
 };
 
 export const fetchSimbliSearchFlow = async (options: SearchBrowserOptions = {}): Promise<SearchBrowserRun> => {
@@ -241,11 +342,22 @@ export const fetchSimbliSearchFlow = async (options: SearchBrowserOptions = {}):
 
     await send("Page.navigate", { url: searchUrl });
     await waitFor(async () => {
-      const result = await send<{ result: { value: string } }>("Runtime.evaluate", {
-        expression: "document.title",
-        returnByValue: true,
-      });
-      return result.result.value === "Search Result";
+      const result = await send<{ result: { value: { href: string; title: string; hasTopSearchButton: boolean } } }>(
+        "Runtime.evaluate",
+        {
+          expression: `({
+            href: location.href,
+            title: document.title,
+            hasTopSearchButton: !!document.getElementById('topSearchButton')
+          })`,
+          returnByValue: true,
+        },
+      );
+      return (
+        result.result.value.title.includes("Search") ||
+        result.result.value.href.includes("/Index.aspx?S=200015") ||
+        result.result.value.hasTopSearchButton
+      );
     }, timeoutMs);
 
     await clickSearchPopup(send, query);
@@ -294,6 +406,7 @@ export const fetchSimbliSearchFlow = async (options: SearchBrowserOptions = {}):
         if (!target) throw new Error('Searched meeting item not found');
         target.click();
       })()`,
+      returnByValue: true,
     });
     await wait(8_000);
 
