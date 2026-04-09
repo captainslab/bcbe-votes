@@ -270,6 +270,7 @@ export const fetchSearchMeetingModule = async (
       );
     }, timeoutMs);
 
+    await wait(4_500);
     await clickSearchPopup(send, query);
     await wait(8_000);
 
@@ -360,6 +361,7 @@ export const fetchSimbliSearchFlow = async (options: SearchBrowserOptions = {}):
       );
     }, timeoutMs);
 
+    await wait(4_500);
     await clickSearchPopup(send, query);
     await wait(8_000);
 

@@ -109,6 +109,7 @@ Admin (Basic Auth; automation only)
 - `npm run import:search-meetings -- --dry-run` — preview the search/import payloads without writing
 - `npm run probe:agenda-item -- --enSiteId=... --agendaId=...` — probe the agenda/item loader and inspect returned content fields
 - `npm run probe:agenda-tree -- --query='board' --meetingTitle='Special Board Meeting' --meetingDate='2026-04-07'` — replay live search, enumerate meeting agenda nodes, and probe each item for decision-bearing content
+- `npm run probe:minutes-votes -- --queries=carried,no --maxItems=4` — collect live minutes-backed agenda items, inspect `Minutes` / `VotingHTML`, and emit structured vote extraction fields
 - `npm run import:meeting-detail -- --dry-run --simbliId=28157` — preview one live meeting detail page
 - `npm run db:generate` / `npm run db:push` — Drizzle kit helpers (requires DATABASE_URL)
 
@@ -119,6 +120,7 @@ Admin (Basic Auth; automation only)
 - The next agenda/item loader is `GET /Services/api/GetCompleteAgendaItem_V1/?sct={sToken}&sid={enSiteId}&iid={agendaId}&uid={currUserId}` and returns `Meeting`, `itemDetails`, `itemContents`, `Minutes`, `PublicComments`, `ShowTasks`, and `UserPermission`.
 - Agenda tree traversal is now proven from live search rows: `SearchMeetingModule` returns descendant `AgendaId` values such as `LEAVES OF ABSENCE OF PERSONNEL`, `RESCISSION OF RETIREMENT AND RESIGNATIONS OF PERSONNEL`, and paired `Board View` children for the same meeting.
 - Level-1 agenda items expose substantive `requestedAction` text like superintendent recommendations and motion language; level-2 `Board View` children expose supporting-document attachments for those items.
+- Minutes-backed search hits (`SourceType = MinutesSearch`, `ExistInMinutes = true`) can also be opened through `GetCompleteAgendaItem_V1`; minutes/result text lives under `Minutes.Minutes` and `Minutes.VotingHTML`, while adjacent `GetMeetingItemDetails` calls can still return `204`.
 - Meeting detail pages use a client-side `OnClientSelectedIndexChanged` redirect to `/SB_Meetings/ViewMeeting.aspx?S={siteId}&MID={mid}`.
 - Public detail HTML still exposes a JS-backed shell (`app-viewmeeting`) rather than populated agenda rows.
 - The public detail shell boots a permission call at `/Services/api/GetMeetingPermission/?sct={sToken}&endid={enDID}&enmid={enMeetingID}&enuid={enCuUID}` and refreshes auth via `/CoreServices/api/Login/RefreshToken`.
