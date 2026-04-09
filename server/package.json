@@ -15,6 +15,7 @@
     "probe:agenda-tree": "tsx src/scripts/probeAgendaTree.ts",
     "probe:minutes-votes": "tsx src/scripts/probeMinutesVotes.ts",
     "prove:minutes-votes": "tsx src/scripts/proveMinutesVoteExtraction.ts",
+    "normalize:member-aliases": "tsx src/scripts/normalizeBoardMemberAliases.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

@@ -12,6 +12,11 @@ import { parseSearchMeetingModuleResponse } from "../parsers/searchMeetingParser
 import { normalizeWhitespace } from "../../utils/text";
 import type { ParsedVoteItem } from "../parsers/simbliParser";
 import type { MinutesVoteSignalCode } from "../normalizers/minutesVoteNormalizer";
+import {
+  canonicalizeBoardMemberName,
+  getBoardMemberLookupVariants,
+  mergeBoardMemberAliases,
+} from "../../utils/boardMembers";
 
 export type MinutesVoteExtractionProofOptions = {
   queries: string[];
@@ -266,31 +271,49 @@ const persistStableSamples = async (
 
   const resolveBoardMemberId = async (tx: any, rawName?: string | null) => {
     if (!rawName) return null;
-    const name = normalizeWhitespace(rawName);
-    if (!name) return null;
+    const lookupVariants = getBoardMemberLookupVariants(rawName);
+    const canonicalName = canonicalizeBoardMemberName(rawName);
+    if (!canonicalName) return null;
 
     const existing = await tx
       .select()
       .from(schema.boardMembers)
       .where(
         or(
-          ilike(schema.boardMembers.name, name),
-          sql`${schema.boardMembers.aliases} @> ${JSON.stringify([name])}::jsonb`,
+          ...lookupVariants.flatMap((name) => [
+            ilike(schema.boardMembers.name, name),
+            sql`${schema.boardMembers.aliases} @> ${JSON.stringify([name])}::jsonb`,
+          ]),
         ),
       )
       .limit(1);
 
-    if (existing.length) return existing[0].id;
+    if (existing.length) {
+      const member = existing[0];
+      const mergedAliases = mergeBoardMemberAliases(member.aliases, rawName);
+      const aliasChanged =
+        mergedAliases.length !== member.aliases.length ||
+        mergedAliases.some((alias, index) => alias !== member.aliases[index]);
+
+      if (member.name !== canonicalName || aliasChanged) {
+        await tx
+          .update(schema.boardMembers)
+          .set({
+            name: canonicalName,
+            aliases: mergedAliases,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.boardMembers.id, member.id));
+      }
+
+      return member.id;
+    }
 
     const [created] = await tx
       .insert(schema.boardMembers)
       .values({
-        name,
-        aliases: [name],
-      })
-      .onConflictDoUpdate({
-        target: schema.boardMembers.name,
-        set: { aliases: sql`array_append(${schema.boardMembers.aliases}, ${name})` },
+        name: canonicalName,
+        aliases: mergeBoardMemberAliases([], rawName),
       })
       .returning();
 
