@@ -322,6 +322,54 @@ const deriveSignalCodes = (flags: DetectionFlags) => {
   return signalCodes;
 };
 
+const selectMotionText = (
+  minutesText: string | null | undefined,
+  motionTextCandidates: string[],
+  extractedMotionText: string | null,
+  multiMotionItem: boolean,
+) => {
+  if (!multiMotionItem) {
+    return motionTextCandidates[0] ?? extractedMotionText ?? null;
+  }
+
+  const lastNarrativeMotionText = [...getSentences(minutesText ?? "")]
+    .reverse()
+    .flatMap((sentence) => collectMotionTextCandidates([sentence]))
+    .find(Boolean);
+
+  return lastNarrativeMotionText ?? last(motionTextCandidates) ?? extractedMotionText ?? null;
+};
+
+const buildSourceExcerpt = (
+  minutesText: string | null | undefined,
+  votingLines: string[],
+  multiMotionItem: boolean,
+) => {
+  const combinedExcerpt = normalizeWhitespace([minutesText ?? "", ...votingLines].filter(Boolean).join(" "));
+  if (!combinedExcerpt) return null;
+
+  if (!multiMotionItem) {
+    return combinedExcerpt.slice(0, 750);
+  }
+
+  const sentences = getSentences(minutesText ?? "");
+  const lastMotionStartIndex = (() => {
+    for (let index = sentences.length - 1; index >= 0; index -= 1) {
+      const sentence = sentences[index];
+      if (sentence && /\b(made a motion|motion was made|moved to|recommends adoption of a motion|motion to)\b/i.test(sentence)) {
+        return index;
+      }
+    }
+    return 0;
+  })();
+
+  const focusedExcerpt = normalizeWhitespace(
+    [sentences.slice(lastMotionStartIndex).join(" "), ...votingLines].filter(Boolean).join(" "),
+  );
+
+  return (focusedExcerpt || combinedExcerpt).slice(0, 750);
+};
+
 export const normalizeMinutesVoteProof = (
   input: MinutesVoteProofInput,
 ): NormalizedMinutesVoteProof => {
@@ -332,10 +380,9 @@ export const normalizeMinutesVoteProof = (
     value: normalizeVoteValue(vote.vote),
   }));
   const derivedTally = tallyVoteRecords(voteRecords);
-  const collapsedVotingHtml = detectCollapsedVotingHtml(input.parsedAgendaItem);
+  const collapsedVotingHtml =
+    detectCollapsedVotingHtml(input.parsedAgendaItem) && input.extractedVote.memberVotes.length === 0;
   const multiMotionItem = detectMultiMotionItem(input.extractedVote.minutesText ?? "", motionTextCandidates);
-  const narrativeOnlyOutcome =
-    input.extractedVote.memberVotes.length === 0 && input.extractedVote.tally === null;
   const mixedNarrative = mixedNarrativePattern.test(
     [input.extractedVote.finalResultText ?? "", ...input.extractedVote.voteBearingClues].join(" "),
   );
@@ -367,6 +414,14 @@ export const normalizeMinutesVoteProof = (
         repeatedOutcomeMarkers.length > 3),
   );
   const missingMotionText = motionTextCandidates.length === 0;
+  const bucket = deriveBucket(input.extractedVote, {
+    mixedNarrative,
+    unanimousNarrative,
+  });
+  const narrativeOnlyOutcome =
+    input.extractedVote.memberVotes.length === 0 &&
+    input.extractedVote.tally === null &&
+    bucket === "summary-only";
 
   const flags: DetectionFlags = {
     collapsedVotingHtml,
@@ -379,7 +434,6 @@ export const normalizeMinutesVoteProof = (
     conflictingTally,
   };
 
-  const bucket = deriveBucket(input.extractedVote, flags);
   const verificationStatus = deriveVerificationStatus(bucket, flags, voteRecords);
   const confidenceScore = deriveConfidenceScore(bucket, flags, voteRecords);
   const confidenceLabel = deriveConfidenceLabel(confidenceScore);
@@ -400,7 +454,17 @@ export const normalizeMinutesVoteProof = (
     resultText ??
     input.extractedVote.summaryText ??
     (input.extractedVote.voteBearingClues.length ? input.extractedVote.voteBearingClues[0] : null);
-  const motionText = motionTextCandidates[0] ?? input.extractedVote.motionText ?? null;
+  const motionText = selectMotionText(
+    input.extractedVote.minutesText,
+    motionTextCandidates,
+    input.extractedVote.motionText,
+    multiMotionItem,
+  );
+  const sourceExcerpt = buildSourceExcerpt(
+    input.extractedVote.minutesText,
+    input.extractedVote.votingLines,
+    multiMotionItem,
+  );
   const voteItem: ParsedVoteItem = {
     itemTitle: input.agendaTitle ?? input.parsedAgendaItem.itemDetails.Title,
     isNonUnanimous:
@@ -417,25 +481,7 @@ export const normalizeMinutesVoteProof = (
     ...(input.extractedVote.motionMaker ? { motionMadeBy: input.extractedVote.motionMaker } : {}),
     ...(input.extractedVote.seconder ? { motionSecondedBy: input.extractedVote.seconder } : {}),
     ...(resultText ? { result: resultText } : {}),
-    ...(normalizeWhitespace(
-      [
-        input.extractedVote.minutesText ?? "",
-        ...input.extractedVote.votingLines,
-      ]
-        .filter(Boolean)
-        .join(" "),
-    ).slice(0, 750)
-      ? {
-          sourceExcerpt: normalizeWhitespace(
-            [
-              input.extractedVote.minutesText ?? "",
-              ...input.extractedVote.votingLines,
-            ]
-              .filter(Boolean)
-              .join(" "),
-          ).slice(0, 750),
-        }
-      : {}),
+    ...(sourceExcerpt ? { sourceExcerpt } : {}),
     ...(bucket ? { detectedPattern: bucket } : {}),
   };
 

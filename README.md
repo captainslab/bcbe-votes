@@ -25,7 +25,7 @@ Public-facing voter transparency platform for Baldwin County Board of Education.
 
 2) Configure environment
 - Copy `.env.example` to `.env` at the repository root (used by the server) and set `DATABASE_URL`, `ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS`, etc.
-- Copy `client/.env.example` to `client/.env` if you want a custom API base URL.
+- Copy `client/.env.example` to `client/.env` only if you need to override the default API base URL; otherwise the frontend will call the current host on port `4000`.
 
 3) Install dependencies
 ```bash
@@ -40,7 +40,7 @@ psql "$DATABASE_URL" -f server/drizzle/000_initial.sql
 
 5) Run locally
 - API: `cd server && npm run dev` (defaults to `http://localhost:4000`)
-- Frontend: `cd client && npm run dev` (defaults to `http://localhost:5173`)
+- Frontend: `cd client && npm run dev` (defaults to `http://localhost:5173`; when opened from another machine it will call that same host on port `4000` unless `VITE_API_URL` overrides it)
 
 ## API surface
 
