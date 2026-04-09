@@ -78,6 +78,9 @@ const unanimousNarrativePattern =
 const mixedNarrativePattern =
   /\b(except for|except|opposed|opposition|dissent|dissented|abstain(?:ed)?|voted\s+no|voted\s+abstain|nays?)\b/i;
 const sentencePattern = /[^.!?]+[.!?]?/g;
+const motionSentencePattern = /\b(made a motion|motion was made|moved to)\b/i;
+const amendmentMotionPattern = /\b(amend(?:ed|ment)?|correct(?:ed|ion)?|revis(?:e|ed|ion)|substitut(?:e|ed|ion)|modify|reword)\b/i;
+const finalApprovalMotionPattern = /\b(approve|approved|adopt|adopted|accept|accepted)\b/i;
 
 export const minutesVotePatternRules: Record<MinutesVoteBucket, MinutesVotePatternRuleSet> = {
   "unanimous-with-member-votes": {
@@ -141,10 +144,15 @@ const uniq = <T>(values: T[]) => [...new Set(values)];
 
 const last = <T>(values: T[]) => (values.length ? values[values.length - 1] : undefined);
 
+const protectHonorifics = (value: string) =>
+  value.replace(/\b(Mr|Mrs|Ms|Dr)\./g, "$1__DOT__");
+
+const restoreHonorifics = (value: string) => value.replace(/__DOT__/g, ".");
+
 const getSentences = (value: string) =>
-  normalizeWhitespace(value)
+  protectHonorifics(normalizeWhitespace(value))
     .match(sentencePattern)
-    ?.map((sentence) => normalizeWhitespace(sentence))
+    ?.map((sentence) => normalizeWhitespace(restoreHonorifics(sentence)))
     .filter(Boolean) ?? [];
 
 const stripHtml = (value?: string | null) =>
@@ -179,17 +187,36 @@ const tallyVoteRecords = (voteRecords: ParsedVoteRecord[]) => {
   return tally;
 };
 
+const isAmendmentThenFinalApproval = (sentences: string[]) => {
+  const motionSentences = sentences.filter((sentence) => motionSentencePattern.test(sentence));
+  if (motionSentences.length !== 2) return false;
+
+  const [initialMotion, finalMotion] = motionSentences;
+  return (
+    amendmentMotionPattern.test(initialMotion ?? "") &&
+    amendmentMotionPattern.test(finalMotion ?? "") &&
+    finalApprovalMotionPattern.test(finalMotion ?? "")
+  );
+};
+
 const detectMultiMotionItem = (minutesText: string, motionTextCandidates: string[]) => {
   const sentences = getSentences(minutesText);
-  const motionSentenceCount = sentences.filter((sentence) =>
-    /\b(made a motion|motion was made|moved to)\b/i.test(sentence),
-  ).length;
+  const motionSentenceCount = sentences.filter((sentence) => motionSentencePattern.test(sentence)).length;
   const voteCallCount = sentences.filter((sentence) =>
-    /\bcalled for (?:a )?(?:roll call )?vote\b/i.test(sentence),
+    /\bcalled for (?:a |the )?(?:roll call )?vote\b/i.test(sentence),
   ).length;
   const declaredResultCount = sentences.filter((sentence) =>
     /\bdeclared the motion (?:carried|passes|passed|carries)\b/i.test(sentence),
   ).length;
+
+  if (
+    motionSentenceCount === 2 &&
+    voteCallCount === 2 &&
+    declaredResultCount === 2 &&
+    isAmendmentThenFinalApproval(sentences)
+  ) {
+    return false;
+  }
 
   return motionTextCandidates.length > 1 || motionSentenceCount > 1 || voteCallCount > 1 || declaredResultCount > 1;
 };
@@ -326,9 +353,9 @@ const selectMotionText = (
   minutesText: string | null | undefined,
   motionTextCandidates: string[],
   extractedMotionText: string | null,
-  multiMotionItem: boolean,
+  preferFinalMotionCycle: boolean,
 ) => {
-  if (!multiMotionItem) {
+  if (!preferFinalMotionCycle) {
     return motionTextCandidates[0] ?? extractedMotionText ?? null;
   }
 
@@ -343,12 +370,12 @@ const selectMotionText = (
 const buildSourceExcerpt = (
   minutesText: string | null | undefined,
   votingLines: string[],
-  multiMotionItem: boolean,
+  preferFinalMotionCycle: boolean,
 ) => {
   const combinedExcerpt = normalizeWhitespace([minutesText ?? "", ...votingLines].filter(Boolean).join(" "));
   if (!combinedExcerpt) return null;
 
-  if (!multiMotionItem) {
+  if (!preferFinalMotionCycle) {
     return combinedExcerpt.slice(0, 750);
   }
 
@@ -383,6 +410,8 @@ export const normalizeMinutesVoteProof = (
   const collapsedVotingHtml =
     detectCollapsedVotingHtml(input.parsedAgendaItem) && input.extractedVote.memberVotes.length === 0;
   const multiMotionItem = detectMultiMotionItem(input.extractedVote.minutesText ?? "", motionTextCandidates);
+  const amendmentThenFinalApproval = isAmendmentThenFinalApproval(getSentences(input.extractedVote.minutesText ?? ""));
+  const preferFinalMotionCycle = multiMotionItem || amendmentThenFinalApproval;
   const mixedNarrative = mixedNarrativePattern.test(
     [input.extractedVote.finalResultText ?? "", ...input.extractedVote.voteBearingClues].join(" "),
   );
@@ -458,12 +487,12 @@ export const normalizeMinutesVoteProof = (
     input.extractedVote.minutesText,
     motionTextCandidates,
     input.extractedVote.motionText,
-    multiMotionItem,
+    preferFinalMotionCycle,
   );
   const sourceExcerpt = buildSourceExcerpt(
     input.extractedVote.minutesText,
     input.extractedVote.votingLines,
-    multiMotionItem,
+    preferFinalMotionCycle,
   );
   const voteItem: ParsedVoteItem = {
     itemTitle: input.agendaTitle ?? input.parsedAgendaItem.itemDetails.Title,
