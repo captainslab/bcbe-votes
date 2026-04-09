@@ -15,6 +15,12 @@ export type ParsedMeetingDetailPage = {
   meetingTitle: string | null;
   meetingDate: string | null;
   minutesUrl: string | null;
+  selectionMechanism: {
+    handlerName: string;
+    mode: "client-redirect";
+    redirectTemplate: string;
+    supportingFields: string[];
+  } | null;
   status: "minutes-found" | "shell-only" | "content-found";
   sourceBlocks: ParsedMeetingDetailBlock[];
 };
@@ -167,6 +173,27 @@ const extractScriptBlock = ($: ReturnType<typeof load>) => {
   };
 };
 
+const extractSelectionMechanism = ($: ReturnType<typeof load>) => {
+  const scriptText = $("script")
+    .map((_i, el) => normalizeWhitespace($(el).html()))
+    .get()
+    .find((text) => text.includes("OnClientSelectedIndexChanged") && text.includes("ViewMeeting.aspx"));
+
+  if (!scriptText) return null;
+
+  return {
+    handlerName: "OnClientSelectedIndexChanged",
+    mode: "client-redirect" as const,
+    redirectTemplate: "/SB_Meetings/ViewMeeting.aspx?S={siteId}&MID={mid}",
+    supportingFields: [
+      "hdnSiteIDMeetings_UCs_MeetingDDL",
+      "hdn_ChangeUrl_DMeetings_UCs_MeetingDDL",
+      "ctl00_ContentPlaceHolder1_uc_MeetingDDL_radCombo_MeetingTypes",
+      "ctl00_ContentPlaceHolder1_uc_MeetingDDL_radCombo_Meetings",
+    ],
+  };
+};
+
 export const parseMeetingDetailPage = (
   html: string,
   sourceUrl: string,
@@ -190,6 +217,8 @@ export const parseMeetingDetailPage = (
   const script = extractScriptBlock($);
   if (script) sourceBlocks.push(script);
 
+  const selectionMechanism = extractSelectionMechanism($);
+
   const minutesBlock = extractMinutesBlock($);
   if (minutesBlock) sourceBlocks.push(minutesBlock);
 
@@ -207,6 +236,7 @@ export const parseMeetingDetailPage = (
     meetingTitle: heading?.text ?? null,
     meetingDate,
     minutesUrl,
+    selectionMechanism,
     status,
     sourceBlocks,
   };

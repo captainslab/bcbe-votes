@@ -111,7 +111,8 @@ Admin (Basic Auth; automation only)
 ## Ingestion status
 
 - Meeting listing ingestion is live and idempotent.
-- Meeting detail pages currently expose a JS-backed shell (`app-viewmeeting`) rather than populated agenda rows.
+- Meeting detail pages use a client-side `OnClientSelectedIndexChanged` redirect to `/SB_Meetings/ViewMeeting.aspx?S={siteId}&MID={mid}`.
+- Public detail HTML still exposes a JS-backed shell (`app-viewmeeting`) rather than populated agenda rows.
 - Minutes URL derivation and vote extraction are still deferred.
 
 ## Production notes
