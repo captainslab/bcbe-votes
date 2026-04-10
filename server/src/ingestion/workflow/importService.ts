@@ -1,15 +1,54 @@
 import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { db, schema } from "../../db";
 import { fetchMeetingDetail, fetchMeetingListing } from "../fetchers/simbliFetcher";
+import { fetchCompleteAgendaItem } from "../fetchers/simbliAgendaFetcher";
+import { fetchSearchMeetingModule } from "../fetchers/simbliSearchFetcher";
+import { parseAgendaItemLoaderResponse } from "../parsers/agendaItemParser";
+import { parseSearchMeetingModuleResponse } from "../parsers/searchMeetingParser";
 import { parseMeetingDetail, parseMeetingListing } from "../parsers/simbliParser";
 import { normalizeWhitespace } from "../../utils/text";
 import { logger } from "../../logging/logger";
 import { HttpError } from "../../utils/httpError";
+import { buildPersistedMinutesVoteOutput } from "../../services/minutesVoteService";
 import {
   canonicalizeBoardMemberName,
   getBoardMemberLookupVariants,
   mergeBoardMemberAliases,
 } from "../../utils/boardMembers";
+
+export class NoVoteContentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NoVoteContentError";
+  }
+}
+
+export class NoSearchReplayMatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NoSearchReplayMatchError";
+  }
+}
+
+export class NoSearchReplayVoteContentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NoSearchReplayVoteContentError";
+  }
+}
+
+const minutesSearchQueries = [
+  "carried",
+  "no",
+  "failed",
+  "unanimous",
+  "ayes",
+  "nays",
+  "abstain",
+  "approved",
+  "passed",
+  "denied",
+];
 
 const createImportLog = async (type: string) => {
   const [log] = await db
@@ -175,49 +214,220 @@ const upsertVoteItem = async (
   return saved;
 };
 
+const persistVoteItems = async (
+  tx: any,
+  meetingRow: typeof schema.meetings.$inferSelect,
+  voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"],
+) => {
+  for (const item of voteItems) {
+    const voteItemRow = await upsertVoteItem(tx, meetingRow.id, item);
+
+    const motionMakerId = await resolveBoardMemberId(tx, item.motionMadeBy);
+    const motionSecondedId = await resolveBoardMemberId(tx, item.motionSecondedBy);
+    if (motionMakerId) {
+      await tx
+        .update(schema.voteItems)
+        .set({ motionMadeByMemberId: motionMakerId })
+        .where(eq(schema.voteItems.id, voteItemRow.id));
+    }
+    if (motionSecondedId) {
+      await tx
+        .update(schema.voteItems)
+        .set({ motionSecondedByMemberId: motionSecondedId })
+        .where(eq(schema.voteItems.id, voteItemRow.id));
+    }
+
+    for (const vote of item.votes) {
+      const memberId = await resolveBoardMemberId(tx, vote.memberName);
+      if (!memberId) continue;
+      await tx
+        .insert(schema.voteRecords)
+        .values({
+          voteItemId: voteItemRow.id,
+          boardMemberId: memberId,
+          voteValue: vote.value as typeof schema.voteValueEnum.enumValues[number],
+        })
+        .onConflictDoUpdate({
+          target: [schema.voteRecords.voteItemId, schema.voteRecords.boardMemberId],
+          set: { voteValue: vote.value as typeof schema.voteValueEnum.enumValues[number] },
+        });
+    }
+  }
+};
+
+export const persistImportedMeetingVoteItems = async ({
+  meeting,
+  voteItems,
+}: {
+  meeting: ReturnType<typeof parseMeetingDetail>["meeting"] & { simbliId: string };
+  voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"];
+}) => {
+  return await db.transaction(async (tx) => {
+    const meetingRow = await upsertMeeting(tx, meeting);
+    await persistVoteItems(tx, meetingRow, voteItems);
+
+    await tx
+      .update(schema.meetings)
+      .set({
+        ingestionStatus: "completed",
+        minutesUrl: meeting.minutesUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.meetings.id, meetingRow.id));
+
+    return { meetingRow, voteItemsCreated: voteItems.length };
+  });
+};
+
+const matchesMinutesSearchRow = (
+  meeting: typeof schema.meetings.$inferSelect,
+  row: ReturnType<typeof parseSearchMeetingModuleResponse>["meetingSearchResponseDTOs"][number],
+) =>
+  normalizeWhitespace(row.MeetingTitle).toLowerCase() === normalizeWhitespace(meeting.title).toLowerCase() &&
+  String(row.MeetingDate).slice(0, 10) === meeting.date.toISOString().slice(0, 10);
+
+const toParsedVoteItem = (
+  output: ReturnType<typeof buildPersistedMinutesVoteOutput>,
+  requestUrl: string,
+) => {
+  const normalizedMotionText = output.voteItem.motionText
+    ? normalizeWhitespace(output.voteItem.motionText).replace(/^to\s+/i, "")
+    : null;
+  const item: ReturnType<typeof parseMeetingDetail>["voteItems"][number] = {
+    itemTitle: output.voteItem.itemTitle,
+    summarySource: output.voteItem.summarySource || requestUrl,
+    summaryConfidenceScore: output.voteItem.summaryConfidenceScore,
+    isNonUnanimous: output.voteItem.isNonUnanimous,
+    voteTally: output.voteItem.voteTally,
+    verificationStatus: output.voteItem.verificationStatus,
+    votes: output.voteRecords.map((vote) => ({
+      memberName: vote.memberName,
+      value: vote.voteValue,
+    })),
+  };
+
+  if (output.voteItem.agendaSection) item.agendaSection = output.voteItem.agendaSection;
+  if (output.voteItem.summaryText) item.summaryText = output.voteItem.summaryText;
+  if (normalizedMotionText) item.motionText = normalizedMotionText;
+  if (output.voteItem.motionMadeBy) item.motionMadeBy = output.voteItem.motionMadeBy;
+  if (output.voteItem.motionSecondedBy) item.motionSecondedBy = output.voteItem.motionSecondedBy;
+  if (output.voteItem.result) item.result = output.voteItem.result;
+  if (output.voteItem.sourceExcerpt) item.sourceExcerpt = output.voteItem.sourceExcerpt;
+  if (output.voteItem.detectedPattern) item.detectedPattern = output.voteItem.detectedPattern;
+  if (output.voteItem.confidenceScore !== undefined) item.confidenceScore = output.voteItem.confidenceScore;
+
+  return item;
+};
+
+const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inferSelect) => {
+  const seenAgendaIds = new Set<string>();
+  const voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"] = [];
+  let minutesUrl = meeting.minutesUrl ?? null;
+  let matchedAgendaCount = 0;
+
+  for (const query of minutesSearchQueries) {
+    const searchRun = await fetchSearchMeetingModule({
+      query,
+      remoteDebugPort: 9222,
+      timeoutMs: 90_000,
+    });
+    const parsedSearch = parseSearchMeetingModuleResponse(searchRun.searchResponseText);
+
+    for (const row of parsedSearch.meetingSearchResponseDTOs ?? []) {
+      if (!row.AgendaId || seenAgendaIds.has(row.AgendaId)) continue;
+      if (!matchesMinutesSearchRow(meeting, row)) continue;
+      matchedAgendaCount += 1;
+
+      const fetched = await fetchCompleteAgendaItem({
+        agendaId: row.AgendaId,
+        enSiteId: row.EnSiteId,
+        remoteDebugPort: 9222,
+      });
+      const parsedAgendaItem = parseAgendaItemLoaderResponse(fetched.text);
+      const expectedMeetingId = Number(meeting.simbliId);
+      if (!Number.isNaN(expectedMeetingId) && parsedAgendaItem.MeetingId !== expectedMeetingId) continue;
+
+      const structured = buildPersistedMinutesVoteOutput(parsedAgendaItem);
+      const hasVoteData =
+        structured.voteRecords.length > 0 ||
+        Object.values(structured.voteItem.voteTally).some((count) => count > 0) ||
+        structured.voteItem.detectedPattern !== "minutes_no_vote_evidence";
+      if (!hasVoteData) continue;
+
+      seenAgendaIds.add(row.AgendaId);
+      minutesUrl = fetched.url;
+      voteItems.push(toParsedVoteItem(structured, fetched.url));
+    }
+  }
+
+  if (voteItems.length === 0) {
+    if (matchedAgendaCount === 0) {
+      throw new NoSearchReplayMatchError(`No search replay hits found for meeting ${meeting.simbliId}`);
+    }
+    throw new NoSearchReplayVoteContentError(
+      `Search replay found agenda hits but no vote-bearing content for meeting ${meeting.simbliId}`,
+    );
+  }
+
+  return await db.transaction(async (tx) => {
+    const meetingRow = await upsertMeeting(tx, {
+      simbliId: meeting.simbliId,
+      date: meeting.date.toISOString(),
+      title: meeting.title,
+      type: meeting.type,
+      sourceUrl: meeting.sourceUrl,
+      minutesUrl: minutesUrl ?? undefined,
+    });
+
+    await persistVoteItems(tx, meetingRow, voteItems);
+    await tx
+      .update(schema.meetings)
+      .set({
+        ingestionStatus: "completed",
+        minutesUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.meetings.id, meetingRow.id));
+
+    return { meetingRow, voteItemsCreated: voteItems.length };
+  });
+};
+
 export const importMeetingById = async (simbliId: string) => {
   const log = await createImportLog("meeting");
   try {
+    const existingMeeting = await db.query.meetings.findFirst({
+      where: eq(schema.meetings.simbliId, simbliId),
+    });
+
+    if (existingMeeting?.ingestionStatus === "failed") {
+      const fallback = await importMeetingByMinutesSearch(existingMeeting);
+      await completeImportLog(log.id, {
+        meetingsProcessed: 1,
+        votesCreated: fallback.voteItemsCreated,
+        recordsFlagged: 0,
+      });
+      return fallback.meetingRow;
+    }
+
     const { html, sourceUrl } = await fetchMeetingDetail(simbliId);
     const parsed = parseMeetingDetail(html, sourceUrl);
+    if (parsed.voteItems.length === 0) {
+      if (existingMeeting) {
+        const fallback = await importMeetingByMinutesSearch(existingMeeting);
+        await completeImportLog(log.id, {
+          meetingsProcessed: 1,
+          votesCreated: fallback.voteItemsCreated,
+          recordsFlagged: 0,
+        });
+        return fallback.meetingRow;
+      }
+      throw new NoVoteContentError(`No vote items found for meeting ${simbliId}`);
+    }
 
     const savedMeeting = await db.transaction(async (tx) => {
       const meetingRow = await upsertMeeting(tx, { ...parsed.meeting, simbliId });
-
-      for (const item of parsed.voteItems) {
-        const voteItemRow = await upsertVoteItem(tx, meetingRow.id, item);
-
-        const motionMakerId = await resolveBoardMemberId(tx, item.motionMadeBy);
-        const motionSecondedId = await resolveBoardMemberId(tx, item.motionSecondedBy);
-        if (motionMakerId) {
-          await tx
-            .update(schema.voteItems)
-            .set({ motionMadeByMemberId: motionMakerId })
-            .where(eq(schema.voteItems.id, voteItemRow.id));
-        }
-        if (motionSecondedId) {
-          await tx
-            .update(schema.voteItems)
-            .set({ motionSecondedByMemberId: motionSecondedId })
-            .where(eq(schema.voteItems.id, voteItemRow.id));
-        }
-
-        for (const vote of item.votes) {
-          const memberId = await resolveBoardMemberId(tx, vote.memberName);
-          if (!memberId) continue;
-          await tx
-            .insert(schema.voteRecords)
-            .values({
-              voteItemId: voteItemRow.id,
-              boardMemberId: memberId,
-              voteValue: vote.value as typeof schema.voteValueEnum.enumValues[number],
-            })
-            .onConflictDoUpdate({
-              target: [schema.voteRecords.voteItemId, schema.voteRecords.boardMemberId],
-              set: { voteValue: vote.value as typeof schema.voteValueEnum.enumValues[number] },
-            });
-        }
-      }
+      await persistVoteItems(tx, meetingRow, parsed.voteItems);
 
       await tx
         .update(schema.meetings)

@@ -154,28 +154,27 @@ const waitFor = async (
   throw new Error("Timed out waiting for Simbli search page");
 };
 
-const clickSearchPopup = async (
+const waitForSearchButton = async (
   send: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>,
   searchText: string,
 ) => {
   await send("Runtime.evaluate", {
-    expression: `document.getElementById('topSearchButton')?.click()`,
-  });
-  await wait(1_000);
-
-  await send("Runtime.evaluate", {
     expression: `(() => {
       const popup = document.querySelector('#dvMySearchPopup');
-      const input = popup?.querySelector('input[placeholder="Enter your search keyword here"]');
+      const input =
+        popup?.querySelector('input[placeholder="Enter your search keyword here"]') ??
+        document.querySelector('input[placeholder="Enter your search keyword here"]');
       if (!input) throw new Error('Simbli search input not found');
       const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
       input.focus();
       setValue?.call(input, ${JSON.stringify(searchText)});
       input.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(searchText)}, inputType: 'insertText' }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
-      const meetingToggle = popup?.querySelector('#meetingToggle');
+      const meetingToggle = popup?.querySelector('#meetingToggle') ?? document.getElementById('meetingToggle');
       if (meetingToggle && 'checked' in meetingToggle && !meetingToggle.checked) meetingToggle.click();
-      const keywordButton = popup?.querySelector('button[aria-label="Search Keyword"]');
+      const keywordButton =
+        popup?.querySelector('button[aria-label="Search Keyword"]') ??
+        document.querySelector('button[aria-label="Search Keyword"]');
       keywordButton?.click();
     })()`,
   });
@@ -186,18 +185,50 @@ const clickSearchPopup = async (
     const result = await send<{ result: { value: boolean } }>("Runtime.evaluate", {
       expression: `(() => {
         const popup = document.querySelector('#dvMySearchPopup');
-        const button = popup ? [...popup.querySelectorAll('button')].find((el) => (el.textContent || '').trim() === 'Search') : null;
-        return Boolean(button) && !button.classList.contains('disabled-btn');
+        const popupButton = popup
+          ? [...popup.querySelectorAll('button')].find((el) => (el.textContent || '').trim() === 'Search')
+          : null;
+        const inlineButton = [...document.querySelectorAll('button')].find(
+          (el) =>
+            (el.textContent || '').trim() === 'Search' &&
+            !el.id &&
+            el.classList.contains('btn') &&
+            el.classList.contains('btn-default')
+        );
+        const button = popupButton ?? inlineButton;
+        return Boolean(button) && !button.classList.contains('disabled-btn') && !button.disabled;
       })()`,
       returnByValue: true,
     });
     return result.result.value;
   }, 15_000);
+};
+
+const submitSearch = async (
+  send: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>,
+  searchText: string,
+) => {
+  await send("Runtime.evaluate", {
+    expression: `document.getElementById('topSearchButton')?.click()`,
+  });
+  await wait(1_000);
+
+  await waitForSearchButton(send, searchText);
 
   await send("Runtime.evaluate", {
     expression: `(() => {
       const popup = document.querySelector('#dvMySearchPopup');
-      const button = popup ? [...popup.querySelectorAll('button')].find((el) => (el.textContent || '').trim() === 'Search') : null;
+      const popupButton = popup
+        ? [...popup.querySelectorAll('button')].find((el) => (el.textContent || '').trim() === 'Search')
+        : null;
+      const inlineButton = [...document.querySelectorAll('button')].find(
+        (el) =>
+          (el.textContent || '').trim() === 'Search' &&
+          !el.id &&
+          el.classList.contains('btn') &&
+          el.classList.contains('btn-default')
+      );
+      const button = popupButton ?? inlineButton;
       if (!button) throw new Error('Simbli search button not found');
       button.click();
     })()`,
@@ -271,7 +302,7 @@ export const fetchSearchMeetingModule = async (
     }, timeoutMs);
 
     await wait(4_500);
-    await clickSearchPopup(send, query);
+    await submitSearch(send, query);
     await wait(8_000);
 
     const searchResponse = events
@@ -362,7 +393,7 @@ export const fetchSimbliSearchFlow = async (options: SearchBrowserOptions = {}):
     }, timeoutMs);
 
     await wait(4_500);
-    await clickSearchPopup(send, query);
+    await submitSearch(send, query);
     await wait(8_000);
 
     const searchResponses = events.filter(

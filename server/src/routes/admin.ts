@@ -6,6 +6,8 @@ import { adminAuth } from "../middleware/adminAuth";
 import { db, schema } from "../db";
 import { desc } from "drizzle-orm";
 import { importMeetingListing } from "../ingestion/workflow/meetingListingImport";
+import { runBatchDetailImport } from "../ingestion/workflow/batchDetailImport";
+import { runBatchSessionReplayImport } from "../ingestion/workflow/batchSessionReplayImport";
 
 const router = Router();
 
@@ -31,6 +33,59 @@ router.post(
       const result = await importMeetingListing({
         ...(startMid !== undefined ? { startMid } : {}),
         ...(endMid !== undefined ? { endMid } : {}),
+      });
+      res.json({ status: "ok", ...result });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  "/admin/batch-detail-import",
+  validateRequest(
+    z.object({
+      body: z
+        .object({
+          startMid: z.coerce.number().optional(),
+          endMid: z.coerce.number().optional(),
+        })
+        .optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const body = req.body ?? {};
+      const startMid = body.startMid ? Number(body.startMid) : undefined;
+      const endMid = body.endMid ? Number(body.endMid) : undefined;
+      const result = await runBatchDetailImport({
+        ...(startMid !== undefined ? { startMid } : {}),
+        ...(endMid !== undefined ? { endMid } : {}),
+      });
+      res.json({ status: "ok", ...result });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.post(
+  "/admin/batch-session-replay",
+  validateRequest(
+    z.object({
+      body: z
+        .object({
+          limit: z.coerce.number().min(1).max(25).optional(),
+        })
+        .optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const body = req.body ?? {};
+      const limit = body.limit ? Number(body.limit) : undefined;
+      const result = await runBatchSessionReplayImport({
+        ...(limit !== undefined ? { limit } : {}),
       });
       res.json({ status: "ok", ...result });
     } catch (err) {
