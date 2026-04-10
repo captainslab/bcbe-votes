@@ -27,6 +27,7 @@ const getMajorityVote = (tally: Record<string, number>) => {
 export const getSummaryStats = async () => {
   const [meetingsCount] = await db.select({ count: count() }).from(schema.meetings);
   const [voteItemsCount] = await db.select({ count: count() }).from(schema.voteItems);
+  const [voteRecordsCount] = await db.select({ count: count() }).from(schema.voteRecords);
   const [nonUnanimousCount] = await db
     .select({ count: count() })
     .from(schema.voteItems)
@@ -85,6 +86,7 @@ export const getSummaryStats = async () => {
       memberId: s.memberId,
       name: s.name,
       dissentCount: s.dissentCount,
+      totalVotes: s.totalVotes,
       dissentRate: s.totalVotes ? s.dissentCount / s.totalVotes : 0,
     }))
     .sort((a, b) => b.dissentRate - a.dissentRate)
@@ -96,6 +98,7 @@ export const getSummaryStats = async () => {
       name: s.name,
       yesRate: s.totalVotes ? (s.totals.yes ?? 0) / s.totalVotes : 0,
       yesCount: s.totals.yes ?? 0,
+      totalVotes: s.totalVotes,
     }))
     .sort((a, b) => b.yesRate - a.yesRate)
     .slice(0, 5);
@@ -103,6 +106,7 @@ export const getSummaryStats = async () => {
   return {
     totalMeetings: Number(meetingsCount?.count ?? 0),
     totalVotes: Number(voteItemsCount?.count ?? 0),
+    totalVoteRecords: Number(voteRecordsCount?.count ?? 0),
     nonUnanimousCount: Number(nonUnanimousCount?.count ?? 0),
     dissentLeaderboard,
     yesLeaderboard,

@@ -76,6 +76,18 @@ export type SummaryStats = {
   totalVotes: number;
   totalVoteRecords: number;
   nonUnanimousCount: number;
-  dissentLeaderboard: { memberId: number; name: string; dissentCount: number; dissentRate: number }[];
-  yesLeaderboard: { memberId: number; name: string; yesRate: number; yesCount: number }[];
+  dissentLeaderboard: {
+    memberId: number;
+    name: string;
+    dissentCount: number;
+    totalVotes: number;
+    dissentRate: number;
+  }[];
+  yesLeaderboard: {
+    memberId: number;
+    name: string;
+    yesRate: number;
+    yesCount: number;
+    totalVotes: number;
+  }[];
 };

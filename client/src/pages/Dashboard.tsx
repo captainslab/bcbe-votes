@@ -11,6 +11,10 @@ export const Dashboard = () => {
   if (!data) return null;
 
   const { summary, recentVotes } = data;
+  const leaderboardSampleFloor = 5;
+  const hasSmallLeaderboardSamples = [...summary.dissentLeaderboard, ...summary.yesLeaderboard].some(
+    (member) => member.totalVotes < leaderboardSampleFloor,
+  );
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -105,17 +109,29 @@ export const Dashboard = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Dissent leaderboard</h2>
           <p className="text-sm text-slate-500">
-            Who most often diverges from the majority in the extracted record.
+            Ranked from extracted votes only. Read the percentage with its extracted-vote
+            denominator.
           </p>
+          {hasSmallLeaderboardSamples && (
+            <p className="mt-2 text-xs font-medium text-amber-700">
+              Current member samples are small, so these rankings are directional.
+            </p>
+          )}
           <div className="mt-4 space-y-3">
             {summary.dissentLeaderboard.map((m) => (
-              <div key={m.memberId} className="flex items-center justify-between text-sm">
+              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm">
                 <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
                   {m.name}
                 </Link>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">
-                  {(m.dissentRate * 100).toFixed(1)}% dissent
-                </span>
+                <div className="text-right">
+                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-amber-800">
+                    {(m.dissentRate * 100).toFixed(1)}% dissent
+                  </span>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {m.dissentCount} of {m.totalVotes} extracted vote
+                    {m.totalVotes === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -124,17 +140,28 @@ export const Dashboard = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Yes-rate leaderboard</h2>
           <p className="text-sm text-slate-500">
-            Frequency of approving motions in the extracted record.
+            Ranked from extracted votes only. Read the percentage with its extracted-vote
+            denominator.
           </p>
+          {hasSmallLeaderboardSamples && (
+            <p className="mt-2 text-xs font-medium text-amber-700">
+              Current member samples are small, so these rankings are directional.
+            </p>
+          )}
           <div className="mt-4 space-y-3">
             {summary.yesLeaderboard.map((m) => (
-              <div key={m.memberId} className="flex items-center justify-between text-sm">
+              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm">
                 <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
                   {m.name}
                 </Link>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
-                  {(m.yesRate * 100).toFixed(1)}% yes
-                </span>
+                <div className="text-right">
+                  <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
+                    {(m.yesRate * 100).toFixed(1)}% yes
+                  </span>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {m.yesCount} of {m.totalVotes} extracted vote{m.totalVotes === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
