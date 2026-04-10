@@ -38,10 +38,10 @@ export const MeetingDetail = () => {
       <div className="space-y-4">
         {voteItemCount === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">No extracted vote items yet</h2>
+            <h2 className="text-lg font-semibold text-slate-900">No extracted vote data yet</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              This meeting is indexed, but the current persisted dataset does not yet include
-              structured vote items for it.
+              No vote data has been extracted for this meeting yet. This does not mean no vote
+              occurred.
             </p>
             <div className="mt-4 space-y-2 text-sm text-slate-700">
               <p>

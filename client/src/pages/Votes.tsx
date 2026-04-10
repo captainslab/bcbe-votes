@@ -20,7 +20,8 @@ export const Votes = () => {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold text-slate-900">Votes</h1>
         <p className="text-sm text-slate-600">
-          Showing motions and voting records. Non-unanimous items are surfaced by default.
+          Showing extracted vote items only, not a complete historical record. Non-unanimous items
+          are surfaced by default.
         </p>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input

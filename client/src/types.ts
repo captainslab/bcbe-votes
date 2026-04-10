@@ -74,6 +74,7 @@ export type PairwiseAlignment = {
 export type SummaryStats = {
   totalMeetings: number;
   totalVotes: number;
+  totalVoteRecords: number;
   nonUnanimousCount: number;
   dissentLeaderboard: { memberId: number; name: string; dissentCount: number; dissentRate: number }[];
   yesLeaderboard: { memberId: number; name: string; yesRate: number; yesCount: number }[];

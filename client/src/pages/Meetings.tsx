@@ -13,7 +13,8 @@ export const Meetings = () => {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Meetings</h1>
         <p className="text-sm text-slate-600">
-          Indexed board meetings with source links and extracted vote-item status.
+          Discovered board meetings with source links and extracted vote coverage status. The
+          meeting list is broader than the extracted vote dataset.
         </p>
       </div>
       <div className="grid gap-4">
@@ -35,15 +36,15 @@ export const Meetings = () => {
                 }`}
               >
                 {(meeting.voteItemCount ?? 0) > 0
-                  ? `${meeting.voteItemCount} vote item${meeting.voteItemCount === 1 ? "" : "s"}`
-                  : "No vote items yet"}
+                  ? `${meeting.voteItemCount} extracted vote item${meeting.voteItemCount === 1 ? "" : "s"}`
+                  : "No extracted vote data"}
               </span>
             </div>
             <p className="mt-1 text-lg font-semibold text-slate-900">{meeting.title}</p>
             <p className="mt-1 text-sm text-slate-600">
               {(meeting.voteItemCount ?? 0) > 0
-                ? "Open to review extracted vote items and source links."
-                : "Open for meeting details and source links; structured vote items are not available yet."}
+                ? "Open extracted vote items and source links for this meeting."
+                : "Open meeting details and source links. No vote data has been extracted for this meeting yet."}
             </p>
             <p className="mt-2 text-xs text-slate-500 break-all">Source: {meeting.sourceUrl}</p>
           </Link>
