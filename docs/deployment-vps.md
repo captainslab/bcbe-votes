@@ -60,7 +60,7 @@ Example:
 NODE_ENV=production
 PORT=4000
 DATABASE_URL=postgresql:///bcbe_votes?host=/var/run/postgresql
-CORS_ORIGIN=https://boardvotes.io,https://www.boardvotes.io
+CORS_ORIGIN=https://example.com,https://www.example.com
 RATE_LIMIT_WINDOW_MINUTES=15
 RATE_LIMIT_MAX=300
 ADMIN_BASIC_USER=
@@ -77,7 +77,7 @@ Notes:
 
 ## Nginx example
 
-See `deploy/nginx/boardvotes.io.conf.example`.
+See `deploy/nginx/site.conf.example`.
 
 High-level behavior:
 
@@ -106,7 +106,7 @@ Example:
 ```bash
 sudo apt-get update
 sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d boardvotes.io -d www.boardvotes.io --redirect
+sudo certbot --nginx -d example.com -d www.example.com --redirect
 ```
 
 Do not commit anything from:
@@ -123,10 +123,10 @@ Those paths contain live machine state and may contain sensitive material.
 Public checks:
 
 ```bash
-curl -I https://boardvotes.io
-curl https://boardvotes.io/api/health
-curl https://boardvotes.io/api/stats
-curl -I https://boardvotes.io/votes
+curl -I https://example.com
+curl https://example.com/api/health
+curl https://example.com/api/stats
+curl -I https://example.com/votes
 ```
 
 Local checks:

@@ -1,7 +1,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name boardvotes.io www.boardvotes.io;
+    server_name example.com www.example.com;
 
     return 301 https://$host$request_uri;
 }
@@ -9,11 +9,11 @@ server {
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name boardvotes.io www.boardvotes.io;
+    server_name example.com www.example.com;
 
     # Replace these with your real certificate paths on the server.
-    ssl_certificate /etc/letsencrypt/live/boardvotes.io/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/boardvotes.io/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
     root /var/www/bcbe-votes;
     index index.html;
