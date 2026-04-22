@@ -2,6 +2,8 @@ node_modules
 dist
 .DS_Store
 .env
+.codex
+deploy-backups/
 client/node_modules
 client/dist
 server/node_modules
