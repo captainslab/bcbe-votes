@@ -1,0 +1,15 @@
+[Unit]
+Description=BCBE Votes API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/srv/bcbe-votes/server
+EnvironmentFile=/srv/bcbe-votes/.env
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

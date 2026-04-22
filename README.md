@@ -132,3 +132,4 @@ Admin (Basic Auth; automation only)
 - No manual data entry; all production data must come from the scraper/parser.
 - Always store and show `source_url`, `source_excerpt`, and `verification_status` on the frontend.
 - Keep Basic Auth credentials secret; rotate regularly.
+- For sanitized VPS deployment examples, see `docs/deployment-vps.md` and `deploy/`.
