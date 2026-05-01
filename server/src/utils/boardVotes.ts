@@ -224,11 +224,8 @@ const noVoteDisplaySplitPatterns = [
   /\b(?:Yes|No|Abstain|Recused|Absent):\s*[A-Z]/,
 ] as const;
 
-const publicDisplayHonorificPattern = /\b(?:mrs|ms|mr|miss|dr)\.?\s+/gi;
-
 const normalizeNoVoteDisplayText = (value?: string | null) =>
   normalizeWhitespace(value)
-    .replace(publicDisplayHonorificPattern, "")
     .replace(/\s+([,.;:])/g, "$1")
     .trim();
 
@@ -238,7 +235,15 @@ const trimNoVoteDisplaySuffix = (value: string) =>
     .replace(/^[-,:;\s]+/g, "")
     .trim();
 
+const trailingStandaloneHonorificNameFragmentPattern =
+  /(?:[.!?]["')\]]*\s+)(?:mr|mrs|ms|miss|dr)\.?\s+[A-Z][a-z.'-]+(?:\s+[A-Z][a-z.'-]+)?$/i;
+
+const stripTrailingStandaloneHonorificNameFragment = (value: string) =>
+  trimNoVoteDisplaySuffix(value.replace(trailingStandaloneHonorificNameFragmentPattern, "").trim());
+
 const containsRejectedNoVoteDisplayText = (value: string) => noVoteDisplayRejectPatterns.some((pattern) => pattern.test(value));
+
+const hasDanglingHonorificToken = (value: string) => /(?:^|\s)(?:mr|mrs|ms|miss|dr)\.?$/i.test(value);
 
 const getFirstNoVoteDisplaySplitIndex = (value: string) => {
   let firstIndex = -1;
@@ -258,6 +263,7 @@ const isMeaningfulNoVoteDisplayText = (value: string) => {
   if (!value) return false;
   if (value.length < 12) return false;
   if (/^(needs review|approved|approve|adopted|carried|passed|failed)$/i.test(value)) return false;
+  if (Boolean(getCanonicalBoardMemberName(value))) return false;
   return true;
 };
 
@@ -274,10 +280,16 @@ export const sanitizePublicVoteDisplayText = (
 
   const splitIndex = getFirstNoVoteDisplaySplitIndex(normalized);
   const candidate = trimNoVoteDisplaySuffix(splitIndex >= 0 ? normalized.slice(0, splitIndex) : normalized);
-  if (!candidate) return "Needs review";
-  if (containsRejectedNoVoteDisplayText(candidate)) return "Needs review";
-  if (!isMeaningfulNoVoteDisplayText(candidate)) return "Needs review";
-  return candidate;
+  const shouldStripTrailingStandaloneName =
+    splitIndex >= 0 || containsRejectedNoVoteDisplayText(normalized) || hasDanglingHonorificToken(candidate);
+  const cleanedCandidate = shouldStripTrailingStandaloneName
+    ? stripTrailingStandaloneHonorificNameFragment(candidate)
+    : candidate;
+  if (!cleanedCandidate) return "Needs review";
+  if (hasDanglingHonorificToken(cleanedCandidate)) return "Needs review";
+  if (containsRejectedNoVoteDisplayText(cleanedCandidate)) return "Needs review";
+  if (!isMeaningfulNoVoteDisplayText(cleanedCandidate)) return "Needs review";
+  return cleanedCandidate;
 };
 
 export type MemberNoVoteSourceRecord = {

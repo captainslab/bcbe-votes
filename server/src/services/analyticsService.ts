@@ -244,60 +244,216 @@ export const getMemberStats = async () => {
   }));
 };
 
+type AlignmentSharedVote = {
+  voteItemId: number;
+  meetingId: number;
+  meetingDate: string;
+  meetingTitle: string;
+  meetingType: string;
+  displayText: string;
+  itemTitle: string;
+  motionText: string;
+  summaryText: string;
+  result: string;
+  isNonUnanimous: boolean;
+  category: string;
+  categoryConfidence: number;
+  verificationStatus: string;
+  confidenceScore: number | string | null;
+  sourceUrl: string | null;
+  sourceAvailability: "available" | "unavailable";
+  sourceLabel: string;
+  memberAVote: string;
+  memberBVote: string;
+};
+
+type PairwiseAlignmentAccumulator = {
+  memberAId: number;
+  memberBId: number;
+  memberAName: CanonicalBoardMemberName;
+  memberBName: CanonicalBoardMemberName;
+  same: number;
+  diff: number;
+  sharedVotes: AlignmentSharedVote[];
+};
+
+const toDisplayVoteValue = (voteValue: string) => {
+  if (!voteValue) return "Needs review";
+  return `${voteValue.charAt(0).toUpperCase()}${voteValue.slice(1).toLowerCase()}`;
+};
+
 export const getPairwiseAlignment = async () => {
   const records = await db
     .select({
       voteItemId: schema.voteRecords.voteItemId,
-      memberId: schema.voteRecords.boardMemberId,
       memberName: schema.boardMembers.name,
       voteValue: schema.voteRecords.voteValue,
+      meetingId: schema.voteItems.meetingId,
+      meetingDate: schema.meetings.date,
+      meetingTitle: schema.meetings.title,
+      meetingType: schema.meetings.type,
+      meetingSourceUrl: schema.meetings.sourceUrl,
+      itemTitle: schema.voteItems.itemTitle,
+      motionText: schema.voteItems.motionText,
+      summaryText: schema.voteItems.summaryText,
+      sourceExcerpt: schema.voteItems.sourceExcerpt,
+      result: schema.voteItems.result,
+      isNonUnanimous: schema.voteItems.isNonUnanimous,
+      verificationStatus: schema.voteItems.verificationStatus,
+      confidenceScore: schema.voteItems.confidenceScore,
     })
     .from(schema.voteRecords)
-    .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
+    .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id))
+    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
+    .leftJoin(schema.meetings, eq(schema.voteItems.meetingId, schema.meetings.id));
 
   const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
   const canonicalDirectory = buildCanonicalMemberDirectory(members);
-  const byVoteItem = new Map<number, { memberId: number; voteValue: string }[]>();
+
+  const byVoteItem = new Map<
+    number,
+    {
+      meetingId: number;
+      meetingDate: Date | null;
+      meetingTitle: string | null;
+      meetingType: string | null;
+      meetingSourceUrl: string | null;
+      itemTitle: string | null;
+      motionText: string | null;
+      summaryText: string | null;
+      sourceExcerpt: string | null;
+      result: string | null;
+      isNonUnanimous: boolean;
+      verificationStatus: string;
+      confidenceScore: number | string | null;
+      votes: Array<{ memberId: number; memberName: CanonicalBoardMemberName; voteValue: string }>;
+    }
+  >();
 
   records.forEach((record) => {
     const memberRef = getCanonicalMemberRef(canonicalDirectory, record.memberName);
     if (!memberRef) return;
+    if (!record.voteItemId || !record.meetingId) return;
 
-    const existing = byVoteItem.get(record.voteItemId) ?? [];
-    if (existing.some((entry) => entry.memberId === memberRef.memberId)) return;
+    const existing = byVoteItem.get(record.voteItemId) ?? {
+      meetingId: record.meetingId,
+      meetingDate: record.meetingDate ?? null,
+      meetingTitle: record.meetingTitle ?? null,
+      meetingType: record.meetingType ?? null,
+      meetingSourceUrl: record.meetingSourceUrl ?? null,
+      itemTitle: record.itemTitle ?? null,
+      motionText: record.motionText ?? null,
+      summaryText: record.summaryText ?? null,
+      sourceExcerpt: record.sourceExcerpt ?? null,
+      result: record.result ?? null,
+      isNonUnanimous: Boolean(record.isNonUnanimous),
+      verificationStatus: record.verificationStatus ?? "needs_review",
+      confidenceScore: record.confidenceScore ?? null,
+      votes: [],
+    };
 
-    existing.push({ memberId: memberRef.memberId, voteValue: record.voteValue });
+    if (existing.votes.some((entry) => entry.memberId === memberRef.memberId)) {
+      byVoteItem.set(record.voteItemId, existing);
+      return;
+    }
+
+    existing.votes.push({
+      memberId: memberRef.memberId,
+      memberName: memberRef.name,
+      voteValue: record.voteValue,
+    });
     byVoteItem.set(record.voteItemId, existing);
   });
 
-  const pairStats = new Map<string, { same: number; diff: number }>();
+  const pairStats = new Map<string, PairwiseAlignmentAccumulator>();
 
-  byVoteItem.forEach((votes) => {
-    for (let i = 0; i < votes.length; i += 1) {
-      for (let j = i + 1; j < votes.length; j += 1) {
-        const a = votes[i];
-        const b = votes[j];
+  byVoteItem.forEach((voteItem, voteItemId) => {
+    const categoryInfo = categorizeVoteItemText({
+      itemTitle: voteItem.itemTitle,
+      motionText: voteItem.motionText,
+      summaryText: voteItem.summaryText,
+      sourceExcerpt: voteItem.sourceExcerpt,
+    });
+    const sourceInfo = buildSourceAuditInfo(voteItem.meetingSourceUrl);
+
+    const itemTitle = sanitizePublicVoteDisplayText(voteItem.itemTitle);
+    const motionText = sanitizePublicVoteDisplayText(voteItem.motionText);
+    const summaryText = sanitizePublicVoteDisplayText(voteItem.summaryText);
+    const result = sanitizePublicVoteDisplayText(voteItem.result, "strict-outcome");
+
+    const displayText = [itemTitle, motionText, summaryText].find((value) => value && value !== "Needs review") ?? "Needs review";
+
+    const orderedVotes = [...voteItem.votes].sort((a, b) => a.memberId - b.memberId);
+
+    for (let i = 0; i < orderedVotes.length; i += 1) {
+      for (let j = i + 1; j < orderedVotes.length; j += 1) {
+        const a = orderedVotes[i];
+        const b = orderedVotes[j];
         if (!a || !b) continue;
-        const key = `${Math.min(a.memberId, b.memberId)}-${Math.max(a.memberId, b.memberId)}`;
-        const current = pairStats.get(key) ?? { same: 0, diff: 0 };
-        if (a.voteValue === b.voteValue) current.same += 1;
-        else current.diff += 1;
-        pairStats.set(key, current);
+
+        const key = `${a.memberId}-${b.memberId}`;
+        const accumulator =
+          pairStats.get(key) ??
+          ({
+            memberAId: a.memberId,
+            memberBId: b.memberId,
+            memberAName: a.memberName,
+            memberBName: b.memberName,
+            same: 0,
+            diff: 0,
+            sharedVotes: [],
+          } satisfies PairwiseAlignmentAccumulator);
+
+        if (a.voteValue === b.voteValue) accumulator.same += 1;
+        else accumulator.diff += 1;
+
+        accumulator.sharedVotes.push({
+          voteItemId,
+          meetingId: voteItem.meetingId,
+          meetingDate: voteItem.meetingDate ? voteItem.meetingDate.toISOString() : "",
+          meetingTitle: voteItem.meetingTitle ?? "Needs review",
+          meetingType: voteItem.meetingType ?? "Needs review",
+          displayText,
+          itemTitle,
+          motionText,
+          summaryText,
+          result,
+          isNonUnanimous: voteItem.isNonUnanimous,
+          category: categoryInfo.category,
+          categoryConfidence: categoryInfo.categoryConfidence,
+          verificationStatus: voteItem.verificationStatus,
+          confidenceScore: voteItem.confidenceScore,
+          sourceUrl: sourceInfo.sourceUrl,
+          sourceAvailability: sourceInfo.sourceAvailability,
+          sourceLabel: sourceInfo.sourceLabel,
+          memberAVote: toDisplayVoteValue(a.voteValue),
+          memberBVote: toDisplayVoteValue(b.voteValue),
+        });
+
+        pairStats.set(key, accumulator);
       }
     }
   });
 
-  return Array.from(pairStats.entries()).map(([key, value]) => {
-    const [memberAId, memberBId] = key.split("-").map(Number);
-    const overlap = value.same + value.diff;
+  return Array.from(pairStats.values()).map((pair) => {
+    const overlap = pair.same + pair.diff;
+    const categoriesRepresented = Array.from(
+      new Set(pair.sharedVotes.map((vote) => vote.category || "Needs review")),
+    ).sort((a, b) => a.localeCompare(b));
+
     return {
-      memberAId,
-      memberBId,
-      sameVotes: value.same,
-      differentVotes: value.diff,
+      memberAId: pair.memberAId,
+      memberBId: pair.memberBId,
+      memberAName: pair.memberAName,
+      memberBName: pair.memberBName,
+      sameVotes: pair.same,
+      differentVotes: pair.diff,
+      splitVotes: pair.diff,
       overlap,
-      alignmentRate: overlap ? value.same / overlap : 0,
-      splitRate: overlap ? value.diff / overlap : 0,
+      alignmentRate: overlap ? pair.same / overlap : 0,
+      splitRate: overlap ? pair.diff / overlap : 0,
+      categoriesRepresented,
+      sharedVotes: pair.sharedVotes,
     };
   });
 };

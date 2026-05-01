@@ -105,14 +105,42 @@ export type MemberNoVoteItem = {
   overallOutcome: string;
 };
 
+export type AlignmentSharedVote = {
+  voteItemId: number;
+  meetingId: number;
+  meetingDate: string;
+  meetingTitle: string;
+  meetingType: string;
+  displayText: string;
+  itemTitle: string;
+  motionText: string;
+  summaryText: string;
+  result: string;
+  isNonUnanimous: boolean;
+  category: string;
+  categoryConfidence: number;
+  verificationStatus: string;
+  confidenceScore: number | string | null;
+  sourceUrl: string | null;
+  sourceAvailability: "available" | "unavailable";
+  sourceLabel: string;
+  memberAVote: string;
+  memberBVote: string;
+};
+
 export type PairwiseAlignment = {
   memberAId: number;
   memberBId: number;
+  memberAName?: string;
+  memberBName?: string;
   sameVotes: number;
   differentVotes: number;
+  splitVotes?: number;
   overlap: number;
   alignmentRate: number;
   splitRate: number;
+  categoriesRepresented?: string[];
+  sharedVotes?: AlignmentSharedVote[];
 };
 
 export type SummaryStats = {
