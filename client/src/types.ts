@@ -148,6 +148,7 @@ export type SummaryStats = {
   totalVotes: number;
   totalVoteRecords: number;
   nonUnanimousCount: number;
+  needsReviewCount?: number;
   dissentLeaderboard: {
     memberId: number;
     name: string;

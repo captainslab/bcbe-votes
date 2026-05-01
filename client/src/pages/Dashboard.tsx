@@ -2,6 +2,57 @@ import { Link } from "react-router-dom";
 import { useSummary } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
+import type { VoteItem } from "../types";
+
+const normalizeText = (value?: string | null) => (typeof value === "string" ? value.trim() : "");
+
+const parseConfidence = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === "number" ? value : Number.parseFloat(String(value));
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  if (parsed <= 1) return parsed;
+  if (parsed <= 100) return parsed / 100;
+  return null;
+};
+
+const formatConfidence = (value: string | number | null | undefined) => {
+  const normalized = parseConfidence(value);
+  if (normalized === null) return "Needs review";
+  return `${Math.round(normalized * 100)}%`;
+};
+
+const getVoteTitle = (vote: VoteItem) => {
+  const candidates = [vote.itemTitle, vote.motionText, vote.summaryText];
+  const firstClean = candidates
+    .map((candidate) => normalizeText(candidate))
+    .find((candidate) => candidate && candidate.toLowerCase() !== "needs review");
+  return firstClean || "Needs review";
+};
+
+const getSourceUrl = (vote: VoteItem) => {
+  if (vote.sourceUrl && /^https?:\/\//i.test(vote.sourceUrl)) return vote.sourceUrl;
+  if (vote.meeting?.sourceUrl && /^https?:\/\//i.test(vote.meeting.sourceUrl)) return vote.meeting.sourceUrl;
+  return null;
+};
+
+const getSourceState = (vote: VoteItem) => {
+  if (vote.sourceAvailability === "available") return "Source linked";
+  return vote.sourceLabel || "Source unavailable";
+};
+
+const isNeedsReviewVote = (vote: VoteItem) => {
+  const confidence = parseConfidence(vote.confidenceScore);
+  const title = getVoteTitle(vote);
+  const lowConfidence = confidence !== null && confidence < 0.6;
+
+  return (
+    vote.category === "Needs review" ||
+    vote.verificationStatus !== "verified" ||
+    vote.sourceAvailability === "unavailable" ||
+    lowConfidence ||
+    title === "Needs review"
+  );
+};
 
 export const Dashboard = () => {
   const { data, isLoading, error } = useSummary();
@@ -20,105 +71,157 @@ export const Dashboard = () => {
     <div className="space-y-6 md:space-y-8">
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="space-y-4 p-5 sm:p-6 lg:p-8">
-          <div className="space-y-3">
-            <Badge tone="amber">Current extracted coverage</Badge>
-            <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
-                BCBE Votes currently shows extracted coverage, not a full historical archive.
-              </h1>
-              <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-                The app has discovered {summary.totalMeetings} meetings, but only{" "}
-                {summary.totalVotes} extracted vote items and {summary.totalVoteRecords} extracted
-                vote records. Historical coverage is incomplete and should not be read as a full
-                archive.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link
-                to="/votes"
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm"
-              >
-                Browse votes
-              </Link>
-              <Link
-                to="/meetings"
-                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800"
-              >
-                View meetings
-              </Link>
-            </div>
+          <Badge tone="blue">Source-first civic vote records</Badge>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
+            BoardVotes.io tracks extracted Baldwin County Board of Education vote records from meeting and minutes sources.
+          </h1>
+          <p className="max-w-3xl text-sm text-slate-600 sm:text-base">
+            This is extracted coverage, not a full historical archive. Vote items are shown with source links,
+            verification status, and confidence context. Lower-confidence or incomplete records are marked Needs review.
+          </p>
+          <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+            <p>
+              Meetings tracked: <span className="font-semibold text-slate-900">{summary.totalMeetings}</span>
+            </p>
+            <p>
+              Vote items extracted: <span className="font-semibold text-slate-900">{summary.totalVotes}</span>
+            </p>
+            <p>
+              Non-unanimous vote items: <span className="font-semibold text-slate-900">{summary.nonUnanimousCount}</span>
+            </p>
+            <p>
+              Needs-review records: <span className="font-semibold text-slate-900">{summary.needsReviewCount ?? "Unavailable"}</span>
+            </p>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Meetings tracked" value={summary.totalMeetings} helper="Indexed meeting pages" />
+        <StatCard label="Vote items extracted" value={summary.totalVotes} helper="Structured vote items" />
         <StatCard
-          label="Discovered meetings"
-          value={summary.totalMeetings}
-          helper="Indexed meeting pages"
+          label="Non-unanimous votes"
+          value={summary.nonUnanimousCount}
+          helper="Visible dissent/split items"
         />
         <StatCard
-          label="Extracted vote items"
-          value={summary.totalVotes}
-          helper="Structured vote items"
-        />
-        <StatCard
-          label="Extracted vote records"
-          value={summary.totalVoteRecords}
-          helper="Member-level recorded votes"
+          label="Needs-review records"
+          value={summary.needsReviewCount ?? "Unavailable"}
+          helper={summary.needsReviewCount === undefined ? "Not returned by API" : "Low-confidence or incomplete extraction"}
         />
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
-        The extracted set currently includes {summary.nonUnanimousCount} non-unanimous vote item
-        {summary.nonUnanimousCount === 1 ? "" : "s"}. Leaderboards below are calculated from
-        extracted vote records only.
-      </div>
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="text-lg font-semibold text-slate-900">Quick links</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Start with filtered vote records, member voting pages, voting alignment, or meeting source pages.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            to="/votes"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
+          >
+            View votes
+          </Link>
+          <Link
+            to="/members"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
+          >
+            View members
+          </Link>
+          <Link
+            to="/alliances"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
+          >
+            View voting alignment
+          </Link>
+          <Link
+            to="/meetings"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
+          >
+            View meetings
+          </Link>
+        </div>
+      </section>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Recent extracted vote items</h2>
-            <p className="text-sm text-slate-500">
-              Each extracted item links to the summary, motion text, vote grid, and official
-              source.
+            <p className="text-sm text-slate-600">
+              Sanitized extracted text with category, verification state, source status, and detail links.
             </p>
           </div>
           <Link to="/votes" className="text-sm font-semibold text-slate-800 hover:underline">
-            View all
+            View all votes
           </Link>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {recentVotes.map((vote) => (
-            <Link
-              to={`/votes/${vote.id}`}
-              key={vote.id}
-              className="rounded-lg border border-slate-200 p-3 transition hover:border-slate-400 sm:p-4"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  {vote.detectedPattern || "vote"}
+          {recentVotes.map((vote) => {
+            const title = getVoteTitle(vote);
+            const sourceUrl = getSourceUrl(vote);
+            const sourceState = getSourceState(vote);
+            const excerpt = normalizeText(vote.sourceExcerpt);
+            const confidenceLabel = formatConfidence(vote.confidenceScore);
+            const needsReview = isNeedsReviewVote(vote);
+            const meetingDate = vote.meeting?.date ? new Date(vote.meeting.date).toLocaleDateString() : "Needs review";
+
+            return (
+              <article key={vote.id} className="rounded-lg border border-slate-200 p-3 sm:p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>
+                    {vote.category || "Needs review"}
+                  </Badge>
+                  <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
+                    {vote.verificationStatus || "needs_review"}
+                  </Badge>
+                  <Badge tone={vote.sourceAvailability === "available" ? "emerald" : "amber"}>{sourceState}</Badge>
+                  {needsReview ? <Badge tone="amber">Needs review</Badge> : null}
+                </div>
+
+                <p className="mt-2 text-xs text-slate-500">{meetingDate}</p>
+                <h3 className="mt-1 text-base font-semibold text-slate-900">{title}</h3>
+                <p className="mt-2 text-sm text-slate-600 line-clamp-2">
+                  {excerpt && excerpt.toLowerCase() !== "needs review" ? excerpt : "Needs review"}
                 </p>
-                <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>
-                  {vote.category || "Needs review"}
-                </Badge>
-                <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
-                  {vote.verificationStatus || "needs_review"}
-                </Badge>
-              </div>
-              <p className="mt-1 text-base font-semibold text-slate-900">{vote.itemTitle}</p>
-              <p className="mt-1 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt || "Needs review"}</p>
-            </Link>
-          ))}
+
+                <div className="mt-3 space-y-1 text-xs text-slate-500">
+                  <p>
+                    Confidence: <span className="font-semibold text-slate-700">{confidenceLabel}</span>
+                  </p>
+                  <p className="break-all">
+                    Source:{" "}
+                    {sourceUrl ? (
+                      <a href={sourceUrl} target="_blank" rel="noreferrer" className="underline text-slate-700">
+                        {sourceUrl}
+                      </a>
+                    ) : (
+                      <span>{sourceState}</span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="mt-3">
+                  <Link to={`/votes/${vote.id}`} className="text-sm font-semibold text-slate-800 underline">
+                    View vote detail
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
         </div>
+      </section>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+        BoardVotes.io is source-first: each vote item should link to its official meeting/minutes source when available.
+        Records with weak extraction confidence, missing source context, or unresolved parsing are marked Needs review.
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Dissent leaderboard</h2>
           <p className="text-sm text-slate-500">
-            Ranked from extracted votes only. Read the percentage with its extracted-vote
-            denominator.
+            Ranked from extracted votes only. Read each rate with its extracted-vote denominator.
           </p>
           {hasSmallLeaderboardSamples && (
             <p className="mt-2 text-xs font-medium text-amber-700">
@@ -136,8 +239,7 @@ export const Dashboard = () => {
                     {(m.dissentRate * 100).toFixed(1)}% dissent
                   </span>
                   <p className="mt-1 text-xs text-slate-500">
-                    {m.dissentCount} of {m.totalVotes} extracted vote
-                    {m.totalVotes === 1 ? "" : "s"}
+                    {m.dissentCount} of {m.totalVotes} extracted vote{m.totalVotes === 1 ? "" : "s"}
                   </p>
                 </div>
               </div>
@@ -148,8 +250,7 @@ export const Dashboard = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Yes-rate leaderboard</h2>
           <p className="text-sm text-slate-500">
-            Ranked from extracted votes only. Read the percentage with its extracted-vote
-            denominator.
+            Ranked from extracted votes only. Read each rate with its extracted-vote denominator.
           </p>
           {hasSmallLeaderboardSamples && (
             <p className="mt-2 text-xs font-medium text-amber-700">
@@ -175,33 +276,6 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
-
-      <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-5">
-        <div className="max-w-2xl">
-          <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
-            How to read this dashboard
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Coverage context and display conventions live here, below the extracted vote summary.
-          </p>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm font-medium text-slate-500">Read this site as</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              current extracted coverage, not a full archive
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm text-slate-500">Default view</p>
-            <p className="mt-1 font-semibold text-slate-900">Non-unanimous extracted vote items</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-sm text-slate-500">Source display</p>
-            <p className="mt-1 font-semibold text-slate-900">URL + excerpt on every vote</p>
-          </div>
-        </div>
-      </section>
     </div>
   );
 };

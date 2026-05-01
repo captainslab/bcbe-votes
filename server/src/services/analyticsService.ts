@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { db, schema } from "../db";
 import {
   buildSourceAuditInfo,
@@ -118,6 +118,19 @@ export const getSummaryStats = async () => {
     .from(schema.voteItems)
     .where(eq(schema.voteItems.isNonUnanimous, true));
 
+  const [needsReviewCount] = await db
+    .select({
+      count: count(),
+    })
+    .from(schema.voteItems)
+    .where(
+      sql`(
+        ${schema.voteItems.verificationStatus} != 'verified'
+        OR ${schema.voteItems.confidenceScore} IS NULL
+        OR ${schema.voteItems.confidenceScore} < 0.6
+      )`,
+    );
+
   const memberVoteRows = await db
     .select({
       memberId: schema.voteRecords.boardMemberId,
@@ -183,6 +196,7 @@ export const getSummaryStats = async () => {
     totalVotes: Number(voteItemsCount?.count ?? 0),
     totalVoteRecords: Number(voteRecordsCount?.count ?? 0),
     nonUnanimousCount: Number(nonUnanimousCount?.count ?? 0),
+    needsReviewCount: Number(needsReviewCount?.count ?? 0),
     dissentLeaderboard,
     yesLeaderboard,
   };
