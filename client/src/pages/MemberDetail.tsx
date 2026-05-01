@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
-import type { MemberNoVoteItem, PairwiseAlignment } from "../types";
+import type { MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
 
 const canonicalMemberNames = new Set([
   "Ken Bradley",
@@ -36,6 +36,14 @@ const formatDate = (value?: string | null) => {
   if (!value) return "Needs review";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
+};
+
+const formatTerm = (profile?: MemberProfile | null) => {
+  if (!profile) return null;
+  if (profile.termStart && profile.termEnd) return `${profile.termStart}-${profile.termEnd}`;
+  if (profile.termStart) return `${profile.termStart}`;
+  if (profile.termEnd) return `${profile.termEnd}`;
+  return null;
 };
 
 const renderAuditLine = (item: MemberNoVoteItem) => (
@@ -112,7 +120,18 @@ export const MemberDetail = () => {
   if (!data || !isValidDetailName(data.name)) return null;
 
   const stats = data.stats;
+  const profile = data.profile;
   const totalVotes = Math.max(stats?.totalVotes ?? 0, 1);
+  const term = formatTerm(profile);
+  const hasProfileDetails = Boolean(
+    profile?.roleTitle ||
+      profile?.districtDescription?.length ||
+      profile?.committees?.length ||
+      term ||
+      profile?.officialPhone,
+  );
+  const hasOfficialContact = Boolean(profile?.officialContactUrl || profile?.officialContactEmail || profile?.officialPhone);
+  const sourceLinks = profile?.profileSourceUrls ?? [];
 
   return (
     <div className="space-y-6">
@@ -120,11 +139,95 @@ export const MemberDetail = () => {
         <div>
           <p className="text-sm text-slate-600">Baldwin County Board of Education</p>
           <h1 className="text-3xl font-semibold text-slate-900">{data.name}</h1>
-          {data.district ? <p className="mt-1 text-sm text-slate-600">District: {data.district}</p> : null}
+          <p className="mt-1 text-sm text-slate-600">{profile?.district || data.district || "District not yet sourced"}</p>
+          {profile?.roleTitle ? <p className="mt-1 text-sm text-slate-600">{profile.roleTitle}</p> : null}
+          {profile?.officialProfileUrl ? (
+            <a
+              href={profile.officialProfileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-sm font-semibold text-slate-700 underline"
+            >
+              Official board profile source
+            </a>
+          ) : null}
         </div>
         <Link to="/members" className="text-sm font-semibold text-slate-700 hover:underline">
           Back to members
         </Link>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">Profile details</h2>
+        {hasProfileDetails ? (
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {term ? <p>Term: {term}</p> : null}
+            {profile?.officialPhone ? <p>Official phone: {profile.officialPhone}</p> : null}
+            {profile?.districtDescription?.length ? (
+              <div>
+                <p className="font-medium text-slate-800">District description</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {profile.districtDescription.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {profile?.committees?.length ? (
+              <div>
+                <p className="font-medium text-slate-800">Committees</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {profile.committees.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-600">Profile details not yet sourced.</p>
+        )}
+
+        <h3 className="mt-4 text-sm font-semibold uppercase tracking-wide text-slate-700">Official contact</h3>
+        {hasOfficialContact ? (
+          <div className="mt-2 space-y-1 text-sm text-slate-700">
+            {profile?.officialContactEmail ? <p>Email: {profile.officialContactEmail}</p> : null}
+            {profile?.officialPhone ? <p>Phone: {profile.officialPhone}</p> : null}
+            {profile?.officialContactUrl ? (
+              <a
+                href={profile.officialContactUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block font-semibold text-slate-700 underline"
+              >
+                Official contact link
+              </a>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">Official contact not yet sourced.</p>
+        )}
+
+        <h3 className="mt-4 text-sm font-semibold uppercase tracking-wide text-slate-700">Sources</h3>
+        {sourceLinks.length > 0 ? (
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+            {sourceLinks.map((url) => (
+              <li key={url} className="break-all">
+                <a href={url} target="_blank" rel="noreferrer" className="font-semibold text-slate-700 underline">
+                  {url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">Profile details not yet sourced.</p>
+        )}
+        <p className="mt-3 text-xs text-slate-500">
+          Profile verification status: {profile?.profileVerificationStatus ?? "not yet sourced"}
+        </p>
+        <p className="text-xs text-slate-500">
+          Profile last reviewed: {profile?.profileLastReviewedAt ? formatDate(profile.profileLastReviewedAt) : "not yet sourced"}
+        </p>
       </div>
 
       {stats && (

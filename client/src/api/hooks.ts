@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { Meeting, MemberNoVoteItem, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
+import type { Meeting, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
 
 export const useSummary = () =>
   useQuery({
@@ -62,6 +62,7 @@ type MemberDetailResponse = {
   id: number;
   name: string;
   district?: string;
+  profile?: MemberProfile;
   stats?: MemberStat;
   noVoteItems?: MemberNoVoteItem[];
 };

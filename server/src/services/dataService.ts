@@ -7,6 +7,7 @@ import {
   getCanonicalBoardMemberName,
   sanitizePublicVoteDisplayText,
 } from "../utils/boardVotes";
+import { getSourcedMemberProfile } from "../utils/memberProfiles";
 import { normalizeWhitespace } from "../utils/text";
 
 const filterCanonicalVoteRecords = <T extends { voteRecords?: Array<{ boardMember?: { name?: string | null } | null }> | null }>(
@@ -156,10 +157,13 @@ export const getMember = async (id: number) => {
 
   const canonicalName = getCanonicalBoardMemberName(member.name);
   if (!canonicalName) return null;
+  const sourcedProfile = getSourcedMemberProfile(canonicalName);
 
   return {
     ...member,
     name: canonicalName,
+    district: member.district ?? sourcedProfile.district,
+    profile: sourcedProfile,
   };
 };
 

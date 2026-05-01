@@ -66,6 +66,23 @@ export type MemberStat = {
   nonUnanimousParticipation: number;
 };
 
+export type MemberProfile = {
+  canonicalName: string;
+  district: string | null;
+  roleTitle: string | null;
+  officialProfileUrl: string | null;
+  officialContactUrl: string | null;
+  officialContactEmail: string | null;
+  officialPhone: string | null;
+  termStart: number | null;
+  termEnd: number | null;
+  districtDescription: string[] | null;
+  committees: string[] | null;
+  profileSourceUrls: string[];
+  profileVerificationStatus: "verified" | "needs_review";
+  profileLastReviewedAt: string | null;
+};
+
 export type MemberNoVoteItem = {
   voteItemId: number;
   meetingId: number;
