@@ -28,6 +28,7 @@ const enrichVoteItem = <T extends {
   motionText?: string | null;
   summaryText?: string | null;
   sourceExcerpt?: string | null;
+  result?: string | null;
   meeting?: { sourceUrl?: string | null } | null;
   voteRecords?: Array<{ boardMember?: { name?: string | null } | null }> | null;
 }>(voteItem: T) => {
@@ -44,6 +45,7 @@ const enrichVoteItem = <T extends {
     motionText: sanitizePublicVoteDisplayText(voteItem.motionText),
     summaryText: sanitizePublicVoteDisplayText(voteItem.summaryText),
     sourceExcerpt: sanitizePublicVoteDisplayText(voteItem.sourceExcerpt),
+    result: sanitizePublicVoteDisplayText(voteItem.result, "strict-outcome"),
     category: categoryInfo.category,
     categoryConfidence: categoryInfo.categoryConfidence,
     sourceUrl: sourceInfo.sourceUrl,

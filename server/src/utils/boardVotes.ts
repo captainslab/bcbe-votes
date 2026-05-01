@@ -73,12 +73,15 @@ export const getCanonicalBoardMemberName = (rawName?: string | null): CanonicalB
 const categoryParserArtifactPatterns = [
   /motion made by/i,
   /motion seconded by/i,
+  /\bmade a motion\b/i,
+  /\bseconded by\b/i,
   /\bvoting\s*:/i,
   /unanimously approved/i,
   /action agenda/i,
   /superintendent recommendations/i,
   /all voiced approval/i,
-  /declared the motion carries/i,
+  /all indicated approval/i,
+  /declared the motion carri(?:ed|es)/i,
   /(?:^|\s)[A-Z][a-z]+(?:\s+[A-Z][a-z.]+){0,3}\s*-\s*(?:Yes|No|Abstain|Recused|Absent)\b/,
   /\b(?:Yes|No|Abstain|Recused|Absent):\s*[A-Z]/,
 ] as const;
@@ -188,10 +191,13 @@ export const buildSourceAuditInfo = (sourceUrl?: string | null): SourceAuditInfo
 const noVoteDisplayRejectPatterns = [
   /motion made by/i,
   /motion seconded by/i,
+  /\bmade a motion\b/i,
+  /\bseconded by\b/i,
   /\bvoting\s*:/i,
   /unanimously approved/i,
   /all voiced approval/i,
-  /declared the motion carries/i,
+  /all indicated approval/i,
+  /declared the motion carri(?:ed|es)/i,
   /action agenda/i,
   /superintendent recommendations/i,
   /(?:^|\s)(?:mrs|ms|miss|dr)\.?\s+[A-Z]/i,
@@ -204,18 +210,27 @@ const noVoteDisplayRejectPatterns = [
 const noVoteDisplaySplitPatterns = [
   /motion made by/i,
   /motion seconded by/i,
+  /\bmade a motion\b/i,
+  /\bseconded by\b/i,
   /\bvoting\s*:/i,
   /unanimously approved/i,
   /action agenda/i,
   /superintendent recommendations/i,
   /all voiced approval/i,
-  /declared the motion carries/i,
+  /all indicated approval/i,
+  /declared the motion carri(?:ed|es)/i,
   /(?:^|\s)(?:mrs|ms|miss|dr)\.?\s+[A-Z]/i,
   /(?:^|\s)[A-Z][a-z]+(?:\s+[A-Z][a-z.]+){0,3}\s*-\s*(?:Yes|No|Abstain|Recused|Absent)\b/,
   /\b(?:Yes|No|Abstain|Recused|Absent):\s*[A-Z]/,
 ] as const;
 
-const normalizeNoVoteDisplayText = (value?: string | null) => normalizeWhitespace(value).replace(/\s+([,.;:])/g, "$1").trim();
+const publicDisplayHonorificPattern = /\b(?:mrs|ms|mr|miss|dr)\.?\s+/gi;
+
+const normalizeNoVoteDisplayText = (value?: string | null) =>
+  normalizeWhitespace(value)
+    .replace(publicDisplayHonorificPattern, "")
+    .replace(/\s+([,.;:])/g, "$1")
+    .trim();
 
 const trimNoVoteDisplaySuffix = (value: string) =>
   value
