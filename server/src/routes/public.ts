@@ -7,6 +7,7 @@ import {
   getVote,
   listMembers,
   getMember,
+  getMemberNoVoteItems,
 } from "../services/dataService";
 import {
   getMemberAlignment,
@@ -141,7 +142,8 @@ router.get(
       const member = await getMember(memberId);
       if (!member) throw new HttpError(404, "Member not found");
       const stats = (await getMemberStats()).find((s) => s.memberId === memberId);
-      res.json({ ...member, stats });
+      const noVoteItems = await getMemberNoVoteItems(memberId);
+      res.json({ ...member, stats, noVoteItems });
     } catch (err) {
       next(err);
     }

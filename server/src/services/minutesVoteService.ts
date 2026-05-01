@@ -6,6 +6,7 @@ import {
   type MinutesVoteShape,
   type MinutesVerificationStatus,
 } from "../ingestion/parsers/minutesVoteParser";
+import { categorizeVoteItemText } from "../utils/boardVotes";
 
 export type PersistedMinutesVoteItem = {
   agendaSection: string | null;
@@ -24,6 +25,8 @@ export type PersistedMinutesVoteItem = {
   verificationStatus: MinutesVerificationStatus;
   detectedPattern: string;
   confidenceScore: number;
+  category: ReturnType<typeof categorizeVoteItemText>["category"];
+  categoryConfidence: number;
 };
 
 export type PersistedMinutesVoteRecord = {
@@ -77,6 +80,12 @@ export const buildPersistedMinutesVoteOutput = (
   const extraction = extractMinutesVoteSummary(response);
   const voteTally = buildVoteTally(extraction);
   const itemTitle = response.itemDetails.Title;
+  const categorization = categorizeVoteItemText({
+    itemTitle,
+    motionText: extraction.motionText,
+    summaryText: extraction.summaryText,
+    sourceExcerpt: extraction.sourceExcerpt,
+  });
   const voteItem: PersistedMinutesVoteItem = {
     agendaSection: response.itemDetails.Level > 1 ? response.itemDetails.Title : null,
     itemTitle,
@@ -99,6 +108,8 @@ export const buildPersistedMinutesVoteOutput = (
     verificationStatus: extraction.verificationStatus,
     detectedPattern: extraction.detectedPattern,
     confidenceScore: extraction.confidenceScore,
+    category: categorization.category,
+    categoryConfidence: categorization.categoryConfidence,
   };
 
   const voteRecords = extraction.memberVotes.map((vote) => ({

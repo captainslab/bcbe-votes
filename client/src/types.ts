@@ -41,6 +41,11 @@ export type VoteItem = {
   verificationStatus: string;
   detectedPattern?: string | null;
   confidenceScore?: string | number | null;
+  category?: string;
+  categoryConfidence?: string | number | null;
+  sourceUrl?: string | null;
+  sourceAvailability?: "available" | "unavailable";
+  sourceLabel?: string;
   meeting?: Meeting;
   voteRecords?: VoteRecord[];
 };
@@ -59,6 +64,28 @@ export type MemberStat = {
   majorityAlignmentRate: number;
   unanimousParticipation: number;
   nonUnanimousParticipation: number;
+};
+
+export type MemberNoVoteItem = {
+  voteItemId: number;
+  meetingId: number;
+  meetingDate: string;
+  meetingTitle: string;
+  meetingType: string;
+  sourceUrl: string | null;
+  sourceAvailability: "available" | "unavailable";
+  sourceLabel: string;
+  itemTitle: string;
+  motionText: string | null;
+  summaryText: string | null;
+  result: string | null;
+  verificationStatus: string;
+  confidenceScore: string | number | null;
+  sourceExcerpt: string | null;
+  category: string;
+  categoryConfidence: string | number | null;
+  memberVote: "No";
+  overallOutcome: string;
 };
 
 export type PairwiseAlignment = {

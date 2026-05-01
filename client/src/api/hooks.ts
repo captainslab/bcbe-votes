@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { MemberStat, Meeting, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
+import type { Meeting, MemberNoVoteItem, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
 
 export const useSummary = () =>
   useQuery({
@@ -58,13 +58,21 @@ export const useMembers = () =>
     },
   });
 
+type MemberDetailResponse = {
+  id: number;
+  name: string;
+  district?: string;
+  stats?: MemberStat;
+  noVoteItems?: MemberNoVoteItem[];
+};
+
 export const useMember = (id?: string | number) =>
   useQuery({
     queryKey: ["member", id],
     enabled: Boolean(id),
     queryFn: async () => {
-      const res = await api.get(`/members/${id}`);
-      return res.data as { id: number; name: string; district?: string; stats?: MemberStat };
+      const res = await api.get<MemberDetailResponse>(`/members/${id}`);
+      return res.data;
     },
   });
 

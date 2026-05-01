@@ -1,9 +1,16 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db, schema } from "../db";
+import {
+  buildSourceAuditInfo,
+  canonicalBoardMembers,
+  categorizeVoteItemText,
+  getCanonicalBoardMemberName,
+  type CanonicalBoardMemberName,
+} from "../utils/boardVotes";
 
 type MemberStats = {
   memberId: number;
-  name: string;
+  name: CanonicalBoardMemberName;
   totals: Record<string, number>;
   dissentCount: number;
   alignmentCount: number;
@@ -12,16 +19,90 @@ type MemberStats = {
   nonUnanimousParticipation: number;
 };
 
+type CanonicalMemberRef = {
+  memberId: number;
+  name: CanonicalBoardMemberName;
+};
+
+const createCanonicalMemberStats = (memberId: number, name: CanonicalBoardMemberName): MemberStats => ({
+  memberId,
+  name,
+  totals: { yes: 0, no: 0, abstain: 0, recused: 0, absent: 0 },
+  dissentCount: 0,
+  alignmentCount: 0,
+  totalVotes: 0,
+  unanimousParticipation: 0,
+  nonUnanimousParticipation: 0,
+});
+
 const getMajorityVote = (tally: Record<string, number>) => {
   let max = 0;
   let majority: string | null = null;
+
   for (const [vote, value] of Object.entries(tally ?? {})) {
     if (value > max) {
       max = value;
       majority = vote;
     }
   }
+
   return majority;
+};
+
+const buildCanonicalMemberDirectory = (
+  members: Array<{ id: number; name: string }>,
+): Map<CanonicalBoardMemberName, CanonicalMemberRef> => {
+  const directory = new Map<CanonicalBoardMemberName, CanonicalMemberRef>();
+
+  members.forEach((member) => {
+    const canonicalName = getCanonicalBoardMemberName(member.name);
+    if (!canonicalName) return;
+
+    const existing = directory.get(canonicalName);
+    if (!existing || member.id < existing.memberId) {
+      directory.set(canonicalName, { memberId: member.id, name: canonicalName });
+    }
+  });
+
+  canonicalBoardMembers.forEach((name) => {
+    if (!directory.has(name)) return;
+  });
+
+  return directory;
+};
+
+const getCanonicalMemberRef = (
+  directory: Map<CanonicalBoardMemberName, CanonicalMemberRef>,
+  rawName?: string | null,
+) => {
+  const canonicalName = getCanonicalBoardMemberName(rawName);
+  if (!canonicalName) return null;
+  return directory.get(canonicalName) ?? null;
+};
+
+const enrichVoteItemAudit = <T extends {
+  itemTitle?: string | null;
+  motionText?: string | null;
+  summaryText?: string | null;
+  sourceExcerpt?: string | null;
+  meeting?: { sourceUrl?: string | null } | null;
+}>(vote: T) => {
+  const categoryInfo = categorizeVoteItemText({
+    itemTitle: vote.itemTitle ?? null,
+    motionText: vote.motionText ?? null,
+    summaryText: vote.summaryText ?? null,
+    sourceExcerpt: vote.sourceExcerpt ?? null,
+  });
+  const sourceInfo = buildSourceAuditInfo(vote.meeting?.sourceUrl ?? null);
+
+  return {
+    ...vote,
+    category: categoryInfo.category,
+    categoryConfidence: categoryInfo.categoryConfidence,
+    sourceUrl: sourceInfo.sourceUrl,
+    sourceAvailability: sourceInfo.sourceAvailability,
+    sourceLabel: sourceInfo.sourceLabel,
+  };
 };
 
 export const getSummaryStats = async () => {
@@ -36,69 +117,59 @@ export const getSummaryStats = async () => {
   const memberVoteRows = await db
     .select({
       memberId: schema.voteRecords.boardMemberId,
+      memberName: schema.boardMembers.name,
       voteValue: schema.voteRecords.voteValue,
-      voteItemId: schema.voteRecords.voteItemId,
       isNonUnanimous: schema.voteItems.isNonUnanimous,
       voteTally: schema.voteItems.voteTally,
     })
     .from(schema.voteRecords)
-    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id));
+    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
+    .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
 
-  const members = await db.select().from(schema.boardMembers);
-
+  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const canonicalDirectory = buildCanonicalMemberDirectory(members);
   const memberStats = new Map<number, MemberStats>();
-  members.forEach((m) =>
-    memberStats.set(m.id, {
-      memberId: m.id,
-      name: m.name,
-      totals: { yes: 0, no: 0, abstain: 0, recused: 0, absent: 0 },
-      dissentCount: 0,
-      alignmentCount: 0,
-      totalVotes: 0,
-      unanimousParticipation: 0,
-      nonUnanimousParticipation: 0,
-    }),
-  );
+
+  Array.from(canonicalDirectory.values()).forEach((member) => {
+    memberStats.set(member.memberId, createCanonicalMemberStats(member.memberId, member.name));
+  });
 
   memberVoteRows.forEach((row) => {
-    if (row.memberId == null) return;
-    const stats = memberStats.get(row.memberId);
+    const memberRef = getCanonicalMemberRef(canonicalDirectory, row.memberName);
+    if (!memberRef) return;
+
+    const stats = memberStats.get(memberRef.memberId);
     if (!stats) return;
+
     stats.totalVotes += 1;
     stats.totals[row.voteValue] = (stats.totals[row.voteValue] ?? 0) + 1;
-    if (row.isNonUnanimous) {
-      stats.nonUnanimousParticipation += 1;
-    } else {
-      stats.unanimousParticipation += 1;
-    }
+    if (row.isNonUnanimous) stats.nonUnanimousParticipation += 1;
+    else stats.unanimousParticipation += 1;
+
     const majority = getMajorityVote(row.voteTally ?? {});
-    if (majority) {
-      if (row.voteValue === majority) {
-        stats.alignmentCount += 1;
-      } else {
-        stats.dissentCount += 1;
-      }
-    }
+    if (!majority) return;
+    if (row.voteValue === majority) stats.alignmentCount += 1;
+    else stats.dissentCount += 1;
   });
 
   const dissentLeaderboard = Array.from(memberStats.values())
-    .map((s) => ({
-      memberId: s.memberId,
-      name: s.name,
-      dissentCount: s.dissentCount,
-      totalVotes: s.totalVotes,
-      dissentRate: s.totalVotes ? s.dissentCount / s.totalVotes : 0,
+    .map((stats) => ({
+      memberId: stats.memberId,
+      name: stats.name,
+      dissentCount: stats.dissentCount,
+      totalVotes: stats.totalVotes,
+      dissentRate: stats.totalVotes ? stats.dissentCount / stats.totalVotes : 0,
     }))
     .sort((a, b) => b.dissentRate - a.dissentRate)
     .slice(0, 5);
 
   const yesLeaderboard = Array.from(memberStats.values())
-    .map((s) => ({
-      memberId: s.memberId,
-      name: s.name,
-      yesRate: s.totalVotes ? (s.totals.yes ?? 0) / s.totalVotes : 0,
-      yesCount: s.totals.yes ?? 0,
-      totalVotes: s.totalVotes,
+    .map((stats) => ({
+      memberId: stats.memberId,
+      name: stats.name,
+      yesRate: stats.totalVotes ? (stats.totals.yes ?? 0) / stats.totalVotes : 0,
+      yesCount: stats.totals.yes ?? 0,
+      totalVotes: stats.totalVotes,
     }))
     .sort((a, b) => b.yesRate - a.yesRate)
     .slice(0, 5);
@@ -117,58 +188,55 @@ export const getMemberStats = async () => {
   const memberVoteRows = await db
     .select({
       memberId: schema.voteRecords.boardMemberId,
+      memberName: schema.boardMembers.name,
       voteValue: schema.voteRecords.voteValue,
-      voteItemId: schema.voteRecords.voteItemId,
       isNonUnanimous: schema.voteItems.isNonUnanimous,
       voteTally: schema.voteItems.voteTally,
     })
     .from(schema.voteRecords)
-    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id));
-  const members = await db.select().from(schema.boardMembers);
+    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
+    .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
 
+  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const canonicalDirectory = buildCanonicalMemberDirectory(members);
   const stats = new Map<number, MemberStats>();
-  members.forEach((m) =>
-    stats.set(m.id, {
-      memberId: m.id,
-      name: m.name,
-      totals: { yes: 0, no: 0, abstain: 0, recused: 0, absent: 0 },
-      dissentCount: 0,
-      alignmentCount: 0,
-      totalVotes: 0,
-      unanimousParticipation: 0,
-      nonUnanimousParticipation: 0,
-    }),
-  );
 
-  memberVoteRows.forEach((row) => {
-    if (row.memberId == null) return;
-    const s = stats.get(row.memberId);
-    if (!s) return;
-    s.totalVotes += 1;
-    s.totals[row.voteValue] = (s.totals[row.voteValue] ?? 0) + 1;
-    if (row.isNonUnanimous) s.nonUnanimousParticipation += 1;
-    else s.unanimousParticipation += 1;
-    const majority = getMajorityVote(row.voteTally ?? {});
-    if (majority) {
-      if (row.voteValue === majority) s.alignmentCount += 1;
-      else s.dissentCount += 1;
-    }
+  Array.from(canonicalDirectory.values()).forEach((member) => {
+    stats.set(member.memberId, createCanonicalMemberStats(member.memberId, member.name));
   });
 
-  return Array.from(stats.values()).map((s) => ({
-    memberId: s.memberId,
-    name: s.name,
-    totalVotes: s.totalVotes,
-    yesCount: s.totals.yes ?? 0,
-    noCount: s.totals.no ?? 0,
-    abstainCount: s.totals.abstain ?? 0,
-    recusedCount: s.totals.recused ?? 0,
-    absentCount: s.totals.absent ?? 0,
-    dissentCount: s.dissentCount,
-    dissentRate: s.totalVotes ? s.dissentCount / s.totalVotes : 0,
-    majorityAlignmentRate: s.totalVotes ? s.alignmentCount / s.totalVotes : 0,
-    unanimousParticipation: s.unanimousParticipation,
-    nonUnanimousParticipation: s.nonUnanimousParticipation,
+  memberVoteRows.forEach((row) => {
+    const memberRef = getCanonicalMemberRef(canonicalDirectory, row.memberName);
+    if (!memberRef) return;
+
+    const stat = stats.get(memberRef.memberId);
+    if (!stat) return;
+
+    stat.totalVotes += 1;
+    stat.totals[row.voteValue] = (stat.totals[row.voteValue] ?? 0) + 1;
+    if (row.isNonUnanimous) stat.nonUnanimousParticipation += 1;
+    else stat.unanimousParticipation += 1;
+
+    const majority = getMajorityVote(row.voteTally ?? {});
+    if (!majority) return;
+    if (row.voteValue === majority) stat.alignmentCount += 1;
+    else stat.dissentCount += 1;
+  });
+
+  return Array.from(stats.values()).map((stat) => ({
+    memberId: stat.memberId,
+    name: stat.name,
+    totalVotes: stat.totalVotes,
+    yesCount: stat.totals.yes ?? 0,
+    noCount: stat.totals.no ?? 0,
+    abstainCount: stat.totals.abstain ?? 0,
+    recusedCount: stat.totals.recused ?? 0,
+    absentCount: stat.totals.absent ?? 0,
+    dissentCount: stat.dissentCount,
+    dissentRate: stat.totalVotes ? stat.dissentCount / stat.totalVotes : 0,
+    majorityAlignmentRate: stat.totalVotes ? stat.alignmentCount / stat.totalVotes : 0,
+    unanimousParticipation: stat.unanimousParticipation,
+    nonUnanimousParticipation: stat.nonUnanimousParticipation,
   }));
 };
 
@@ -177,16 +245,25 @@ export const getPairwiseAlignment = async () => {
     .select({
       voteItemId: schema.voteRecords.voteItemId,
       memberId: schema.voteRecords.boardMemberId,
+      memberName: schema.boardMembers.name,
       voteValue: schema.voteRecords.voteValue,
     })
-    .from(schema.voteRecords);
+    .from(schema.voteRecords)
+    .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
 
+  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const canonicalDirectory = buildCanonicalMemberDirectory(members);
   const byVoteItem = new Map<number, { memberId: number; voteValue: string }[]>();
-  records.forEach((r) => {
-    if (r.memberId == null) return;
-    const arr = byVoteItem.get(r.voteItemId) ?? [];
-    arr.push({ memberId: r.memberId, voteValue: r.voteValue });
-    byVoteItem.set(r.voteItemId, arr);
+
+  records.forEach((record) => {
+    const memberRef = getCanonicalMemberRef(canonicalDirectory, record.memberName);
+    if (!memberRef) return;
+
+    const existing = byVoteItem.get(record.voteItemId) ?? [];
+    if (existing.some((entry) => entry.memberId === memberRef.memberId)) return;
+
+    existing.push({ memberId: memberRef.memberId, voteValue: record.voteValue });
+    byVoteItem.set(record.voteItemId, existing);
   });
 
   const pairStats = new Map<string, { same: number; diff: number }>();
@@ -198,41 +275,42 @@ export const getPairwiseAlignment = async () => {
         const b = votes[j];
         if (!a || !b) continue;
         const key = `${Math.min(a.memberId, b.memberId)}-${Math.max(a.memberId, b.memberId)}`;
-        const record = pairStats.get(key) ?? { same: 0, diff: 0 };
-        if (a.voteValue === b.voteValue) record.same += 1;
-        else record.diff += 1;
-        pairStats.set(key, record);
+        const current = pairStats.get(key) ?? { same: 0, diff: 0 };
+        if (a.voteValue === b.voteValue) current.same += 1;
+        else current.diff += 1;
+        pairStats.set(key, current);
       }
     }
   });
 
   return Array.from(pairStats.entries()).map(([key, value]) => {
-    const [a, b] = key.split("-").map(Number);
-    const total = value.same + value.diff;
+    const [memberAId, memberBId] = key.split("-").map(Number);
+    const overlap = value.same + value.diff;
     return {
-      memberAId: a,
-      memberBId: b,
+      memberAId,
+      memberBId,
       sameVotes: value.same,
       differentVotes: value.diff,
-      overlap: total,
-      alignmentRate: total ? value.same / total : 0,
-      splitRate: total ? value.diff / total : 0,
+      overlap,
+      alignmentRate: overlap ? value.same / overlap : 0,
+      splitRate: overlap ? value.diff / overlap : 0,
     };
   });
 };
 
 export const getMemberAlignment = async (memberId: number) => {
   const pairs = await getPairwiseAlignment();
-  return pairs.filter((p) => p.memberAId === memberId || p.memberBId === memberId);
+  return pairs.filter((pair) => pair.memberAId === memberId || pair.memberBId === memberId);
 };
 
 export const getRecentVotes = async (limit = 10) => {
   const votes = await db.query.voteItems.findMany({
     limit,
-    orderBy: (v, { desc: orderDesc }) => [orderDesc(v.createdAt)],
+    orderBy: (vote, { desc: orderDesc }) => [orderDesc(vote.createdAt)],
     with: {
       meeting: true,
     },
   });
-  return votes;
+
+  return votes.map((vote) => enrichVoteItemAudit(vote));
 };
