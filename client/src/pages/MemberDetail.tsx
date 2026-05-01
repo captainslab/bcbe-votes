@@ -16,7 +16,7 @@ const canonicalMemberNames = new Set([
 ]);
 
 const parserArtifactPatterns = [
-  /\bvoting:\b/i,
+  /\bvoting\s*:/i,
   /motion made by/i,
   /motion seconded by/i,
   /unanimously approved/i,
@@ -120,6 +120,7 @@ export const MemberDetail = () => {
         <div>
           <p className="text-sm text-slate-600">Baldwin County Board of Education</p>
           <h1 className="text-3xl font-semibold text-slate-900">{data.name}</h1>
+          {data.district ? <p className="mt-1 text-sm text-slate-600">District: {data.district}</p> : null}
         </div>
         <Link to="/members" className="text-sm font-semibold text-slate-700 hover:underline">
           Back to members
@@ -130,7 +131,7 @@ export const MemberDetail = () => {
         <div className="grid gap-4 md:grid-cols-4">
           <StatCard label="Total votes" value={stats.totalVotes} />
           <StatCard label="Yes rate" value={`${((stats.yesCount / totalVotes) * 100).toFixed(1)}%`} />
-          <StatCard label="Dissent rate" value={`${(stats.dissentRate * 100).toFixed(1)}%`} />
+          <StatCard label="No / dissent count" value={stats.noCount} />
           <StatCard
             label="Majority alignment"
             value={`${(stats.majorityAlignmentRate * 100).toFixed(1)}%`}
@@ -152,7 +153,14 @@ export const MemberDetail = () => {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm text-slate-500">{formatDate(item.meetingDate)} · {item.meetingType || "Needs review"}</p>
-                    <p className="text-lg font-semibold text-slate-900">{item.itemTitle}</p>
+                    <p className="text-sm text-slate-600">Meeting: {item.meetingTitle || "Needs review"}</p>
+                    <p className="text-lg font-semibold text-slate-900">
+                      {item.itemTitle !== "Needs review"
+                        ? item.itemTitle
+                        : item.motionText && item.motionText !== "Needs review"
+                          ? item.motionText
+                          : "Needs review"}
+                    </p>
                     <p className="text-sm text-slate-700">Member vote: No</p>
                     <p className="text-sm text-slate-700">Category: {item.category || "Needs review"}</p>
                     <p className="text-sm text-slate-700">Outcome: {item.overallOutcome || "Needs review"}</p>
