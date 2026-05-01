@@ -5,6 +5,7 @@ import {
   canonicalBoardMembers,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
+  sanitizePublicVoteDisplayText,
   type CanonicalBoardMemberName,
 } from "../utils/boardVotes";
 
@@ -97,6 +98,9 @@ const enrichVoteItemAudit = <T extends {
 
   return {
     ...vote,
+    motionText: sanitizePublicVoteDisplayText(vote.motionText),
+    summaryText: sanitizePublicVoteDisplayText(vote.summaryText),
+    sourceExcerpt: sanitizePublicVoteDisplayText(vote.sourceExcerpt),
     category: categoryInfo.category,
     categoryConfidence: categoryInfo.categoryConfidence,
     sourceUrl: sourceInfo.sourceUrl,

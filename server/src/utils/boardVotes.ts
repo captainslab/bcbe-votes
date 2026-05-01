@@ -70,6 +70,19 @@ export const getCanonicalBoardMemberName = (rawName?: string | null): CanonicalB
     : null;
 };
 
+const categoryParserArtifactPatterns = [
+  /motion made by/i,
+  /motion seconded by/i,
+  /\bvoting\s*:/i,
+  /unanimously approved/i,
+  /action agenda/i,
+  /superintendent recommendations/i,
+  /all voiced approval/i,
+  /declared the motion carries/i,
+  /(?:^|\s)[A-Z][a-z]+(?:\s+[A-Z][a-z.]+){0,3}\s*-\s*(?:Yes|No|Abstain|Recused|Absent)\b/,
+  /\b(?:Yes|No|Abstain|Recused|Absent):\s*[A-Z]/,
+] as const;
+
 const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> = [
   {
     category: "Personnel",
@@ -77,19 +90,19 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
   },
   {
     category: "Contracts / Procurement",
-    patterns: [/\b(contract|bid|procurement|purchase order|vendor|consulting|agreement)\b/i],
+    patterns: [/\b(contract|bid|procurement|purchase order|vendor|consulting|agreement|rfp)\b/i],
   },
   {
     category: "Budget / Finance",
-    patterns: [/\b(budget|finance|financial|appropriation|amendment|transfer|salary|compensation)\b/i],
+    patterns: [/\b(budget|finance|financial|appropriation|amendment|transfer|salary|compensation|fiscal)\b/i],
   },
   {
     category: "Facilities / Construction",
-    patterns: [/\b(facility|facilities|construction|renovation|site survey|building|media center|cafeteria)\b/i],
+    patterns: [/\b(facility|facilities|construction|renovation|site survey|building|media center|cafeteria|capital improvement)\b/i],
   },
   {
     category: "Policy / Governance",
-    patterns: [/\b(policy|governance|board|resolution|bylaw|committee|election|vice president|president)\b/i],
+    patterns: [/\b(policy|governance|board policy|resolution|bylaw|committee|election|vice president|president)\b/i],
   },
   {
     category: "Curriculum / Instruction",
@@ -121,7 +134,7 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
   },
   {
     category: "Operations / Administration",
-    patterns: [/\b(operations|administration|superintendent|agenda|meeting|board members' monthly compensation)\b/i],
+    patterns: [/\b(operations|administration|superintendent|board members' monthly compensation|organizational chart)\b/i],
   },
 ];
 
@@ -134,6 +147,10 @@ export const categorizeVoteItemText = (input: {
   const text = normalizeWhitespace([input.itemTitle, input.motionText, input.summaryText, input.sourceExcerpt].filter(Boolean).join(" "));
   if (!text) {
     return { category: "Needs review", categoryConfidence: 0.1, matchedText: null };
+  }
+
+  if (categoryParserArtifactPatterns.some((pattern) => pattern.test(text))) {
+    return { category: "Needs review", categoryConfidence: 0.1, matchedText: text };
   }
 
   const lowerText = text.toLowerCase();
@@ -229,9 +246,9 @@ const isMeaningfulNoVoteDisplayText = (value: string) => {
   return true;
 };
 
-const sanitizeNoVoteDisplayText = (
+export const sanitizePublicVoteDisplayText = (
   rawValue: string | null | undefined,
-  mode: "leading-clean-segment" | "strict-outcome",
+  mode: "leading-clean-segment" | "strict-outcome" = "leading-clean-segment",
 ): string => {
   const normalized = normalizeNoVoteDisplayText(rawValue);
   if (!normalized) return "Needs review";
@@ -317,16 +334,16 @@ export const buildMemberNoVoteItems = (
         sourceAvailability: sourceInfo.sourceAvailability,
         sourceLabel: sourceInfo.sourceLabel,
         itemTitle: item.itemTitle ?? "Needs review",
-        motionText: sanitizeNoVoteDisplayText(item.motionText, "leading-clean-segment"),
-        summaryText: sanitizeNoVoteDisplayText(item.summaryText, "leading-clean-segment"),
+        motionText: sanitizePublicVoteDisplayText(item.motionText),
+        summaryText: sanitizePublicVoteDisplayText(item.summaryText),
         result: item.result ?? null,
         verificationStatus: item.verificationStatus ?? "needs_review",
         confidenceScore: item.confidenceScore ?? null,
-        sourceExcerpt: sanitizeNoVoteDisplayText(item.sourceExcerpt, "leading-clean-segment"),
+        sourceExcerpt: sanitizePublicVoteDisplayText(item.sourceExcerpt),
         category: item.category ?? categoryInfo.category,
         categoryConfidence: item.categoryConfidence ?? categoryInfo.categoryConfidence,
         memberVote: "No",
-        overallOutcome: sanitizeNoVoteDisplayText(item.result, "strict-outcome"),
+        overallOutcome: sanitizePublicVoteDisplayText(item.result, "strict-outcome"),
       };
     });
 };

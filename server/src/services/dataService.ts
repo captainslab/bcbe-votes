@@ -5,6 +5,7 @@ import {
   buildSourceAuditInfo,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
+  sanitizePublicVoteDisplayText,
 } from "../utils/boardVotes";
 import { normalizeWhitespace } from "../utils/text";
 
@@ -39,6 +40,9 @@ const enrichVoteItem = <T extends {
 
   return {
     ...filterCanonicalVoteRecords(voteItem),
+    motionText: sanitizePublicVoteDisplayText(voteItem.motionText),
+    summaryText: sanitizePublicVoteDisplayText(voteItem.summaryText),
+    sourceExcerpt: sanitizePublicVoteDisplayText(voteItem.sourceExcerpt),
     category: categoryInfo.category,
     categoryConfidence: categoryInfo.categoryConfidence,
     sourceUrl: sourceInfo.sourceUrl,
@@ -180,37 +184,36 @@ export const getMemberNoVoteItems = async (memberId: number) => {
 
   return buildMemberNoVoteItems(
     canonicalName,
-    voteItems.map((item) => ({
-      voteItemId: item.id,
-      meetingId: item.meetingId,
-      meetingDate: item.meeting?.date ? item.meeting.date.toISOString() : null,
-      meetingTitle: item.meeting?.title ?? null,
-      meetingType: item.meeting?.type ?? null,
-      sourceUrl: item.meeting?.sourceUrl ?? null,
-      itemTitle: item.itemTitle,
-      motionText: item.motionText,
-      summaryText: item.summaryText,
-      result: item.result,
-      verificationStatus: item.verificationStatus,
-      confidenceScore: item.confidenceScore,
-      sourceExcerpt: item.sourceExcerpt,
-      category: categorizeVoteItemText({
+    voteItems.map((item) => {
+      const categoryInfo = categorizeVoteItemText({
         itemTitle: item.itemTitle,
         motionText: item.motionText,
         summaryText: item.summaryText,
         sourceExcerpt: item.sourceExcerpt,
-      }).category,
-      categoryConfidence: categorizeVoteItemText({
+      });
+
+      return {
+        voteItemId: item.id,
+        meetingId: item.meetingId,
+        meetingDate: item.meeting?.date ? item.meeting.date.toISOString() : null,
+        meetingTitle: item.meeting?.title ?? null,
+        meetingType: item.meeting?.type ?? null,
+        sourceUrl: item.meeting?.sourceUrl ?? null,
         itemTitle: item.itemTitle,
         motionText: item.motionText,
         summaryText: item.summaryText,
+        result: item.result,
+        verificationStatus: item.verificationStatus,
+        confidenceScore: item.confidenceScore,
         sourceExcerpt: item.sourceExcerpt,
-      }).categoryConfidence,
-      voteRecords: item.voteRecords.map((record) => ({
-        boardMember: { name: record.boardMember?.name ?? null },
-        voteValue: record.voteValue,
-      })),
-    })),
+        category: categoryInfo.category,
+        categoryConfidence: categoryInfo.categoryConfidence,
+        voteRecords: item.voteRecords.map((record) => ({
+          boardMember: { name: record.boardMember?.name ?? null },
+          voteValue: record.voteValue,
+        })),
+      };
+    }),
   );
 };
 

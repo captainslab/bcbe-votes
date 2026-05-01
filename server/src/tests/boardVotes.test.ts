@@ -5,6 +5,7 @@ import {
   buildSourceAuditInfo,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
+  sanitizePublicVoteDisplayText,
 } from "../utils/boardVotes";
 
 test("categorizes personnel votes from sourced motion text", () => {
@@ -27,6 +28,36 @@ test("categorizes budget votes from sourced item text", () => {
   assert.ok(result.categoryConfidence >= 0.8);
 });
 
+test("categorizes contracts/procurement votes from sourced item text", () => {
+  const result = categorizeVoteItemText({
+    itemTitle: "RFP for district copier services",
+    motionText: "Approve contract award to the selected vendor.",
+  });
+
+  assert.equal(result.category, "Contracts / Procurement");
+  assert.ok(result.categoryConfidence >= 0.8);
+});
+
+test("categorizes facilities/construction votes from sourced text", () => {
+  const result = categorizeVoteItemText({
+    itemTitle: "Capital improvement at Bay Minette campus",
+    summaryText: "Board approved renovation work for the media center building.",
+  });
+
+  assert.equal(result.category, "Facilities / Construction");
+  assert.ok(result.categoryConfidence >= 0.8);
+});
+
+test("categorizes policy/governance votes from sourced text", () => {
+  const result = categorizeVoteItemText({
+    itemTitle: "Board policy revision",
+    sourceExcerpt: "Resolution adopting updates to policy manual.",
+  });
+
+  assert.equal(result.category, "Policy / Governance");
+  assert.ok(result.categoryConfidence >= 0.8);
+});
+
 test("returns Needs review when the source text is too generic", () => {
   const result = categorizeVoteItemText({
     itemTitle: "Item 7",
@@ -35,6 +66,16 @@ test("returns Needs review when the source text is too generic", () => {
 
   assert.equal(result.category, "Needs review");
   assert.ok(result.categoryConfidence <= 0.5);
+});
+
+test("returns Needs review for parser-artifact text even if it contains category words", () => {
+  const result = categorizeVoteItemText({
+    itemTitle: "Budget transfer",
+    sourceExcerpt: "Motion made by Tony Myrick. Voting: Tony Myrick - Yes Andrea Lindsey - Yes",
+  });
+
+  assert.equal(result.category, "Needs review");
+  assert.ok(result.categoryConfidence <= 0.2);
 });
 
 test("rejects non-board names and parser artifacts", () => {
@@ -95,6 +136,26 @@ test("builds member no-vote items from real no votes only", () => {
   assert.equal(items[0]?.memberVote, "No");
   assert.equal(items[0]?.sourceAvailability, "available");
   assert.equal(items[0]?.sourceUrl, "https://example.com/meeting/101");
+});
+
+test("sanitizes public vote display fields without mutating raw stored text", () => {
+  assert.equal(
+    sanitizePublicVoteDisplayText(
+      "Motion made by: Andrea Lindsey Motion seconded by: Kenneth Bradley Voting: Tony Myrick - Yes Jason Woerner - No",
+    ),
+    "Needs review",
+  );
+  assert.equal(sanitizePublicVoteDisplayText("Voting: Unanimously Approved a."), "Needs review");
+  assert.equal(
+    sanitizePublicVoteDisplayText(
+      "The superintendent recommends adoption of the revised Board Policy Manual. Motion seconded by: Andrea Lindsey Voting: Tony Myrick - No",
+    ),
+    "The superintendent recommends adoption of the revised Board Policy Manual.",
+  );
+  assert.equal(
+    sanitizePublicVoteDisplayText("Budget amendment approved for FY 2026."),
+    "Budget amendment approved for FY 2026.",
+  );
 });
 
 test("sanitizes no-vote display fields before returning member detail items", () => {
