@@ -32,6 +32,9 @@ export const VoteDetail = () => {
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{data.itemTitle}</h1>
           <div className="flex flex-wrap gap-2">
+            <Badge tone={data.category === "Needs review" ? "amber" : "blue"}>
+              {data.category || "Needs review"}
+            </Badge>
             <Badge tone={data.verificationStatus === "verified" ? "emerald" : "amber"}>
               {data.verificationStatus}
             </Badge>

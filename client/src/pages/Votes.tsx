@@ -46,6 +46,9 @@ export const Votes = () => {
                 {vote.meeting?.title}
               </div>
               <div className="flex flex-wrap gap-2">
+                <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>
+                  {vote.category || "Needs review"}
+                </Badge>
                 <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
                   {vote.verificationStatus}
                 </Badge>

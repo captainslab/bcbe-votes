@@ -95,11 +95,19 @@ export const Dashboard = () => {
               key={vote.id}
               className="rounded-lg border border-slate-200 p-3 transition hover:border-slate-400 sm:p-4"
             >
-              <p className="text-xs uppercase tracking-wide text-slate-500">
-                {vote.detectedPattern || "vote"}
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  {vote.detectedPattern || "vote"}
+                </p>
+                <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>
+                  {vote.category || "Needs review"}
+                </Badge>
+                <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
+                  {vote.verificationStatus || "needs_review"}
+                </Badge>
+              </div>
               <p className="mt-1 text-base font-semibold text-slate-900">{vote.itemTitle}</p>
-              <p className="mt-1 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt}</p>
+              <p className="mt-1 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt || "Needs review"}</p>
             </Link>
           ))}
         </div>

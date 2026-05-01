@@ -158,6 +158,9 @@ export const MemberDetail = () => {
                     <p className="text-sm text-slate-700">Outcome: {item.overallOutcome || "Needs review"}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Badge tone={item.category === "Needs review" ? "amber" : "blue"}>
+                      {item.category || "Needs review"}
+                    </Badge>
                     <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
                       {item.verificationStatus || "needs_review"}
                     </Badge>
