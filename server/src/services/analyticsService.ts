@@ -83,9 +83,12 @@ const getCanonicalMemberRef = (
 
 const enrichVoteItemAudit = <T extends {
   itemTitle?: string | null;
+  motionMadeBy?: string | null;
+  motionSecondedBy?: string | null;
   motionText?: string | null;
   summaryText?: string | null;
   sourceExcerpt?: string | null;
+  result?: string | null;
   meeting?: { sourceUrl?: string | null } | null;
 }>(vote: T) => {
   const categoryInfo = categorizeVoteItemText({
@@ -98,9 +101,13 @@ const enrichVoteItemAudit = <T extends {
 
   return {
     ...vote,
+    itemTitle: sanitizePublicVoteDisplayText(vote.itemTitle),
+    motionMadeBy: getCanonicalBoardMemberName(vote.motionMadeBy ?? null),
+    motionSecondedBy: getCanonicalBoardMemberName(vote.motionSecondedBy ?? null),
     motionText: sanitizePublicVoteDisplayText(vote.motionText),
     summaryText: sanitizePublicVoteDisplayText(vote.summaryText),
     sourceExcerpt: sanitizePublicVoteDisplayText(vote.sourceExcerpt),
+    result: sanitizePublicVoteDisplayText(vote.result, "strict-outcome"),
     category: categoryInfo.category,
     categoryConfidence: categoryInfo.categoryConfidence,
     sourceUrl: sourceInfo.sourceUrl,

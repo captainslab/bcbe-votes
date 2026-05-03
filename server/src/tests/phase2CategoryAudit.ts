@@ -31,12 +31,16 @@ type VoteItem = {
   sourceAvailability?: "available" | "unavailable" | string | null;
   sourceLabel?: string | null;
   itemTitle?: string | null;
+  motionMadeBy?: string | null;
+  motionSecondedBy?: string | null;
   motionText?: string | null;
   summaryText?: string | null;
   sourceExcerpt?: string | null;
+  result?: string | null;
   meeting?: {
     sourceUrl?: string | null;
   } | null;
+  voteRecords?: Array<Record<string, unknown>>;
 };
 
 type MemberDetail = {
@@ -94,31 +98,37 @@ const hasVisibleSourceState = (item: {
   return false;
 };
 
-const scanVoteFieldsForLeaks = (item: {
-  itemTitle?: string | null;
-  motionText?: string | null;
-  summaryText?: string | null;
-  sourceExcerpt?: string | null;
-  overallOutcome?: string | null;
-}) => {
-  const fields: Array<[string, string | null | undefined]> = [
-    ["itemTitle", item.itemTitle],
-    ["motionText", item.motionText],
-    ["summaryText", item.summaryText],
-    ["sourceExcerpt", item.sourceExcerpt],
-    ["overallOutcome", item.overallOutcome],
-  ];
+const scanVoteFieldsForLeaks = (item: unknown) => {
+  const findings: Array<{ field: string; value: string }> = [];
 
-  return fields
-    .filter(([, value]) => typeof value === "string" && leakPattern.test(value))
-    .map(([field, value]) => ({ field, value: (value ?? "").slice(0, 240) }));
+  const visit = (value: unknown, path: string) => {
+    if (typeof value === "string") {
+      if (leakPattern.test(value)) {
+        findings.push({ field: path || "value", value: value.slice(0, 240) });
+      }
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => visit(entry, `${path}[${index}]`));
+      return;
+    }
+
+    if (value && typeof value === "object") {
+      Object.entries(value).forEach(([key, entry]) => visit(entry, path ? `${path}.${key}` : key));
+    }
+  };
+
+  visit(item, "");
+  return findings;
 };
 
 const main = async () => {
-  const [votes, summary, members] = await Promise.all([
+  const [votes, summary, members, recentVotes] = await Promise.all([
     getJson<VoteItem[]>("/votes?nonUnanimousOnly=false&limit=200"),
     getJson<SummaryPayload>("/stats"),
     getJson<MemberStat[]>("/members"),
+    getJson<VoteItem[]>("/recentVotes"),
   ]);
 
   const voteDetails = await Promise.all(votes.map((vote) => getJson<VoteItem>(`/votes/${vote.id}`)));
@@ -165,6 +175,7 @@ const main = async () => {
 
   scanVoteCollection("/votes", votes);
   scanVoteCollection("/stats recentVotes", summary.recentVotes);
+  scanVoteCollection("/recentVotes", recentVotes);
   scanVoteCollection("/votes/:id", voteDetails);
 
   const memberNoVoteIssues: Array<{ memberId: number; voteItemId: number; reason: string }> = [];
@@ -212,6 +223,7 @@ const main = async () => {
         totals: {
           votesList: votes.length,
           recentVotes: summary.recentVotes.length,
+          recentVotesEndpoint: recentVotes.length,
           voteDetails: voteDetails.length,
           members: members.length,
           memberNoVoteItems: memberDetails.reduce((sum, member) => sum + (member.noVoteItems?.length ?? 0), 0),

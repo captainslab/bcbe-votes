@@ -160,6 +160,29 @@ router.get("/stats", async (_req, res, next) => {
   }
 });
 
+router.get(
+  "/recentVotes",
+  validateRequest(
+    z.object({
+      query: z.object({
+        limit: z.coerce.number().min(1).max(200).optional(),
+      }),
+    }),
+  ),
+  async (_req, res, next) => {
+    try {
+      const { query } = res.locals.validatedRequest as {
+        query?: { limit?: number };
+      };
+      const { limit = 8 } = query ?? {};
+      const recentVotes = await getRecentVotes(limit);
+      res.json(recentVotes);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 router.get("/alliances", async (_req, res, next) => {
   try {
     const alliances = await getPairwiseAlignment();

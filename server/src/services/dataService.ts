@@ -13,9 +13,19 @@ import { normalizeWhitespace } from "../utils/text";
 const filterCanonicalVoteRecords = <T extends { voteRecords?: Array<{ boardMember?: { name?: string | null } | null }> | null }>(
   voteItem: T,
 ) => {
-  const voteRecords = (voteItem.voteRecords ?? []).filter((record) =>
-    Boolean(getCanonicalBoardMemberName(record.boardMember?.name ?? null)),
-  );
+  const voteRecords = (voteItem.voteRecords ?? [])
+    .map((record) => {
+      const canonicalName = getCanonicalBoardMemberName(record.boardMember?.name ?? null);
+      if (!canonicalName) return null;
+
+      return {
+        ...record,
+        boardMember: {
+          name: canonicalName,
+        },
+      };
+    })
+    .filter((record): record is NonNullable<typeof record> => Boolean(record));
 
   return {
     ...voteItem,
@@ -26,6 +36,8 @@ const filterCanonicalVoteRecords = <T extends { voteRecords?: Array<{ boardMembe
 const enrichVoteItem = <T extends {
   itemTitle?: string | null;
   motionText?: string | null;
+  motionMadeBy?: string | null;
+  motionSecondedBy?: string | null;
   summaryText?: string | null;
   sourceExcerpt?: string | null;
   result?: string | null;
@@ -42,6 +54,9 @@ const enrichVoteItem = <T extends {
 
   return {
     ...filterCanonicalVoteRecords(voteItem),
+    itemTitle: sanitizePublicVoteDisplayText(voteItem.itemTitle),
+    motionMadeBy: getCanonicalBoardMemberName(voteItem.motionMadeBy ?? null),
+    motionSecondedBy: getCanonicalBoardMemberName(voteItem.motionSecondedBy ?? null),
     motionText: sanitizePublicVoteDisplayText(voteItem.motionText),
     summaryText: sanitizePublicVoteDisplayText(voteItem.summaryText),
     sourceExcerpt: sanitizePublicVoteDisplayText(voteItem.sourceExcerpt),
