@@ -363,7 +363,7 @@ export const buildMemberNoVoteItems = (
         itemTitle: item.itemTitle ?? "Needs review",
         motionText: sanitizePublicVoteDisplayText(item.motionText),
         summaryText: sanitizePublicVoteDisplayText(item.summaryText),
-        result: item.result ?? null,
+        result: sanitizePublicVoteDisplayText(item.result, "strict-outcome"),
         verificationStatus: item.verificationStatus ?? "needs_review",
         confidenceScore: item.confidenceScore ?? null,
         sourceExcerpt: sanitizePublicVoteDisplayText(item.sourceExcerpt),
