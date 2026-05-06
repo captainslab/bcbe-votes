@@ -18,12 +18,54 @@ import {
 } from "../services/analyticsService";
 import { validateRequest } from "../middleware/validateRequest";
 import { HttpError } from "../utils/httpError";
+import {
+  answerBoardVotesQuestion,
+  buildCurrentChatContext,
+  isChatRateLimited,
+} from "../services/chatService";
 
 const router = Router();
 
 router.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+router.post(
+  "/chat",
+  validateRequest(
+    z.object({
+      body: z.object({
+        question: z.string().trim().min(1).max(500),
+      }),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const rateLimitKey = req.ip || req.socket.remoteAddress || "unknown";
+      if (isChatRateLimited(rateLimitKey)) {
+        res.status(429).json({
+          answer: "Please wait a moment before asking another BoardVotes.io question.",
+          citations: [],
+          suggestions: [],
+          scope: "refused",
+          modelUsed: "approved-faq",
+        });
+        return;
+      }
+
+      const { body } = res.locals.validatedRequest as { body: { question: string } };
+      const context = await buildCurrentChatContext();
+      const response = await answerBoardVotesQuestion({
+        question: body.question,
+        context,
+        useModel: Boolean(process.env.OPENAI_API_KEY),
+      });
+      res.json(response);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get(
   "/meetings",

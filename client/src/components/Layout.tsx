@@ -1,5 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
+import { BoardVotesChat } from "./BoardVotesChat";
 
 type LayoutProps = {
   children: ReactNode;
@@ -45,6 +46,7 @@ export const Layout = ({ children }: LayoutProps) => {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+      <BoardVotesChat />
     </div>
   );
 };
