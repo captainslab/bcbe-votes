@@ -3,14 +3,7 @@ import { sanitizeBoardVotesPersonName } from "./nameSanitizer";
 import { normalizeWhitespace } from "./text";
 
 const canonicalAliasEntries = [
-  ["mr. woerner", "Jason P. Woerner"],
-  ["mr. christenberry", "Cecil Christenberry"],
-  ["mrs. lindsey", "Andrea Lindsey"],
-  ["mrs. bradley", "April Bradley"],
-  ["mr. bradley", "Ken Bradley"],
   ["kenneth bradley", "Ken Bradley"],
-  ["mrs. kirby", "Rondi Kirby"],
-  ["mr. myrick", "Tony Myrick"],
 ] as const;
 
 const canonicalAliasMap = new Map<string, string>(canonicalAliasEntries);

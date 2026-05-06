@@ -3,22 +3,7 @@ import { normalizeWhitespace } from "./text";
 const honorificPrefixPattern = /^\s*(?:mr|mrs|ms|miss|dr)\.?\s+/i;
 const honorificTokenPattern = /\b(?:mr|mrs|ms|miss|dr)\.?\s+/gi;
 
-const titleSurnameCanonicalMap = new Map<string, string>([
-  ["mrs:cauley", "Shannon Cauley"],
-  ["ms:cauley", "Shannon Cauley"],
-  ["mr:johnson", "Mike Johnson"],
-  ["mrs:lindsey", "Andrea Lindsey"],
-  ["ms:lindsey", "Andrea Lindsey"],
-  ["miss:lindsey", "Andrea Lindsey"],
-  ["mr:myrick", "Tony Myrick"],
-  ["mrs:kirby", "Rondi Kirby"],
-  ["ms:kirby", "Rondi Kirby"],
-  ["mr:woerner", "Jason P. Woerner"],
-  ["mr:christenberry", "Cecil Christenberry"],
-  ["mr:bradley", "Ken Bradley"],
-  ["mrs:bradley", "April Bradley"],
-  ["ms:bradley", "April Bradley"],
-]);
+const titleSurnameCanonicalMap = new Map<string, string>();
 
 const surnameCanonicalMap = new Map<string, string>([
   ["cauley", "Shannon Cauley"],
