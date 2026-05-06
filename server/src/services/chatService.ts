@@ -36,6 +36,7 @@ const MOTIVE_ANSWER = "BoardVotes.io records vote outcomes, but it does not prov
 const MAX_QUESTION_LENGTH = 500;
 const CHAT_RATE_LIMIT_WINDOW_MS = 60_000;
 const CHAT_RATE_LIMIT_MAX = 12;
+const OPENROUTER_MODEL = "openai/gpt-5-nano";
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 const suggestions = [
@@ -249,41 +250,42 @@ Approved facts:
 - Voting Alignment shows how often board members voted similarly or differently across recorded vote items. It is not proof of motives, coordination, or personal alliances.
 - Correction reports should include meeting date, item title, what looks wrong, and source context when available.`;
 
-const callOpenAi = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> => {
-  const apiKey = process.env.OPENAI_API_KEY;
+const callOpenRouter = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> => {
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://boardvotes.io",
+        "X-Title": "BoardVotes.io",
       },
       body: JSON.stringify({
-        model: "gpt-5-nano",
-        input: [
+        model: OPENROUTER_MODEL,
+        messages: [
           { role: "system", content: buildApprovedContextPrompt(context) },
           {
             role: "user",
             content: `Visitor question: ${question}\n\nApproved answer to preserve exactly in meaning and scope: ${approvedAnswer}\n\nReturn one short visitor-facing answer. Do not add facts, names, counts, reasons, or claims beyond the approved answer.`,
           },
         ],
-        max_output_tokens: 220,
+        max_completion_tokens: 220,
+        reasoning: { effort: "minimal" },
       }),
     });
 
     if (!response.ok) return null;
     const payload = await response.json() as {
-      output_text?: string;
-      output?: Array<{ content?: Array<{ text?: string; type?: string }> }>;
+      choices?: Array<{ message?: { content?: string | Array<{ text?: string; type?: string }> } }>;
     };
 
-    if (typeof payload.output_text === "string") return payload.output_text;
-    for (const item of payload.output ?? []) {
-      for (const content of item.content ?? []) {
-        if (typeof content.text === "string") return content.text;
-      }
+    const content = payload.choices?.[0]?.message?.content;
+    if (typeof content === "string") return content;
+    for (const item of content ?? []) {
+      if (typeof item.text === "string") return item.text;
     }
   } catch {
     return null;
@@ -304,7 +306,7 @@ export const answerBoardVotesQuestion = async ({ question, context, useModel = f
   const deterministic = faqAnswer(trimmedQuestion, context);
   if (deterministic) {
     if (useModel && deterministic.scope === "answered") {
-      const modelAnswer = await callOpenAi(trimmedQuestion, deterministic.answer, context);
+      const modelAnswer = await callOpenRouter(trimmedQuestion, deterministic.answer, context);
       if (modelAnswer) {
         const answer = sanitizeChatAnswer(modelAnswer);
         if (answer !== FALLBACK_ANSWER) {
@@ -324,6 +326,6 @@ export const answerBoardVotesQuestion = async ({ question, context, useModel = f
     citations: [{ label: "Votes", path: "/votes" }],
     suggestions,
     scope: "fallback",
-    modelUsed: useModel && !process.env.OPENAI_API_KEY ? "setup-required" : "approved-faq",
+    modelUsed: useModel && !process.env.OPENROUTER_API_KEY ? "setup-required" : "approved-faq",
   };
 };

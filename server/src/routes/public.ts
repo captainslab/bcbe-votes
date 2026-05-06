@@ -58,7 +58,7 @@ router.post(
       const response = await answerBoardVotesQuestion({
         question: body.question,
         context,
-        useModel: Boolean(process.env.OPENAI_API_KEY),
+        useModel: Boolean(process.env.OPENROUTER_API_KEY),
       });
       res.json(response);
     } catch (err) {

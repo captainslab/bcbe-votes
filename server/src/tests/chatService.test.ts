@@ -69,3 +69,35 @@ test("detects and removes title-prefix language from chat output", () => {
   assert.equal(containsTitlePrefix("Andrea Lindsey voted yes"), false);
   assert.equal(sanitizeChatAnswer(blockedPrefixExample), "I don’t know from BoardVotes.io data.");
 });
+
+test("uses OpenRouter GPT-5 nano when model assistance is enabled", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.OPENROUTER_API_KEY;
+  const calls: Array<{ url: string; body: { model?: string } }> = [];
+  process.env.OPENROUTER_API_KEY = "sk-or-v1-test";
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({
+      url: String(url),
+      body: JSON.parse(String(init?.body ?? "{}")) as { model?: string },
+    });
+    return new Response(JSON.stringify({ choices: [{ message: { content: "BoardVotes.io shows public meeting and vote data." } }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const result = await answerBoardVotesQuestion({ question: "What is BoardVotes.io?", context, useModel: true });
+
+    assert.equal(result.modelUsed, "gpt-5-nano");
+    assert.equal(calls[0]?.url, "https://openrouter.ai/api/v1/chat/completions");
+    assert.equal(calls[0]?.body.model, "openai/gpt-5-nano");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) {
+      delete process.env.OPENROUTER_API_KEY;
+    } else {
+      process.env.OPENROUTER_API_KEY = originalKey;
+    }
+  }
+});
