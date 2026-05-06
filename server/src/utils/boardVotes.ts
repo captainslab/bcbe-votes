@@ -1,3 +1,4 @@
+import { sanitizeBoardVotesDisplayText, sanitizeBoardVotesPersonName } from "./nameSanitizer";
 import { normalizeWhitespace } from "./text";
 import { normalizeVoteValue } from "./votes";
 
@@ -60,14 +61,28 @@ export type SourceAuditInfo = {
 };
 
 export const getCanonicalBoardMemberName = (rawName?: string | null): CanonicalBoardMemberName | null => {
-  const normalized = normalizeWhitespace(rawName).replace(honorificPattern, "").trim();
+  const normalized = sanitizeBoardVotesPersonName(rawName);
   if (!normalized) return null;
   if (parserArtifactPatterns.some((pattern) => pattern.test(normalized))) return null;
   const alias = memberAliasMap[normalized.toLowerCase()];
   if (alias) return alias;
-  return canonicalBoardMembers.includes(normalized as CanonicalBoardMemberName)
+  return canonicalBoardMembers.includes(normalized as (typeof canonicalBoardMembers)[number])
     ? (normalized as CanonicalBoardMemberName)
     : null;
+};
+
+const publicNameAliasMap: Record<string, string> = {
+  "shannon cauley": "Shannon Cauley",
+  "mike johnson": "Mike Johnson",
+};
+
+export const getNeutralPublicPersonName = (rawName?: string | null): string | null => {
+  const canonicalBoardMember = getCanonicalBoardMemberName(rawName);
+  if (canonicalBoardMember) return canonicalBoardMember;
+  const sanitized = sanitizeBoardVotesPersonName(rawName);
+  if (!sanitized) return null;
+  if (parserArtifactPatterns.some((pattern) => pattern.test(sanitized))) return null;
+  return publicNameAliasMap[sanitized.toLowerCase()] ?? sanitized;
 };
 
 const categoryParserArtifactPatterns = [
@@ -201,8 +216,6 @@ const noVoteDisplayRejectPatterns = [
   /action agenda/i,
   /superintendent recommendations/i,
   /(?:^|\s)(?:mrs|ms|miss|dr)\.?\s+[A-Z]/i,
-  /\bmike johnson\b/i,
-  /\bmr\.?\s+johnson\b/i,
   /(?:^|\s)[A-Z][a-z]+(?:\s+[A-Z][a-z.]+){0,3}\s*-\s*(?:Yes|No|Abstain|Recused|Absent)\b/,
   /\b(?:Yes|No|Abstain|Recused|Absent):\s*[A-Z]/,
 ] as const;
@@ -271,7 +284,7 @@ export const sanitizePublicVoteDisplayText = (
   rawValue: string | null | undefined,
   mode: "leading-clean-segment" | "strict-outcome" = "leading-clean-segment",
 ): string => {
-  const normalized = normalizeNoVoteDisplayText(rawValue);
+  const normalized = sanitizeBoardVotesDisplayText(normalizeNoVoteDisplayText(rawValue));
   if (!normalized) return "Needs review";
 
   if (mode === "strict-outcome") {

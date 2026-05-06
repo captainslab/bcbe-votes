@@ -29,6 +29,10 @@ assert.match(source, /buildMeetingSourceUrl\(options\.meetingId, options\.agenda
 assert.doesNotMatch(source, /ViewMeeting\.aspx/, "historical agenda script must not emit or persist direct ViewMeeting URLs");
 assert.doesNotMatch(source, /requestPath:\s*fetched\.requestPath/, "dry-run output must not print raw requestPath");
 assert.doesNotMatch(source, /requestUrl:\s*fetched\.url/, "dry-run output must not print fetched.url");
+assert.match(source, /sanitizeBoardVotesPersonName/, "script must sanitize parsed/proposed member names before output or persistence");
+assert.match(source, /sanitizeParsedRawSourceEvidence/, "dry-run source evidence must be sanitized before output");
+assert.match(source, /sanitizeParsedOutputVoteItem/, "dry-run extracted vote item must be sanitized before output");
+assert.match(source, /sanitizeParsedOutputVoteRecords/, "dry-run extracted vote records must be sanitized before output");
 
 const runScript = (args: string[]) =>
   spawnSync("npx", ["tsx", "src/scripts/importHistoricalAgendaItem.ts", ...args], {

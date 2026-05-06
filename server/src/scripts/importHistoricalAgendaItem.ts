@@ -6,6 +6,8 @@ import { parseAgendaItemLoaderResponse } from "../ingestion/parsers/agendaItemPa
 import { persistImportedMeetingVoteItems } from "../ingestion/workflow/importService";
 import { buildPersistedMinutesVoteOutput } from "../services/minutesVoteService";
 import { db, schema } from "../db";
+import { getNeutralPublicPersonName } from "../utils/boardVotes";
+import { sanitizeBoardVotesDisplayText, sanitizeBoardVotesPersonName } from "../utils/nameSanitizer";
 import { normalizeWhitespace } from "../utils/text";
 
 type CliOptions = {
@@ -151,18 +153,18 @@ const buildVoteItems = (
     voteTally: output.voteItem.voteTally,
     verificationStatus: output.voteItem.verificationStatus,
     votes: output.voteRecords.map((vote) => ({
-      memberName: vote.memberName,
+      memberName: getNeutralPublicPersonName(vote.memberName) ?? sanitizeBoardVotesPersonName(vote.memberName),
       value: vote.voteValue,
     })),
   };
 
-  if (output.voteItem.summaryText) voteItem.summaryText = output.voteItem.summaryText;
-  if (output.voteItem.agendaSection) voteItem.agendaSection = output.voteItem.agendaSection;
-  if (normalizedMotionText) voteItem.motionText = normalizedMotionText;
-  if (output.voteItem.motionMadeBy) voteItem.motionMadeBy = output.voteItem.motionMadeBy;
-  if (output.voteItem.motionSecondedBy) voteItem.motionSecondedBy = output.voteItem.motionSecondedBy;
-  if (output.voteItem.result) voteItem.result = output.voteItem.result;
-  if (output.voteItem.sourceExcerpt) voteItem.sourceExcerpt = output.voteItem.sourceExcerpt;
+  if (output.voteItem.summaryText) voteItem.summaryText = sanitizeBoardVotesDisplayText(output.voteItem.summaryText);
+  if (output.voteItem.agendaSection) voteItem.agendaSection = sanitizeBoardVotesDisplayText(output.voteItem.agendaSection);
+  if (normalizedMotionText) voteItem.motionText = sanitizeBoardVotesDisplayText(normalizedMotionText);
+  if (output.voteItem.motionMadeBy) voteItem.motionMadeBy = getNeutralPublicPersonName(output.voteItem.motionMadeBy) ?? sanitizeBoardVotesPersonName(output.voteItem.motionMadeBy);
+  if (output.voteItem.motionSecondedBy) voteItem.motionSecondedBy = getNeutralPublicPersonName(output.voteItem.motionSecondedBy) ?? sanitizeBoardVotesPersonName(output.voteItem.motionSecondedBy);
+  if (output.voteItem.result) voteItem.result = sanitizeBoardVotesDisplayText(output.voteItem.result);
+  if (output.voteItem.sourceExcerpt) voteItem.sourceExcerpt = sanitizeBoardVotesDisplayText(output.voteItem.sourceExcerpt);
   if (output.voteItem.detectedPattern) voteItem.detectedPattern = output.voteItem.detectedPattern;
   if (output.voteItem.confidenceScore !== undefined) voteItem.confidenceScore = output.voteItem.confidenceScore;
 
@@ -184,6 +186,30 @@ const findExistingVoteItem = async (simbliId: string, item: ParsedVoteItem) => {
     .limit(1);
   return rows[0] ?? null;
 };
+
+const sanitizeParsedRawSourceEvidence = (evidence: ReturnType<typeof buildPersistedMinutesVoteOutput>["rawSourceEvidence"]) => ({
+  ...evidence,
+  minutesText: sanitizeBoardVotesDisplayText(evidence.minutesText),
+  votingLines: evidence.votingLines.map((line) => sanitizeBoardVotesDisplayText(line)),
+  tallyText: sanitizeBoardVotesDisplayText(evidence.tallyText),
+});
+
+const sanitizeParsedOutputVoteItem = (voteItem: ReturnType<typeof buildPersistedMinutesVoteOutput>["voteItem"]) => ({
+  ...voteItem,
+  summaryText: sanitizeBoardVotesDisplayText(voteItem.summaryText),
+  motionText: sanitizeBoardVotesDisplayText(voteItem.motionText),
+  motionMadeBy: getNeutralPublicPersonName(voteItem.motionMadeBy) ?? sanitizeBoardVotesPersonName(voteItem.motionMadeBy),
+  motionSecondedBy: getNeutralPublicPersonName(voteItem.motionSecondedBy) ?? sanitizeBoardVotesPersonName(voteItem.motionSecondedBy),
+  result: sanitizeBoardVotesDisplayText(voteItem.result),
+  sourceExcerpt: sanitizeBoardVotesDisplayText(voteItem.sourceExcerpt),
+});
+
+const sanitizeParsedOutputVoteRecords = (records: ReturnType<typeof buildPersistedMinutesVoteOutput>["voteRecords"]) =>
+  records.map((vote) => ({
+    ...vote,
+    memberName: getNeutralPublicPersonName(vote.memberName) ?? sanitizeBoardVotesPersonName(vote.memberName),
+    evidence: sanitizeBoardVotesDisplayText(vote.evidence),
+  }));
 
 const main = async () => {
   const options = parseOptions();
@@ -263,9 +289,9 @@ const main = async () => {
       itemTitle: output.itemTitle,
       agendaHash: buildAgendaHash(options.meetingId, options.agendaId),
       failureReasons: output.failureReasons,
-      rawSourceEvidence: output.rawSourceEvidence,
-      voteItem: output.voteItem,
-      voteRecords: output.voteRecords,
+      rawSourceEvidence: sanitizeParsedRawSourceEvidence(output.rawSourceEvidence),
+      voteItem: sanitizeParsedOutputVoteItem(output.voteItem),
+      voteRecords: sanitizeParsedOutputVoteRecords(output.voteRecords),
     },
     proposedPersistShape: {
       meeting,

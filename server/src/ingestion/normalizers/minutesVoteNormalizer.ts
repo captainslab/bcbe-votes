@@ -4,6 +4,8 @@ import type {
   MinutesVoteExtraction,
 } from "../parsers/minutesVoteParser";
 import type { ParsedVoteItem, ParsedVoteRecord } from "../parsers/simbliParser";
+import { getNeutralPublicPersonName } from "../../utils/boardVotes";
+import { sanitizeBoardVotesDisplayText, sanitizeBoardVotesPersonName } from "../../utils/nameSanitizer";
 import { normalizeWhitespace } from "../../utils/text";
 import { normalizeVoteValue } from "../../utils/votes";
 
@@ -403,7 +405,7 @@ export const normalizeMinutesVoteProof = (
   const sourceTexts = [input.extractedVote.minutesText ?? "", ...input.extractedVote.votingLines].filter(Boolean);
   const motionTextCandidates = collectMotionTextCandidates(sourceTexts);
   const voteRecords = input.extractedVote.memberVotes.map((vote) => ({
-    memberName: vote.member,
+    memberName: getNeutralPublicPersonName(vote.member) ?? sanitizeBoardVotesPersonName(vote.member),
     value: normalizeVoteValue(vote.vote),
   }));
   const derivedTally = tallyVoteRecords(voteRecords);
@@ -503,14 +505,14 @@ export const normalizeMinutesVoteProof = (
     confidenceScore,
     votes: voteRecords,
     ...(agendaSection ? { agendaSection } : {}),
-    ...(summaryText ? { summaryText } : {}),
+    ...(summaryText ? { summaryText: sanitizeBoardVotesDisplayText(summaryText) } : {}),
     ...(input.requestUrl ? { summarySource: input.requestUrl } : {}),
     ...(confidenceScore ? { summaryConfidenceScore: confidenceScore } : {}),
-    ...(motionText ? { motionText } : {}),
-    ...(input.extractedVote.motionMaker ? { motionMadeBy: input.extractedVote.motionMaker } : {}),
-    ...(input.extractedVote.seconder ? { motionSecondedBy: input.extractedVote.seconder } : {}),
-    ...(resultText ? { result: resultText } : {}),
-    ...(sourceExcerpt ? { sourceExcerpt } : {}),
+    ...(motionText ? { motionText: sanitizeBoardVotesDisplayText(motionText) } : {}),
+    ...(input.extractedVote.motionMaker ? { motionMadeBy: getNeutralPublicPersonName(input.extractedVote.motionMaker) ?? sanitizeBoardVotesPersonName(input.extractedVote.motionMaker) } : {}),
+    ...(input.extractedVote.seconder ? { motionSecondedBy: getNeutralPublicPersonName(input.extractedVote.seconder) ?? sanitizeBoardVotesPersonName(input.extractedVote.seconder) } : {}),
+    ...(resultText ? { result: sanitizeBoardVotesDisplayText(resultText) } : {}),
+    ...(sourceExcerpt ? { sourceExcerpt: sanitizeBoardVotesDisplayText(sourceExcerpt) } : {}),
     ...(bucket ? { detectedPattern: bucket } : {}),
   };
 

@@ -5,6 +5,7 @@ import {
   canonicalBoardMembers,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
+  getNeutralPublicPersonName,
   sanitizePublicVoteDisplayText,
   type CanonicalBoardMemberName,
 } from "../utils/boardVotes";
@@ -102,8 +103,8 @@ const enrichVoteItemAudit = <T extends {
   return {
     ...vote,
     itemTitle: sanitizePublicVoteDisplayText(vote.itemTitle),
-    motionMadeBy: getCanonicalBoardMemberName(vote.motionMadeBy ?? null),
-    motionSecondedBy: getCanonicalBoardMemberName(vote.motionSecondedBy ?? null),
+    motionMadeBy: getNeutralPublicPersonName(vote.motionMadeBy ?? null),
+    motionSecondedBy: getNeutralPublicPersonName(vote.motionSecondedBy ?? null),
     motionText: sanitizePublicVoteDisplayText(vote.motionText),
     summaryText: sanitizePublicVoteDisplayText(vote.summaryText),
     sourceExcerpt: sanitizePublicVoteDisplayText(vote.sourceExcerpt),

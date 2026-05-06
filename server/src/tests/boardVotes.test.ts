@@ -5,8 +5,10 @@ import {
   buildSourceAuditInfo,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
+  getNeutralPublicPersonName,
   sanitizePublicVoteDisplayText,
 } from "../utils/boardVotes";
+import { canonicalizeBoardMemberName } from "../utils/boardMembers";
 
 test("categorizes personnel votes from sourced motion text", () => {
   const result = categorizeVoteItemText({
@@ -84,6 +86,28 @@ test("rejects non-board names and parser artifacts", () => {
   assert.equal(getCanonicalBoardMemberName("UNANIMOUSLY APPROVED"), null);
   assert.equal(getCanonicalBoardMemberName("Mrs. April Bradley"), "April Bradley");
   assert.equal(getCanonicalBoardMemberName("Kenneth Bradley"), "Ken Bradley");
+});
+
+
+test("strips gendered honorifics and canonicalizes neutral historical names", () => {
+  assert.equal(getNeutralPublicPersonName("Mrs. Cauley"), "Shannon Cauley");
+  assert.equal(getNeutralPublicPersonName("Mr. Johnson"), "Mike Johnson");
+  assert.equal(getNeutralPublicPersonName("Mrs. Lindsey"), "Andrea Lindsey");
+  assert.equal(getNeutralPublicPersonName("Mr. Woerner"), "Jason P. Woerner");
+  assert.equal(getNeutralPublicPersonName("Mr. Bradley"), "Ken Bradley");
+  assert.equal(getNeutralPublicPersonName("Mrs. Bradley"), "April Bradley");
+  assert.equal(canonicalizeBoardMemberName("Mrs. Cauley"), "");
+  assert.equal(canonicalizeBoardMemberName("Mr. Johnson"), "");
+  assert.equal(canonicalizeBoardMemberName("Mrs. Lindsey"), "Andrea Lindsey");
+  assert.equal(canonicalizeBoardMemberName("Mr. Woerner"), "Jason P. Woerner");
+  assert.equal(
+    sanitizePublicVoteDisplayText('Budget amendment passed. Mrs. Cauley and Mr. Johnson voted "no".'),
+    'Budget amendment passed. Shannon Cauley and Mike Johnson voted "no".',
+  );
+  assert.doesNotMatch(
+    sanitizePublicVoteDisplayText("Motion seconded by: Mrs. Lindsey", "strict-outcome"),
+    /\b(?:Mrs|Ms|Miss|Mr|Dr)\.?\b/i,
+  );
 });
 
 test("builds member no-vote items from real no votes only", () => {
@@ -266,7 +290,7 @@ test("sanitizes all parser artifact patterns in noVoteItems", () => {
   assert.equal(items[0]?.summaryText, "Needs review");
   assert.equal(items[0]?.overallOutcome, "Needs review");
   // sourceExcerpt is truncated at "All voiced approval" parser artifact
-  assert.equal(items[0]?.sourceExcerpt, "Mr. Myrick called for the vote.");
+  assert.equal(items[0]?.sourceExcerpt, "Tony Myrick called for the vote.");
   assert.doesNotMatch(
     items[0]?.sourceExcerpt ?? "",
     /Motion seconded by|Voting:|Mike Johnson|Mrs\\.?|Unanimously Approved|ACTION AGENDA|SUPERINTENDENT RECOMMENDATIONS/i,

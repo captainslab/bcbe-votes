@@ -5,6 +5,7 @@ import {
   buildSourceAuditInfo,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
+  getNeutralPublicPersonName,
   sanitizePublicVoteDisplayText,
 } from "../utils/boardVotes";
 import { getSourcedMemberProfile } from "../utils/memberProfiles";
@@ -15,7 +16,7 @@ const filterCanonicalVoteRecords = <T extends { voteRecords?: Array<{ boardMembe
 ) => {
   const voteRecords = (voteItem.voteRecords ?? [])
     .map((record) => {
-      const canonicalName = getCanonicalBoardMemberName(record.boardMember?.name ?? null);
+      const canonicalName = getNeutralPublicPersonName(record.boardMember?.name ?? null);
       if (!canonicalName) return null;
 
       return {
@@ -55,8 +56,8 @@ const enrichVoteItem = <T extends {
   return {
     ...filterCanonicalVoteRecords(voteItem),
     itemTitle: sanitizePublicVoteDisplayText(voteItem.itemTitle),
-    motionMadeBy: getCanonicalBoardMemberName(voteItem.motionMadeBy ?? null),
-    motionSecondedBy: getCanonicalBoardMemberName(voteItem.motionSecondedBy ?? null),
+    motionMadeBy: getNeutralPublicPersonName(voteItem.motionMadeBy ?? null),
+    motionSecondedBy: getNeutralPublicPersonName(voteItem.motionSecondedBy ?? null),
     motionText: sanitizePublicVoteDisplayText(voteItem.motionText),
     summaryText: sanitizePublicVoteDisplayText(voteItem.summaryText),
     sourceExcerpt: sanitizePublicVoteDisplayText(voteItem.sourceExcerpt),

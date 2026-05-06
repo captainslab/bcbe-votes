@@ -6,7 +6,8 @@ import {
   type MinutesVoteShape,
   type MinutesVerificationStatus,
 } from "../ingestion/parsers/minutesVoteParser";
-import { categorizeVoteItemText } from "../utils/boardVotes";
+import { categorizeVoteItemText, getNeutralPublicPersonName } from "../utils/boardVotes";
+import { sanitizeBoardVotesDisplayText, sanitizeBoardVotesPersonName } from "../utils/nameSanitizer";
 
 export type PersistedMinutesVoteItem = {
   agendaSection: string | null;
@@ -92,10 +93,10 @@ export const buildPersistedMinutesVoteOutput = (
     summaryText: extraction.summaryText,
     summarySource: "minutes_payload",
     summaryConfidenceScore: extraction.confidenceScore,
-    motionText: extraction.motionText,
-    motionMadeBy: extraction.motionMaker,
-    motionSecondedBy: extraction.seconder,
-    result: extraction.finalResultText,
+    motionText: sanitizeBoardVotesDisplayText(extraction.motionText),
+    motionMadeBy: getNeutralPublicPersonName(extraction.motionMaker) ?? sanitizeBoardVotesPersonName(extraction.motionMaker),
+    motionSecondedBy: getNeutralPublicPersonName(extraction.seconder) ?? sanitizeBoardVotesPersonName(extraction.seconder),
+    result: sanitizeBoardVotesDisplayText(extraction.finalResultText),
     voteShape: extraction.voteShape,
     isNonUnanimous:
       extraction.voteShape === "mixed" ||
@@ -104,7 +105,7 @@ export const buildPersistedMinutesVoteOutput = (
       (extraction.tally?.no ?? 0) > 0 ||
       (extraction.tally?.abstain ?? 0) > 0,
     voteTally,
-    sourceExcerpt: extraction.sourceExcerpt,
+    sourceExcerpt: sanitizeBoardVotesDisplayText(extraction.sourceExcerpt),
     verificationStatus: extraction.verificationStatus,
     detectedPattern: extraction.detectedPattern,
     confidenceScore: extraction.confidenceScore,
@@ -113,10 +114,10 @@ export const buildPersistedMinutesVoteOutput = (
   };
 
   const voteRecords = extraction.memberVotes.map((vote) => ({
-    memberName: vote.member,
+    memberName: getNeutralPublicPersonName(vote.member) ?? sanitizeBoardVotesPersonName(vote.member),
     voteValue: vote.vote,
     source: vote.source,
-    evidence: vote.evidence,
+    evidence: sanitizeBoardVotesDisplayText(vote.evidence),
   }));
 
   return {
@@ -127,9 +128,9 @@ export const buildPersistedMinutesVoteOutput = (
     agendaParentId: response.itemDetails.EncrParentID,
     itemTitle,
     rawSourceEvidence: {
-      minutesText: extraction.minutesText,
-      votingLines: extraction.votingLines,
-      tallyText: extraction.tally?.rawText ?? null,
+      minutesText: sanitizeBoardVotesDisplayText(extraction.minutesText),
+      votingLines: extraction.votingLines.map((line) => sanitizeBoardVotesDisplayText(line)),
+      tallyText: sanitizeBoardVotesDisplayText(extraction.tally?.rawText ?? null) || null,
     },
     voteItem,
     voteRecords,
