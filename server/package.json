@@ -11,6 +11,8 @@
     "import:meetings": "tsx src/scripts/importMeetingListing.ts",
     "import:meeting-detail": "tsx src/scripts/importMeetingDetail.ts",
     "import:search-meetings": "tsx src/scripts/importSearchMeetings.ts",
+    "historical:agenda-item:dry-run": "tsx src/scripts/importHistoricalAgendaItem.ts --dry-run",
+    "historical:agenda-item:import": "tsx src/scripts/importHistoricalAgendaItem.ts --execute",
     "probe:agenda-item": "tsx src/scripts/probeAgendaItem.ts",
     "probe:agenda-tree": "tsx src/scripts/probeAgendaTree.ts",
     "probe:minutes-votes": "tsx src/scripts/probeMinutesVotes.ts",
