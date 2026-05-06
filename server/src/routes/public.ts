@@ -36,6 +36,8 @@ router.post(
     z.object({
       body: z.object({
         question: z.string().trim().min(1).max(500),
+        previousQuestion: z.string().trim().max(500).optional(),
+        previousAssistantAnswer: z.string().trim().max(1000).optional(),
       }),
     }),
   ),
@@ -53,13 +55,18 @@ router.post(
         return;
       }
 
-      const { body } = res.locals.validatedRequest as { body: { question: string } };
+      const { body } = res.locals.validatedRequest as {
+        body: { question: string; previousQuestion?: string; previousAssistantAnswer?: string };
+      };
       const context = await buildCurrentChatContext();
-      const response = await answerBoardVotesQuestion({
+      const chatInput = {
         question: body.question,
         context,
         useModel: Boolean(process.env.OPENROUTER_API_KEY),
-      });
+        ...(body.previousQuestion ? { previousQuestion: body.previousQuestion } : {}),
+        ...(body.previousAssistantAnswer ? { previousAssistantAnswer: body.previousAssistantAnswer } : {}),
+      };
+      const response = await answerBoardVotesQuestion(chatInput);
       res.json(response);
     } catch (err) {
       next(err);

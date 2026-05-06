@@ -23,6 +23,8 @@ export type ChatResponse = {
 type AnswerInput = {
   question: string;
   context: ChatContext;
+  previousQuestion?: string;
+  previousAssistantAnswer?: string;
   useModel?: boolean;
 };
 
@@ -96,8 +98,20 @@ const baseResponse = (answer: string, scope: ChatResponse["scope"], citations: C
   modelUsed: "approved-faq",
 });
 
-const faqAnswer = (question: string, context: ChatContext): ChatResponse | null => {
+const isVotingAlignmentContext = (value: string) => /\b(voting alignment|alignment|alliances|voted together|voted similarly|voted differently)\b/.test(normalizeQuestion(value));
+
+const faqAnswer = (question: string, context: ChatContext, previousQuestion = "", previousAssistantAnswer = ""): ChatResponse | null => {
   const q = normalizeQuestion(question);
+
+  if (/\b(why does that matter|why is that important|why should i care|so what|what does that tell me)\b/.test(q)) {
+    if (isVotingAlignmentContext(previousQuestion) || isVotingAlignmentContext(previousAssistantAnswer)) {
+      return baseResponse(
+        "Voting Alignment matters because it helps visitors decide what to inspect next: which board members often voted similarly or differently across recorded vote items. It is a starting point for reviewing public records, not proof of motives, coordination, or personal alliances.",
+        "answered",
+        [{ label: "Voting Alignment", path: "/alliances" }, { label: "Votes", path: "/votes" }],
+      );
+    }
+  }
 
   if (/\b(who should i vote for|who to vote for|endorse|recommend a candidate|voter advice|political advice)\b/.test(q)) {
     return baseResponse(
@@ -293,7 +307,13 @@ const callOpenRouter = async (question: string, approvedAnswer: string, context:
   return null;
 };
 
-export const answerBoardVotesQuestion = async ({ question, context, useModel = false }: AnswerInput): Promise<ChatResponse> => {
+export const answerBoardVotesQuestion = async ({
+  question,
+  context,
+  previousQuestion = "",
+  previousAssistantAnswer = "",
+  useModel = false,
+}: AnswerInput): Promise<ChatResponse> => {
   const trimmedQuestion = question.trim();
   if (!trimmedQuestion) {
     return baseResponse(FALLBACK_ANSWER, "fallback");
@@ -303,7 +323,7 @@ export const answerBoardVotesQuestion = async ({ question, context, useModel = f
     return baseResponse("Please ask a shorter question about BoardVotes.io.", "refused");
   }
 
-  const deterministic = faqAnswer(trimmedQuestion, context);
+  const deterministic = faqAnswer(trimmedQuestion, context, previousQuestion, previousAssistantAnswer);
   if (deterministic) {
     if (useModel && deterministic.scope === "answered") {
       const modelAnswer = await callOpenRouter(trimmedQuestion, deterministic.answer, context);

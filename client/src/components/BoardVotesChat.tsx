@@ -31,8 +31,12 @@ const starterQuestions = [
 
 const safeFallback = "I don’t know from BoardVotes.io data.";
 
-const askBoardVotesAssistant = async (question: string): Promise<ChatApiResponse> => {
-  const response = await api.post<ChatApiResponse>("/chat", { question });
+const askBoardVotesAssistant = async (
+  question: string,
+  previousQuestion?: string,
+  previousAssistantAnswer?: string,
+): Promise<ChatApiResponse> => {
+  const response = await api.post<ChatApiResponse>("/chat", { question, previousQuestion, previousAssistantAnswer });
   return response.data;
 };
 
@@ -65,7 +69,11 @@ export const BoardVotesChat = () => {
     setMessages((current) => [...current, visitorMessage]);
 
     try {
-      const answer = await askBoardVotesAssistant(trimmed);
+      const previousVisitorMessage = [...messages].reverse().find((message) => message.role === "visitor");
+      const previousAssistantMessage = [...messages].reverse().find(
+        (message) => message.role === "assistant" && message.id !== "welcome",
+      );
+      const answer = await askBoardVotesAssistant(trimmed, previousVisitorMessage?.text, previousAssistantMessage?.text);
       setMessages((current) => [
         ...current,
         {

@@ -63,6 +63,21 @@ test("falls back when answer is not available from BoardVotes data", async () =>
   assert.equal(result.modelUsed, "approved-faq");
 });
 
+test("answers contextual Voting Alignment follow-up questions", async () => {
+  const result = await answerBoardVotesQuestion({
+    question: "why does that matter",
+    previousQuestion: "What does Voting Alignment mean?",
+    previousAssistantAnswer:
+      "Voting Alignment shows how often board members voted similarly or differently across recorded vote items. It is a pattern tool, not proof of motives, coordination, or personal alliances.",
+    context,
+  });
+
+  assert.match(result.answer, /helps visitors decide what to inspect next/i);
+  assert.match(result.answer, /not proof of motives/i);
+  assert.equal(result.scope, "answered");
+  assert.equal(result.citations[0]?.path, "/alliances");
+});
+
 test("detects and removes title-prefix language from chat output", () => {
   const blockedPrefixExample = "M" + "r. Smith voted yes";
   assert.equal(containsTitlePrefix(blockedPrefixExample), true);
