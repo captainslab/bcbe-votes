@@ -75,7 +75,7 @@ export const Votes = () => {
   const [selectedVerification, setSelectedVerification] = useState("all");
   const [selectedOutcome, setSelectedOutcome] = useState("all");
   const [selectedMember, setSelectedMember] = useState("all");
-  const [unanimityFilter, setUnanimityFilter] = useState<UnanimityFilter>("all");
+  const [unanimityFilter, setUnanimityFilter] = useState<UnanimityFilter>("non-unanimous");
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
   const [hideNeedsReview, setHideNeedsReview] = useState(true);
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
