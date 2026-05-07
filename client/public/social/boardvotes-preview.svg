@@ -1,37 +1,136 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="60%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="75%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="yesBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="noBar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+
   <!-- Background -->
-  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
 
-  <!-- Indigo accent bar at top -->
-  <rect width="1200" height="6" fill="#6366f1"/>
+  <!-- Top accent bar -->
+  <rect width="1200" height="5" fill="url(#yesBar)"/>
+  <rect x="0" y="0" width="400" height="5" fill="#6366f1"/>
 
-  <!-- Subtle grid lines for data aesthetic -->
-  <line x1="0" y1="105" x2="1200" y2="105" stroke="#1e293b" stroke-width="1"/>
-  <line x1="0" y1="210" x2="1200" y2="210" stroke="#1e293b" stroke-width="1"/>
-  <line x1="0" y1="315" x2="1200" y2="315" stroke="#1e293b" stroke-width="1"/>
-  <line x1="0" y1="420" x2="1200" y2="420" stroke="#1e293b" stroke-width="1"/>
-  <line x1="0" y1="525" x2="1200" y2="525" stroke="#1e293b" stroke-width="1"/>
-  <line x1="240" y1="0" x2="240" y2="630" stroke="#1e293b" stroke-width="1"/>
-  <line x1="480" y1="0" x2="480" y2="630" stroke="#1e293b" stroke-width="1"/>
-  <line x1="720" y1="0" x2="720" y2="630" stroke="#1e293b" stroke-width="1"/>
-  <line x1="960" y1="0" x2="960" y2="630" stroke="#1e293b" stroke-width="1"/>
+  <!-- ── LEFT COLUMN ── -->
 
-  <!-- Brand name -->
-  <text x="100" y="220" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#ffffff" letter-spacing="-2">BoardVotes</text>
-  <text x="620" y="220" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#818cf8" letter-spacing="-2">.io</text>
+  <!-- Brand -->
+  <text x="72" y="118" font-family="system-ui,-apple-system,sans-serif" font-size="58" font-weight="800" fill="#ffffff" letter-spacing="-2">BoardVotes<tspan fill="#818cf8">.io</tspan></text>
 
-  <!-- Headline -->
-  <text x="100" y="320" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="700" fill="#f1f5f9" letter-spacing="-1">Track School Board Votes</text>
-
-  <!-- Subheadline -->
-  <text x="100" y="395" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#94a3b8">Browse meetings, vote records, and member activity.</text>
+  <!-- Org line -->
+  <text x="74" y="155" font-family="system-ui,-apple-system,sans-serif" font-size="19" fill="#475569">Baldwin County Board of Education</text>
 
   <!-- Divider -->
-  <rect x="100" y="430" width="80" height="3" fill="#6366f1" rx="1"/>
+  <rect x="72" y="178" width="48" height="3" rx="2" fill="#6366f1"/>
 
-  <!-- Trust line -->
-  <text x="100" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#64748b">Source-traceable public records · Baldwin County, Alabama</text>
+  <!-- Hero headline -->
+  <text x="72" y="255" font-family="system-ui,-apple-system,sans-serif" font-size="64" font-weight="800" fill="#f1f5f9" letter-spacing="-2">Track School</text>
+  <text x="72" y="330" font-family="system-ui,-apple-system,sans-serif" font-size="64" font-weight="800" fill="#f1f5f9" letter-spacing="-2">Board Votes</text>
 
-  <!-- Bottom domain label -->
-  <text x="100" y="570" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="#475569">boardvotes.io</text>
+  <!-- Sub -->
+  <text x="72" y="380" font-family="system-ui,-apple-system,sans-serif" font-size="22" fill="#94a3b8">Meetings · Vote records · Member activity</text>
+  <text x="72" y="412" font-family="system-ui,-apple-system,sans-serif" font-size="22" fill="#94a3b8">Voting alignment · Source-linked records</text>
+
+  <!-- Stats row -->
+  <!-- stat 1 -->
+  <rect x="72" y="460" width="140" height="72" rx="8" fill="#1e293b"/>
+  <text x="142" y="498" font-family="system-ui,-apple-system,sans-serif" font-size="32" font-weight="800" fill="#ffffff" text-anchor="middle">83</text>
+  <text x="142" y="520" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#64748b" text-anchor="middle">meetings</text>
+
+  <!-- stat 2 -->
+  <rect x="224" y="460" width="155" height="72" rx="8" fill="#1e293b"/>
+  <text x="301" y="498" font-family="system-ui,-apple-system,sans-serif" font-size="32" font-weight="800" fill="#ffffff" text-anchor="middle">1,484</text>
+  <text x="301" y="520" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#64748b" text-anchor="middle">vote items</text>
+
+  <!-- stat 3 -->
+  <rect x="391" y="460" width="155" height="72" rx="8" fill="#1e293b"/>
+  <text x="468" y="498" font-family="system-ui,-apple-system,sans-serif" font-size="32" font-weight="800" fill="#818cf8" text-anchor="middle">138</text>
+  <text x="468" y="520" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#64748b" text-anchor="middle">split votes</text>
+
+  <!-- URL bottom left -->
+  <text x="72" y="598" font-family="system-ui,-apple-system,sans-serif" font-size="17" fill="#334155">boardvotes.io</text>
+
+  <!-- ── RIGHT COLUMN — vote card ── -->
+  <rect x="660" y="48" width="486" height="534" rx="14" fill="#1e293b"/>
+  <rect x="660" y="48" width="486" height="534" rx="14" fill="none" stroke="#334155" stroke-width="1"/>
+
+  <!-- Card header -->
+  <rect x="660" y="48" width="486" height="5" rx="3" fill="#6366f1"/>
+  <text x="690" y="105" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#6366f1" letter-spacing="2">SAMPLE VOTE RECORD</text>
+
+  <!-- Vote item title -->
+  <text x="690" y="145" font-family="system-ui,-apple-system,sans-serif" font-size="20" font-weight="700" fill="#f1f5f9">Approval of Personnel Actions</text>
+  <text x="690" y="170" font-family="system-ui,-apple-system,sans-serif" font-size="14" fill="#64748b">Jan 16, 2025 · Regular Board Meeting</text>
+
+  <!-- Tally display -->
+  <rect x="690" y="192" width="426" height="2" fill="#334155"/>
+
+  <!-- Yes bar -->
+  <text x="690" y="230" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#94a3b8">Yes</text>
+  <rect x="730" y="216" width="300" height="22" rx="4" fill="url(#yesBar)" opacity="0.9"/>
+  <text x="1038" y="232" font-family="system-ui,-apple-system,sans-serif" font-size="14" font-weight="700" fill="#10b981">6</text>
+
+  <!-- No bar -->
+  <text x="690" y="270" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#94a3b8">No</text>
+  <rect x="730" y="256" width="50" height="22" rx="4" fill="url(#noBar)" opacity="0.9"/>
+  <text x="1038" y="272" font-family="system-ui,-apple-system,sans-serif" font-size="14" font-weight="700" fill="#f59e0b">1</text>
+
+  <!-- Carried badge -->
+  <rect x="690" y="296" width="426" height="2" fill="#334155"/>
+  <rect x="690" y="312" width="102" height="26" rx="5" fill="#10b981" opacity="0.15"/>
+  <text x="741" y="330" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="700" fill="#10b981" text-anchor="middle">Carried 6–1</text>
+
+  <rect x="804" y="312" width="110" height="26" rx="5" fill="#6366f1" opacity="0.15"/>
+  <text x="859" y="330" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#818cf8" text-anchor="middle">Personnel</text>
+
+  <rect x="926" y="312" width="88" height="26" rx="5" fill="#1e40af" opacity="0.2"/>
+  <text x="970" y="330" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#60a5fa" text-anchor="middle">Verified</text>
+
+  <!-- Member vote rows -->
+  <text x="690" y="375" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#64748b" letter-spacing="1">MEMBER VOTES</text>
+  <rect x="690" y="382" width="426" height="1" fill="#334155"/>
+
+  <!-- Row 1 -->
+  <text x="690" y="412" font-family="system-ui,-apple-system,sans-serif" font-size="15" fill="#cbd5e1">Tony Myrick</text>
+  <rect x="1030" y="396" width="54" height="22" rx="4" fill="#f59e0b" opacity="0.2"/>
+  <text x="1057" y="411" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#f59e0b" text-anchor="middle">No</text>
+
+  <!-- Row 2 -->
+  <text x="690" y="444" font-family="system-ui,-apple-system,sans-serif" font-size="15" fill="#cbd5e1">Andrea Lindsey</text>
+  <rect x="1018" y="428" width="66" height="22" rx="4" fill="#10b981" opacity="0.15"/>
+  <text x="1051" y="443" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#10b981" text-anchor="middle">Yes</text>
+
+  <!-- Row 3 -->
+  <text x="690" y="476" font-family="system-ui,-apple-system,sans-serif" font-size="15" fill="#cbd5e1">Cecil Christenberry</text>
+  <rect x="1018" y="460" width="66" height="22" rx="4" fill="#10b981" opacity="0.15"/>
+  <text x="1051" y="475" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#10b981" text-anchor="middle">Yes</text>
+
+  <!-- Row 4 -->
+  <text x="690" y="508" font-family="system-ui,-apple-system,sans-serif" font-size="15" fill="#cbd5e1">Jason P. Woerner</text>
+  <rect x="1018" y="492" width="66" height="22" rx="4" fill="#10b981" opacity="0.15"/>
+  <text x="1051" y="507" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#10b981" text-anchor="middle">Yes</text>
+
+  <!-- Row 5 -->
+  <text x="690" y="540" font-family="system-ui,-apple-system,sans-serif" font-size="15" fill="#cbd5e1">Rondi Kirby</text>
+  <rect x="1018" y="524" width="66" height="22" rx="4" fill="#10b981" opacity="0.15"/>
+  <text x="1051" y="539" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#10b981" text-anchor="middle">Yes</text>
+
+  <!-- Source link -->
+  <rect x="690" y="556" width="426" height="1" fill="#334155"/>
+  <text x="690" y="576" font-family="system-ui,-apple-system,sans-serif" font-size="13" fill="#6366f1">simbli.eboardsolutions.com  ↗</text>
 </svg>
