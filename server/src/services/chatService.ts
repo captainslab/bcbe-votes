@@ -1,10 +1,11 @@
-import { getSummaryStats } from "./analyticsService";
+import { getCategoryStats, getSummaryStats } from "./analyticsService";
 
 export type ChatContext = {
   totalMeetings: number;
   totalVotes: number;
   totalVoteRecords: number;
   needsReviewCount?: number;
+  topCategory?: string;
 };
 
 export type ChatCitation = {
@@ -66,15 +67,15 @@ export const buildChatContext = (context: ChatContext): ChatContext => {
     totalVotes: context.totalVotes,
     totalVoteRecords: context.totalVoteRecords,
   };
-  if (typeof context.needsReviewCount === "number") {
-    chatContext.needsReviewCount = context.needsReviewCount;
-  }
+  if (typeof context.needsReviewCount === "number") chatContext.needsReviewCount = context.needsReviewCount;
+  if (typeof context.topCategory === "string") chatContext.topCategory = context.topCategory;
   return chatContext;
 };
 
 export const buildCurrentChatContext = async (): Promise<ChatContext> => {
-  const summary = await getSummaryStats();
-  return buildChatContext(summary);
+  const [summary, categoryStats] = await Promise.all([getSummaryStats(), getCategoryStats()]);
+  const topCategory = categoryStats[0]?.category;
+  return buildChatContext({ ...summary, ...(topCategory ? { topCategory } : {}) });
 };
 
 export const isChatRateLimited = (key: string, now = Date.now()) => {
@@ -209,7 +210,7 @@ const faqAnswer = (question: string, context: ChatContext, previousQuestion = ""
     );
   }
 
-  if (/\b(voting alignment|alignment|alliances|voted together|voted similarly)\b/.test(q)) {
+  if (/\b(voting alignment|alignment|alliances|voted together|voted similarly)\b/.test(q) && !/\bcategory alignment\b/.test(q)) {
     return baseResponse(
       "Voting Alignment shows how often board members voted similarly or differently across recorded vote items. It is a pattern tool, not proof of motives, coordination, or personal alliances.",
       "answered",
@@ -241,6 +242,48 @@ const faqAnswer = (question: string, context: ChatContext, previousQuestion = ""
     );
   }
 
+  if (/\b(?:list|which|how many)\s+categor(?:y|ies)?\b/.test(q) || /\bwhat\s+categor(?:y|ies)?\s+(?:exist|available|types?|are there)\b/.test(q)) {
+    return baseResponse(
+      "BoardVotes.io uses 15 vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration, and Other / Needs Review. Use the Category filter on the Votes page to browse by topic.",
+      "answered",
+      [{ label: "Votes", path: "/votes" }],
+    );
+  }
+
+  if (/\b(personnel category|personnel vote|what is personnel|what does personnel)\b/.test(q)) {
+    return baseResponse(
+      "The Personnel category covers vote items about staffing, hiring, appointments, leaves of absence, resignations, retirements, and similar employment matters.",
+      "answered",
+      [{ label: "Votes", path: "/votes" }],
+    );
+  }
+
+  if (/\b(find contract|contract vote|procurement vote|vendor vote|find procurement|contract category)\b/.test(q)) {
+    return baseResponse(
+      "Use the Votes page and filter by 'Contracts & Procurement' to find extracted vote items about vendor contracts, bids, and procurement decisions.",
+      "answered",
+      [{ label: "Votes", path: "/votes" }],
+    );
+  }
+
+  if (/\b(top category|most votes category|most common category|category has the most|which category|biggest category)\b/.test(q)) {
+    const topCat = context.topCategory;
+    if (!topCat) return baseResponse(FALLBACK_ANSWER, "fallback");
+    return baseResponse(
+      `Based on extracted vote records, ${topCat} is the most common vote-topic category on BoardVotes.io. Use the Votes page and filter by category to explore vote items in any topic area.`,
+      "answered",
+      [{ label: "Votes", path: "/votes" }],
+    );
+  }
+
+  if (/\b(category alignment|alignment by category|category filter alignment|filter.*alignment|alignment.*category)\b/.test(q)) {
+    return baseResponse(
+      "Category alignment shows vote-pattern similarity within a specific topic area. It is not proof of motive, coordination, or personal alliance. Use the Category filter on the Voting Alignment page to compare how members voted within a topic.",
+      "answered",
+      [{ label: "Voting Alignment", path: "/alliances" }],
+    );
+  }
+
   return null;
 };
 
@@ -262,6 +305,9 @@ Approved facts:
 - Non-unanimous means at least one recorded vote differed from the others.
 - Some vote items have no individual records because the public source may report only the outcome or extraction may not identify individual votes.
 - Voting Alignment shows how often board members voted similarly or differently across recorded vote items. It is not proof of motives, coordination, or personal alliances.
+- Category alignment shows vote-pattern similarity within a specific topic area. It is not proof of motive, coordination, or personal alliance.
+- Vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration, Other / Needs Review.
+- Use the Category filter on the Votes page or the Voting Alignment page to browse by topic.${context.topCategory ? `\n- Most common category by extracted vote count: ${context.topCategory}.` : ""}
 - Correction reports should include meeting date, item title, what looks wrong, and source context when available.`;
 
 const callOpenRouter = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> => {

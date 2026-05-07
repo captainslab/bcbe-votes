@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
-import type { MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
+import type { MemberCategoryStat, MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
 
 const canonicalMemberNames = new Set([
   "Ken Bradley",
@@ -242,6 +242,35 @@ export const MemberDetail = () => {
         </div>
       )}
 
+      {(data.categoryStats ?? []).length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Vote-topic breakdown</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Extracted vote records for this member by topic area. No votes indicate a recorded dissent.
+          </p>
+          <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Category</th>
+                  <th className="px-4 py-2 text-right">Votes</th>
+                  <th className="px-4 py-2 text-right">No votes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(data.categoryStats as MemberCategoryStat[]).map((stat) => (
+                  <tr key={stat.category} className="hover:bg-slate-50">
+                    <td className="px-4 py-2 font-medium text-slate-800">{stat.category}</td>
+                    <td className="px-4 py-2 text-right text-slate-700">{stat.totalVotes}</td>
+                    <td className="px-4 py-2 text-right text-slate-700">{stat.noVotes > 0 ? stat.noVotes : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Items this member voted no on</h2>
         <p className="text-sm text-slate-500">Only extracted vote records with a recorded No vote are shown.</p>
@@ -269,13 +298,15 @@ export const MemberDetail = () => {
                     <p className="text-sm text-slate-700">Outcome: {item.overallOutcome || "Needs review"}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge tone={item.category === "Needs review" ? "amber" : "blue"}>
+                    <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
                       {item.category || "Needs review"}
                     </Badge>
                     <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
-                      {item.verificationStatus || "needs_review"}
+                      {item.verificationStatus === "verified" ? "Verified" : "Needs review"}
                     </Badge>
-                    {item.sourceAvailability === "unavailable" && <Badge tone="amber">Needs review</Badge>}
+                    <Badge tone={item.sourceAvailability === "available" ? "emerald" : "amber"}>
+                      {item.sourceAvailability === "available" ? "Source linked" : "Source unavailable"}
+                    </Badge>
                   </div>
                 </div>
 

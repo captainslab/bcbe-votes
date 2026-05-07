@@ -85,6 +85,53 @@ test("detects and removes title-prefix language from chat output", () => {
   assert.equal(sanitizeChatAnswer(blockedPrefixExample), "I don’t know from BoardVotes.io data.");
 });
 
+test("answers category list question", async () => {
+  const result = await answerBoardVotesQuestion({ question: "What categories exist on this site?", context });
+  assert.match(result.answer, /Budget & Finance/);
+  assert.match(result.answer, /Personnel/);
+  assert.match(result.answer, /Contracts & Procurement/);
+  assert.equal(result.scope, "answered");
+});
+
+test("explains personnel category", async () => {
+  const result = await answerBoardVotesQuestion({ question: "What does the Personnel category mean?", context });
+  assert.match(result.answer, /Personnel/);
+  assert.match(result.answer, /staffing|hiring|appointment/i);
+  assert.equal(result.scope, "answered");
+});
+
+test("helps find contract votes", async () => {
+  const result = await answerBoardVotesQuestion({ question: "How do I find contract votes?", context });
+  assert.match(result.answer, /Contracts/);
+  assert.equal(result.scope, "answered");
+});
+
+test("explains category alignment", async () => {
+  const result = await answerBoardVotesQuestion({ question: "What does category alignment mean?", context });
+  assert.match(result.answer, /category alignment/i);
+  assert.match(result.answer, /not proof of motive/i);
+  assert.equal(result.scope, "answered");
+});
+
+test("answers top category question when topCategory is in context", async () => {
+  const contextWithCat = buildChatContext({ ...context, topCategory: "Personnel" });
+  const result = await answerBoardVotesQuestion({
+    question: "What category has the most votes?",
+    context: contextWithCat,
+  });
+  assert.match(result.answer, /Personnel/);
+  assert.equal(result.scope, "answered");
+});
+
+test("falls back for top category question when topCategory missing from context", async () => {
+  const contextNoCat = buildChatContext({ totalMeetings: 105, totalVotes: 1484, totalVoteRecords: 623 });
+  const result = await answerBoardVotesQuestion({
+    question: "What category has the most votes?",
+    context: contextNoCat,
+  });
+  assert.equal(result.scope, "fallback");
+});
+
 test("uses OpenRouter GPT-5 nano when model assistance is enabled", async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.OPENROUTER_API_KEY;

@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { Meeting, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
+import type { CategoryStat, Meeting, MemberCategoryStat, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
 
 export const useSummary = () =>
   useQuery({
     queryKey: ["summary"],
     queryFn: async () => {
-      const res = await api.get<{ summary: SummaryStats; recentVotes: VoteItem[] }>("/stats");
+      const res = await api.get<{ summary: SummaryStats; recentVotes: VoteItem[]; categoryStats: CategoryStat[] }>("/stats");
       return res.data;
     },
   });
@@ -65,6 +65,7 @@ type MemberDetailResponse = {
   profile?: MemberProfile;
   stats?: MemberStat;
   noVoteItems?: MemberNoVoteItem[];
+  categoryStats?: MemberCategoryStat[];
 };
 
 export const useMember = (id?: string | number) =>

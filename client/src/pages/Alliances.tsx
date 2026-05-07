@@ -227,6 +227,11 @@ export const Alliances = () => {
         <p className="text-sm text-slate-600">
           This page compares how canonical BCBE board members voted together or split on extracted vote records.
         </p>
+        <p className="text-sm text-slate-600">
+          Category alignment shows vote-pattern similarity within a topic area. It is not proof of motive,
+          coordination, or personal alliance. Use the Category filter below to explore alignment within a specific
+          topic.
+        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -445,7 +450,7 @@ export const Alliances = () => {
 
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>{vote.category || "Needs review"}</Badge>
-                          <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>{vote.verificationStatus || "needs_review"}</Badge>
+                          <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>{vote.verificationStatus === "verified" ? "Verified" : "Needs review"}</Badge>
                           <Badge tone={sourceMissing ? "amber" : "slate"}>{sourceMissing ? "Source unavailable" : "Source available"}</Badge>
                           {vote.confidenceScore !== null && vote.confidenceScore !== undefined ? (
                             <Badge tone="slate">Confidence {String(vote.confidenceScore)}</Badge>
@@ -531,7 +536,7 @@ export const Alliances = () => {
                             <p className="mt-1 text-xs text-slate-600">{formatDate(vote.meetingDate)} · {vote.meetingType || "Needs review"}</p>
                             <div className="mt-2 flex flex-wrap gap-2 text-xs">
                               <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>{vote.category || "Needs review"}</Badge>
-                              <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>{vote.verificationStatus || "needs_review"}</Badge>
+                              <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>{vote.verificationStatus === "verified" ? "Verified" : "Needs review"}</Badge>
                               <Badge tone={sourceMissing ? "amber" : "slate"}>{sourceMissing ? "Source unavailable" : "Source available"}</Badge>
                               <Badge tone={getMemberVoteTone(vote.memberAVote)}>{memberA}: {vote.memberAVote || "Needs review"}</Badge>
                               <Badge tone={getMemberVoteTone(vote.memberBVote)}>{memberB}: {vote.memberBVote || "Needs review"}</Badge>

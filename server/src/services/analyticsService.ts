@@ -485,6 +485,95 @@ export const getMemberAlignment = async (memberId: number) => {
   return pairs.filter((pair) => pair.memberAId === memberId || pair.memberBId === memberId);
 };
 
+export const getCategoryStats = async () => {
+  const items = await db.query.voteItems.findMany({
+    columns: {
+      itemTitle: true,
+      motionText: true,
+      summaryText: true,
+      sourceExcerpt: true,
+      isNonUnanimous: true,
+    },
+    with: {
+      meeting: { columns: { date: true } },
+    },
+  });
+
+  const counts = new Map<string, { total: number; nonUnanimous: number; byYear: Map<number, number> }>();
+
+  for (const item of items) {
+    const { category } = categorizeVoteItemText({
+      itemTitle: item.itemTitle ?? null,
+      motionText: item.motionText ?? null,
+      summaryText: item.summaryText ?? null,
+      sourceExcerpt: item.sourceExcerpt ?? null,
+    });
+
+    if (!counts.has(category)) counts.set(category, { total: 0, nonUnanimous: 0, byYear: new Map() });
+    const entry = counts.get(category)!;
+    entry.total++;
+    if (item.isNonUnanimous) entry.nonUnanimous++;
+
+    const year = item.meeting?.date ? new Date(item.meeting.date).getFullYear() : null;
+    if (year) entry.byYear.set(year, (entry.byYear.get(year) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([category, data]) => ({
+      category,
+      totalVotes: data.total,
+      nonUnanimousVotes: data.nonUnanimous,
+      byYear: Object.fromEntries(Array.from(data.byYear.entries()).sort((a, b) => a[0] - b[0])),
+    }))
+    .sort((a, b) => b.totalVotes - a.totalVotes);
+};
+
+export const getMemberCategoryStats = async (memberId: number) => {
+  const [records, members] = await Promise.all([
+    db
+      .select({
+        voteValue: schema.voteRecords.voteValue,
+        memberName: schema.boardMembers.name,
+        itemTitle: schema.voteItems.itemTitle,
+        motionText: schema.voteItems.motionText,
+        summaryText: schema.voteItems.summaryText,
+        sourceExcerpt: schema.voteItems.sourceExcerpt,
+      })
+      .from(schema.voteRecords)
+      .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id))
+      .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id)),
+    db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers),
+  ]);
+
+  const canonicalDirectory = buildCanonicalMemberDirectory(members);
+  const canonicalEntry = Array.from(canonicalDirectory.values()).find((ref) => ref.memberId === memberId);
+  if (!canonicalEntry) return [];
+
+  const byCategory = new Map<string, { total: number; noVotes: number }>();
+
+  for (const record of records) {
+    if (getCanonicalBoardMemberName(record.memberName) !== canonicalEntry.name) continue;
+    const { category } = categorizeVoteItemText({
+      itemTitle: record.itemTitle ?? null,
+      motionText: record.motionText ?? null,
+      summaryText: record.summaryText ?? null,
+      sourceExcerpt: record.sourceExcerpt ?? null,
+    });
+    const entry = byCategory.get(category) ?? { total: 0, noVotes: 0 };
+    entry.total++;
+    if (record.voteValue === "no") entry.noVotes++;
+    byCategory.set(category, entry);
+  }
+
+  return Array.from(byCategory.entries())
+    .map(([category, data]) => ({
+      category,
+      totalVotes: data.total,
+      noVotes: data.noVotes,
+    }))
+    .sort((a, b) => b.totalVotes - a.totalVotes);
+};
+
 export const getRecentVotes = async (limit = 10) => {
   const votes = await db.query.voteItems.findMany({
     limit,

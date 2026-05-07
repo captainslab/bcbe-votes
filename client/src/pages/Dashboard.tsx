@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useSummary } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
-import type { VoteItem } from "../types";
+import type { CategoryStat, VoteItem } from "../types";
 
 const normalizeText = (value?: string | null) => (typeof value === "string" ? value.trim() : "");
 
@@ -48,7 +48,7 @@ export const Dashboard = () => {
   if (error) return <p className="text-red-600">Failed to load dashboard.</p>;
   if (!data) return null;
 
-  const { summary, recentVotes } = data;
+  const { summary, recentVotes, categoryStats = [] } = data;
   const leaderboardSampleFloor = 5;
   const hasSmallLeaderboardSamples = [...summary.dissentLeaderboard, ...summary.yesLeaderboard].some(
     (member) => member.totalVotes < leaderboardSampleFloor,
@@ -97,6 +97,40 @@ export const Dashboard = () => {
           helper={summary.needsReviewCount === undefined ? "Not returned by API" : "Low-confidence or incomplete extraction"}
         />
       </div>
+
+      {categoryStats.length > 0 && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="text-lg font-semibold text-slate-900">Vote topics</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Category distribution across {summary.totalVotes} extracted vote items. Use the Votes page to filter by topic.
+          </p>
+          <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Category</th>
+                  <th className="px-4 py-2 text-right">Votes</th>
+                  <th className="px-4 py-2 text-right">Non-unanimous</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(categoryStats as CategoryStat[]).slice(0, 8).map((stat) => (
+                  <tr key={stat.category} className="hover:bg-slate-50">
+                    <td className="px-4 py-2 font-medium text-slate-800">{stat.category}</td>
+                    <td className="px-4 py-2 text-right text-slate-700">{stat.totalVotes}</td>
+                    <td className="px-4 py-2 text-right text-slate-700">{stat.nonUnanimousVotes > 0 ? stat.nonUnanimousVotes : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {categoryStats.length > 8 && (
+            <p className="mt-2 text-xs text-slate-500">
+              Showing top 8 of {categoryStats.length} categories. <Link to="/votes" className="underline">View all on Votes page.</Link>
+            </p>
+          )}
+        </section>
+      )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-semibold text-slate-900">Quick links</h2>

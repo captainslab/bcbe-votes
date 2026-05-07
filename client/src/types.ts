@@ -143,6 +143,19 @@ export type PairwiseAlignment = {
   sharedVotes?: AlignmentSharedVote[];
 };
 
+export type CategoryStat = {
+  category: string;
+  totalVotes: number;
+  nonUnanimousVotes: number;
+  byYear: Record<number, number>;
+};
+
+export type MemberCategoryStat = {
+  category: string;
+  totalVotes: number;
+  noVotes: number;
+};
+
 export type SummaryStats = {
   totalMeetings: number;
   totalVotes: number;

@@ -10,7 +10,9 @@ import {
   getMemberNoVoteItems,
 } from "../services/dataService";
 import {
+  getCategoryStats,
   getMemberAlignment,
+  getMemberCategoryStats,
   getMemberStats,
   getPairwiseAlignment,
   getRecentVotes,
@@ -188,11 +190,15 @@ router.get(
     try {
       const { params } = res.locals.validatedRequest as { params: { id: number } };
       const memberId = params.id;
-      const member = await getMember(memberId);
+      const [member, memberStatsList, noVoteItems, categoryStats] = await Promise.all([
+        getMember(memberId),
+        getMemberStats(),
+        getMemberNoVoteItems(memberId),
+        getMemberCategoryStats(memberId),
+      ]);
       if (!member) throw new HttpError(404, "Member not found");
-      const stats = (await getMemberStats()).find((s) => s.memberId === memberId);
-      const noVoteItems = await getMemberNoVoteItems(memberId);
-      res.json({ ...member, stats, noVoteItems });
+      const stats = memberStatsList.find((s) => s.memberId === memberId);
+      res.json({ ...member, stats, noVoteItems, categoryStats });
     } catch (err) {
       next(err);
     }
@@ -201,9 +207,12 @@ router.get(
 
 router.get("/stats", async (_req, res, next) => {
   try {
-    const summary = await getSummaryStats();
-    const recentVotes = await getRecentVotes(8);
-    res.json({ summary, recentVotes });
+    const [summary, recentVotes, categoryStats] = await Promise.all([
+      getSummaryStats(),
+      getRecentVotes(8),
+      getCategoryStats(),
+    ]);
+    res.json({ summary, recentVotes, categoryStats });
   } catch (err) {
     next(err);
   }
