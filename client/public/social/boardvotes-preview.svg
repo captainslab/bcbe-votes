@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0f172a"/>
+
+  <!-- Indigo accent bar at top -->
+  <rect width="1200" height="6" fill="#6366f1"/>
+
+  <!-- Subtle grid lines for data aesthetic -->
+  <line x1="0" y1="105" x2="1200" y2="105" stroke="#1e293b" stroke-width="1"/>
+  <line x1="0" y1="210" x2="1200" y2="210" stroke="#1e293b" stroke-width="1"/>
+  <line x1="0" y1="315" x2="1200" y2="315" stroke="#1e293b" stroke-width="1"/>
+  <line x1="0" y1="420" x2="1200" y2="420" stroke="#1e293b" stroke-width="1"/>
+  <line x1="0" y1="525" x2="1200" y2="525" stroke="#1e293b" stroke-width="1"/>
+  <line x1="240" y1="0" x2="240" y2="630" stroke="#1e293b" stroke-width="1"/>
+  <line x1="480" y1="0" x2="480" y2="630" stroke="#1e293b" stroke-width="1"/>
+  <line x1="720" y1="0" x2="720" y2="630" stroke="#1e293b" stroke-width="1"/>
+  <line x1="960" y1="0" x2="960" y2="630" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- Brand name -->
+  <text x="100" y="220" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#ffffff" letter-spacing="-2">BoardVotes</text>
+  <text x="620" y="220" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#818cf8" letter-spacing="-2">.io</text>
+
+  <!-- Headline -->
+  <text x="100" y="320" font-family="system-ui, -apple-system, sans-serif" font-size="52" font-weight="700" fill="#f1f5f9" letter-spacing="-1">Track School Board Votes</text>
+
+  <!-- Subheadline -->
+  <text x="100" y="395" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#94a3b8">Browse meetings, vote records, and member activity.</text>
+
+  <!-- Divider -->
+  <rect x="100" y="430" width="80" height="3" fill="#6366f1" rx="1"/>
+
+  <!-- Trust line -->
+  <text x="100" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="500" fill="#64748b">Source-traceable public records · Baldwin County, Alabama</text>
+
+  <!-- Bottom domain label -->
+  <text x="100" y="570" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="#475569">boardvotes.io</text>
+</svg>

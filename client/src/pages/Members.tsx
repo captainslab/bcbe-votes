@@ -1,6 +1,50 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
+
+const memberPortraits: Record<string, string> = {
+  "Ken Bradley": "/board-members/ken-bradley.jpg",
+  "Andrea Lindsey": "/board-members/andrea-lindsey.jpg",
+  "Tony Myrick": "/board-members/tony-myrick.jpg",
+  "Rondi Kirby": "/board-members/rondi-kirby.jpg",
+  "Jason P. Woerner": "/board-members/jason-p-woerner.jpg",
+  "Cecil Christenberry": "/board-members/cecil-christenberry.jpg",
+  "April Bradley": "/board-members/april-bradley.jpg",
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("");
+
+const MemberAvatar = ({ name, size = "sm" }: { name: string; size?: "sm" | "lg" }) => {
+  const [errored, setErrored] = useState(false);
+  const src = memberPortraits[name];
+  const dim = size === "lg" ? "h-20 w-20" : "h-10 w-10";
+  const textSize = size === "lg" ? "text-xl" : "text-sm";
+
+  if (!src || errored) {
+    return (
+      <div
+        className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-slate-300 ${textSize} font-semibold text-slate-600`}
+      >
+        {getInitials(name)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      className={`${dim} shrink-0 rounded-full object-cover object-top`}
+      onError={() => setErrored(true)}
+    />
+  );
+};
 
 export const Members = () => {
   const { data, isLoading, error } = useMembers();
@@ -44,8 +88,9 @@ export const Members = () => {
                 <td className="px-4 py-3">
                   <Link
                     to={`/members/${member.memberId}`}
-                    className="font-semibold text-slate-900 hover:underline"
+                    className="flex items-center gap-3 font-semibold text-slate-900 hover:underline"
                   >
+                    <MemberAvatar name={member.name} size="sm" />
                     {member.name}
                   </Link>
                 </td>
@@ -62,6 +107,7 @@ export const Members = () => {
           </tbody>
         </table>
       </div>
+      <p className="text-xs text-slate-500">Portraits: Baldwin County Public Schools</p>
     </div>
   );
 };

@@ -1,9 +1,48 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
 import type { MemberCategoryStat, MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
+
+const memberPortraits: Record<string, string> = {
+  "Ken Bradley": "/board-members/ken-bradley.jpg",
+  "Andrea Lindsey": "/board-members/andrea-lindsey.jpg",
+  "Tony Myrick": "/board-members/tony-myrick.jpg",
+  "Rondi Kirby": "/board-members/rondi-kirby.jpg",
+  "Jason P. Woerner": "/board-members/jason-p-woerner.jpg",
+  "Cecil Christenberry": "/board-members/cecil-christenberry.jpg",
+  "April Bradley": "/board-members/april-bradley.jpg",
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("");
+
+const MemberPortrait = ({ name }: { name: string }) => {
+  const [errored, setErrored] = useState(false);
+  const src = memberPortraits[name];
+
+  if (!src || errored) {
+    return (
+      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-slate-300 text-2xl font-semibold text-slate-600">
+        {getInitials(name)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      className="h-24 w-24 shrink-0 rounded-full object-cover object-top shadow-sm"
+      onError={() => setErrored(true)}
+    />
+  );
+};
 
 const canonicalMemberNames = new Set([
   "Ken Bradley",
@@ -135,24 +174,27 @@ export const MemberDetail = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-slate-600">Baldwin County Board of Education</p>
-          <h1 className="text-3xl font-semibold text-slate-900">{data.name}</h1>
-          <p className="mt-1 text-sm text-slate-600">{profile?.district || data.district || "District not yet sourced"}</p>
-          {profile?.roleTitle ? <p className="mt-1 text-sm text-slate-600">{profile.roleTitle}</p> : null}
-          {profile?.officialProfileUrl ? (
-            <a
-              href={profile.officialProfileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-block text-sm font-semibold text-slate-700 underline"
-            >
-              Official board profile source
-            </a>
-          ) : null}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-5">
+          <MemberPortrait name={data.name} />
+          <div>
+            <p className="text-sm text-slate-600">Baldwin County Board of Education</p>
+            <h1 className="text-3xl font-semibold text-slate-900">{data.name}</h1>
+            <p className="mt-1 text-sm text-slate-600">{profile?.district || data.district || "District not yet sourced"}</p>
+            {profile?.roleTitle ? <p className="mt-1 text-sm text-slate-600">{profile.roleTitle}</p> : null}
+            {profile?.officialProfileUrl ? (
+              <a
+                href={profile.officialProfileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-block text-sm font-semibold text-slate-700 underline"
+              >
+                Official board profile source
+              </a>
+            ) : null}
+          </div>
         </div>
-        <Link to="/members" className="text-sm font-semibold text-slate-700 hover:underline">
+        <Link to="/members" className="shrink-0 text-sm font-semibold text-slate-700 hover:underline">
           Back to members
         </Link>
       </div>
