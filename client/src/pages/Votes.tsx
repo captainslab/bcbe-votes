@@ -33,8 +33,17 @@ const getVoteTitle = (vote: VoteItem) => {
 };
 
 const getOutcomeLabel = (vote: VoteItem) => {
-  const outcome = normalizeText(vote.result);
-  return outcome || "Needs review";
+  const tally = vote.voteTally ?? {};
+  const yes = tally.yes ?? 0;
+  const no = tally.no ?? 0;
+  const abstain = tally.abstain ?? 0;
+  const total = yes + no + abstain;
+  if (total > 0) {
+    const carried = yes > no;
+    const tallyStr = abstain > 0 ? `${yes}–${no}, ${abstain} abstained` : `${yes}–${no}`;
+    return carried ? `Carried (${tallyStr})` : `Failed (${tallyStr})`;
+  }
+  return "—";
 };
 
 const getSourceUrl = (vote: VoteItem) => {
