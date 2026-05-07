@@ -305,7 +305,6 @@ export const Votes = () => {
             const meetingType = normalizeText(vote.meeting?.type) || "Needs review";
             const sourceUrl = getSourceUrl(vote);
             const noMembers = getNoMemberNames(vote);
-            const needsReview = isNeedsReviewVote(vote);
 
             return (
               <article
@@ -324,12 +323,11 @@ export const Votes = () => {
                       {vote.category || "Needs review"}
                     </Badge>
                     <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
-                      {vote.verificationStatus || "needs_review"}
+                      {vote.verificationStatus === "verified" ? "Verified" : "Needs review"}
                     </Badge>
                     <Badge tone={vote.isNonUnanimous ? "amber" : "emerald"}>
                       {vote.isNonUnanimous ? "Non-unanimous" : "Unanimous"}
                     </Badge>
-                    {needsReview && <Badge tone="amber">Needs review</Badge>}
                   </div>
                 </div>
 

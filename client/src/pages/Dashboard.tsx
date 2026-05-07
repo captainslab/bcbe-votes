@@ -40,22 +40,6 @@ const getSourceState = (vote: VoteItem) => {
   return vote.sourceLabel || "Source unavailable";
 };
 
-const isNeedsReviewVote = (vote: VoteItem) => {
-  const confidence = parseConfidence(vote.confidenceScore);
-  const title = getVoteTitle(vote);
-  // Verified unanimous items are source-limited by design — Simbli only stores
-  // roll-call data for non-unanimous votes.
-  const unanimousVerified = vote.verificationStatus === "verified" && !vote.isNonUnanimous;
-  const lowConfidence = !unanimousVerified && confidence !== null && confidence < 0.6;
-
-  return (
-    vote.category === "Other / Needs Review" ||
-    vote.verificationStatus !== "verified" ||
-    vote.sourceAvailability === "unavailable" ||
-    lowConfidence ||
-    title === "Needs review"
-  );
-};
 
 export const Dashboard = () => {
   const { data, isLoading, error } = useSummary();
@@ -166,7 +150,6 @@ export const Dashboard = () => {
             const sourceState = getSourceState(vote);
             const excerpt = normalizeText(vote.sourceExcerpt);
             const confidenceLabel = formatConfidence(vote.confidenceScore);
-            const needsReview = isNeedsReviewVote(vote);
             const meetingDate = vote.meeting?.date ? new Date(vote.meeting.date).toLocaleDateString() : "Needs review";
 
             return (
@@ -176,10 +159,9 @@ export const Dashboard = () => {
                     {vote.category || "Needs review"}
                   </Badge>
                   <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
-                    {vote.verificationStatus || "needs_review"}
+                    {vote.verificationStatus === "verified" ? "Verified" : "Needs review"}
                   </Badge>
                   <Badge tone={vote.sourceAvailability === "available" ? "emerald" : "amber"}>{sourceState}</Badge>
-                  {needsReview ? <Badge tone="amber">Needs review</Badge> : null}
                 </div>
 
                 <p className="mt-2 text-xs text-slate-500">{meetingDate}</p>
