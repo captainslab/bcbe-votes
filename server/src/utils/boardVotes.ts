@@ -389,7 +389,7 @@ export type MemberNoVoteItem = {
   sourceExcerpt: string | null;
   category: VoteItemCategory;
   categoryConfidence: number | string | null;
-  memberVote: "No";
+  memberVote: "No" | "Abstain";
   overallOutcome: string;
 };
 
@@ -402,15 +402,19 @@ export const buildMemberNoVoteItems = (
 
   return voteItems
     .filter((item) =>
-      (item.voteRecords ?? []).some(
-        (record) =>
-          getCanonicalBoardMemberName(record.boardMember?.name ?? null) === canonicalMember &&
-          normalizeVoteValue(record.voteValue ?? "") === "no",
-      ),
+      (item.voteRecords ?? []).some((record) => {
+        if (getCanonicalBoardMemberName(record.boardMember?.name ?? null) !== canonicalMember) return false;
+        const v = normalizeVoteValue(record.voteValue ?? "");
+        return v === "no" || v === "abstain";
+      }),
     )
     .map((item) => {
       const categoryInfo = categorizeVoteItemText(item);
       const sourceInfo = buildSourceAuditInfo(item.sourceUrl);
+      const memberRecord = (item.voteRecords ?? []).find(
+        (record) => getCanonicalBoardMemberName(record.boardMember?.name ?? null) === canonicalMember,
+      );
+      const memberVote = normalizeVoteValue(memberRecord?.voteValue ?? "") === "abstain" ? "Abstain" : "No";
       return {
         voteItemId: item.voteItemId,
         meetingId: item.meetingId,
@@ -429,7 +433,7 @@ export const buildMemberNoVoteItems = (
         sourceExcerpt: sanitizePublicVoteDisplayText(item.sourceExcerpt),
         category: item.category ?? categoryInfo.category,
         categoryConfidence: item.categoryConfidence ?? categoryInfo.categoryConfidence,
-        memberVote: "No",
+        memberVote,
         overallOutcome: sanitizePublicVoteDisplayText(item.result, "strict-outcome"),
       };
     });

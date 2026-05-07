@@ -77,6 +77,7 @@ export const Votes = () => {
   const [selectedMember, setSelectedMember] = useState("all");
   const [unanimityFilter, setUnanimityFilter] = useState<UnanimityFilter>("all");
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [hideNeedsReview, setHideNeedsReview] = useState(true);
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const sortedVotes = useMemo(() => {
@@ -162,6 +163,7 @@ export const Votes = () => {
       if (unanimityFilter === "unanimous" && vote.isNonUnanimous) return false;
 
       if (needsReviewOnly && !isNeedsReviewVote(vote)) return false;
+      if (hideNeedsReview && isNeedsReviewVote(vote)) return false;
 
       return true;
     });
@@ -174,6 +176,7 @@ export const Votes = () => {
     selectedMember,
     unanimityFilter,
     needsReviewOnly,
+    hideNeedsReview,
   ]);
 
   if (isLoading) return <p>Loading votes…</p>;
@@ -295,8 +298,23 @@ export const Votes = () => {
           <label className="flex items-center gap-2 pt-6 text-sm text-slate-700">
             <input
               type="checkbox"
+              checked={hideNeedsReview}
+              onChange={(event) => {
+                setHideNeedsReview(event.target.checked);
+                if (event.target.checked) setNeedsReviewOnly(false);
+              }}
+            />
+            Hide needs-review records
+          </label>
+
+          <label className="flex items-center gap-2 pt-6 text-sm text-slate-700">
+            <input
+              type="checkbox"
               checked={needsReviewOnly}
-              onChange={(event) => setNeedsReviewOnly(event.target.checked)}
+              onChange={(event) => {
+                setNeedsReviewOnly(event.target.checked);
+                if (event.target.checked) setHideNeedsReview(false);
+              }}
             />
             Needs review only
           </label>

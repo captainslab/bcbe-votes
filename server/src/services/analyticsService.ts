@@ -268,12 +268,17 @@ export const getMemberStats = async () => {
   return Array.from(stats.values()).map((stat) => {
     let topNoAbstainCategory: string | null = null;
     let topCount = 0;
+    const topCats: string[] = [];
     stat.noAbstainByCategory.forEach((cnt, cat) => {
       if (cnt > topCount) {
         topCount = cnt;
-        topNoAbstainCategory = cat;
+        topCats.length = 0;
+        topCats.push(cat);
+      } else if (cnt === topCount && topCount > 0) {
+        topCats.push(cat);
       }
     });
+    if (topCats.length > 0) topNoAbstainCategory = topCats.join(" / ");
 
     return {
       memberId: stat.memberId,

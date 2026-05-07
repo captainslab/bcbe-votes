@@ -151,7 +151,9 @@ export const MemberDetail = () => {
   const memberId = Number(id);
   const noVoteItems = useMemo<MemberNoVoteItem[]>(() => {
     const items = (data?.noVoteItems ?? []) as MemberNoVoteItem[] | undefined;
-    return (items ?? []).filter((item) => isValidDetailName(data?.name) && item.memberVote === "No");
+    return (items ?? []).filter(
+      (item) => isValidDetailName(data?.name) && (item.memberVote === "No" || item.memberVote === "Abstain"),
+    );
   }, [data]);
 
   if (isLoading) return <p>Loading member…</p>;
@@ -314,8 +316,8 @@ export const MemberDetail = () => {
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Items this member voted no on</h2>
-        <p className="text-sm text-slate-500">Only extracted vote records with a recorded No vote are shown.</p>
+        <h2 className="text-lg font-semibold text-slate-900">No and abstained votes</h2>
+        <p className="text-sm text-slate-500">Only extracted vote records with a recorded No or Abstain are shown.</p>
         <div className="mt-4 space-y-4">
           {noVoteItems.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
@@ -335,7 +337,7 @@ export const MemberDetail = () => {
                           ? item.motionText
                           : "Needs review"}
                     </p>
-                    <p className="text-sm text-slate-700">Member vote: No</p>
+                    <p className="text-sm text-slate-700">Member vote: {item.memberVote}</p>
                     <p className="text-sm text-slate-700">Category: {item.category || "Needs review"}</p>
                     <p className="text-sm text-slate-700">Outcome: {item.overallOutcome || "Needs review"}</p>
                   </div>
