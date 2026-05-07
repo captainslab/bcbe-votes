@@ -114,12 +114,9 @@ export const getMeeting = async (id: number) => {
   };
 };
 
-export const listVotes = async (nonUnanimousOnly = true, limit = 50, offset = 0) => {
+export const listVotes = async (nonUnanimousOnly = true, limit = 5000, offset = 0) => {
   const votes = await db.query.voteItems.findMany({
     where: nonUnanimousOnly ? eq(schema.voteItems.isNonUnanimous, true) : undefined,
-    limit,
-    offset,
-    orderBy: (vote, { desc }) => [desc(vote.createdAt)],
     with: {
       meeting: true,
       voteRecords: {
@@ -130,7 +127,13 @@ export const listVotes = async (nonUnanimousOnly = true, limit = 50, offset = 0)
     },
   });
 
-  return votes.map((vote) => enrichVoteItem(vote));
+  votes.sort((a, b) => {
+    const dateA = a.meeting?.date ? new Date(a.meeting.date).getTime() : 0;
+    const dateB = b.meeting?.date ? new Date(b.meeting.date).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  return votes.slice(offset, offset + limit).map((vote) => enrichVoteItem(vote));
 };
 
 export const getVote = async (id: number) => {

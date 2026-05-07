@@ -34,7 +34,7 @@ export const useVotes = (nonUnanimousOnly = true) =>
   useQuery({
     queryKey: ["votes", nonUnanimousOnly],
     queryFn: async () => {
-      const res = await api.get<VoteItem[]>(`/votes`, { params: { nonUnanimousOnly, limit: 200 } });
+      const res = await api.get<VoteItem[]>(`/votes`, { params: { nonUnanimousOnly, limit: 5000 } });
       return res.data;
     },
   });
