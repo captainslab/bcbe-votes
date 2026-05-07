@@ -106,10 +106,10 @@ export const BoardVotesChat = () => {
     <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
       {isOpen ? (
         <section
-          className="flex max-h-[82vh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:w-96"
+          className="flex max-h-[82vh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-indigo-900/50 bg-white shadow-2xl sm:w-96"
           aria-label="BoardVotes.io assistant chat"
         >
-          <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-950 px-4 py-3 text-white">
+          <div className="flex items-start justify-between gap-3 border-b border-indigo-900/50 bg-slate-950 px-4 py-3 text-white">
             <div>
               <h2 className="text-sm font-semibold">BoardVotes.io assistant</h2>
               <p className="text-xs text-slate-300">Site and data questions only.</p>
@@ -166,7 +166,7 @@ export const BoardVotesChat = () => {
                   key={starter}
                   type="button"
                   onClick={() => submitQuestion(starter)}
-                  className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                  className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
                   disabled={isSending}
                 >
                   {starter}
@@ -186,13 +186,13 @@ export const BoardVotesChat = () => {
                 onChange={(event) => setQuestion(event.target.value)}
                 maxLength={500}
                 placeholder="Ask about the site or data"
-                className="min-w-0 flex-1 rounded-full border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700"
+                className="min-w-0 flex-1 rounded-full border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 aria-label="Ask the BoardVotes.io assistant"
               />
               <button
                 type="submit"
                 disabled={isSending || !question.trim()}
-                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 Send
               </button>
@@ -206,7 +206,7 @@ export const BoardVotesChat = () => {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-slate-800"
+          className="rounded-full bg-indigo-600 hover:bg-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-indigo-600/30 transition"
           aria-label="Open BoardVotes.io assistant"
         >
           Ask BoardVotes.io

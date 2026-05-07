@@ -56,33 +56,55 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="space-y-4 p-5 sm:p-6 lg:p-8">
-          <Badge tone="blue">Source-first civic vote records</Badge>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
-            BoardVotes.io tracks extracted Baldwin County Board of Education vote records from meeting and minutes sources.
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-8 shadow-2xl sm:p-10">
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        />
+        <div className="relative">
+          <span className="inline-flex items-center rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-indigo-500/30">
+            Source-first civic vote records
+          </span>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+            Baldwin County Board of Education
+            <br />
+            <span className="text-indigo-400">vote records, source-traced.</span>
           </h1>
-          <p className="max-w-3xl text-sm text-slate-600 sm:text-base">
+          <p className="mt-4 text-slate-300 text-sm sm:text-base max-w-2xl">
             This is extracted coverage, not a full historical archive. Vote items are shown with source links,
             verification status, and confidence context. Lower-confidence or incomplete records are marked Needs review.
           </p>
-          <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-            <p>
-              Meetings tracked: <span className="font-semibold text-slate-900">{summary.totalMeetings}</span>
-            </p>
-            <p>
-              Vote items extracted: <span className="font-semibold text-slate-900">{summary.totalVotes}</span>
-            </p>
-            <p>
-              Non-unanimous vote items: <span className="font-semibold text-slate-900">{summary.nonUnanimousCount}</span>
-            </p>
-            <p>
-              Needs-review records: <span className="font-semibold text-slate-900">{summary.needsReviewCount ?? "Unavailable"}</span>
-            </p>
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Link
+              to="/votes"
+              className="rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 text-sm font-semibold text-center transition"
+            >
+              View votes
+            </Link>
+            <Link
+              to="/members"
+              className="rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/20 px-4 py-3 text-sm font-semibold text-center transition"
+            >
+              View members
+            </Link>
+            <Link
+              to="/alliances"
+              className="rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/20 px-4 py-3 text-sm font-semibold text-center transition"
+            >
+              Voting alignment
+            </Link>
+            <Link
+              to="/meetings"
+              className="rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/20 px-4 py-3 text-sm font-semibold text-center transition"
+            >
+              View meetings
+            </Link>
           </div>
         </div>
       </section>
 
+      {/* Stat cards */}
       <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Meetings tracked" value={summary.totalMeetings} helper="Indexed meeting pages" />
         <StatCard label="Vote items extracted" value={summary.totalVotes} helper="Structured vote items" />
@@ -132,39 +154,7 @@ export const Dashboard = () => {
         </section>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="text-lg font-semibold text-slate-900">Quick links</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Start with filtered vote records, member voting pages, voting alignment, or meeting source pages.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Link
-            to="/votes"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
-          >
-            View votes
-          </Link>
-          <Link
-            to="/members"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
-          >
-            View members
-          </Link>
-          <Link
-            to="/alliances"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
-          >
-            View voting alignment
-          </Link>
-          <Link
-            to="/meetings"
-            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:border-slate-400"
-          >
-            View meetings
-          </Link>
-        </div>
-      </section>
-
+      {/* Recent votes */}
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -185,21 +175,27 @@ export const Dashboard = () => {
             const excerpt = normalizeText(vote.sourceExcerpt);
             const confidenceLabel = formatConfidence(vote.confidenceScore);
             const meetingDate = vote.meeting?.date ? new Date(vote.meeting.date).toLocaleDateString() : "Needs review";
+            const isVerified = vote.verificationStatus === "verified";
 
             return (
-              <article key={vote.id} className="rounded-lg border border-slate-200 p-3 sm:p-4">
+              <article
+                key={vote.id}
+                className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all border-l-4 ${
+                  isVerified ? "border-l-emerald-400" : "border-l-amber-400"
+                }`}
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={vote.category === "Other / Needs Review" ? "amber" : "blue"}>
                     {vote.category || "Needs review"}
                   </Badge>
-                  <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
-                    {vote.verificationStatus === "verified" ? "Verified" : "Needs review"}
+                  <Badge tone={isVerified ? "emerald" : "amber"}>
+                    {isVerified ? "Verified" : "Needs review"}
                   </Badge>
                   <Badge tone={vote.sourceAvailability === "available" ? "emerald" : "amber"}>{sourceState}</Badge>
                 </div>
 
-                <p className="mt-2 text-xs text-slate-500">{meetingDate}</p>
-                <h3 className="mt-1 text-base font-semibold text-slate-900">{title}</h3>
+                <p className="mt-2 text-xs font-medium text-slate-500 uppercase tracking-wide">{meetingDate}</p>
+                <h3 className="mt-1 text-base font-semibold text-slate-900 leading-snug">{title}</h3>
                 <p className="mt-2 text-sm text-slate-600 line-clamp-2">
                   {excerpt && excerpt.toLowerCase() !== "needs review" ? excerpt : "Needs review"}
                 </p>
@@ -231,11 +227,13 @@ export const Dashboard = () => {
         </div>
       </section>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+      {/* Disclaimer */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm border-l-4 border-l-amber-400">
         BoardVotes.io is source-first: each vote item should link to its official meeting/minutes source when available.
         Records with weak extraction confidence, missing source context, or unresolved parsing are marked Needs review.
       </div>
 
+      {/* Leaderboards */}
       <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Dissent leaderboard</h2>
@@ -249,12 +247,12 @@ export const Dashboard = () => {
           )}
           <div className="mt-4 space-y-3">
             {summary.dissentLeaderboard.map((m) => (
-              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm">
+              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm hover:bg-slate-50 rounded-lg px-2 -mx-2 transition">
                 <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
                   {m.name}
                 </Link>
                 <div className="text-right">
-                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-amber-800">
+                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
                     {(m.dissentRate * 100).toFixed(1)}% dissent
                   </span>
                   <p className="mt-1 text-xs text-slate-500">
@@ -278,12 +276,12 @@ export const Dashboard = () => {
           )}
           <div className="mt-4 space-y-3">
             {summary.yesLeaderboard.map((m) => (
-              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm">
+              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm hover:bg-slate-50 rounded-lg px-2 -mx-2 transition">
                 <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
                   {m.name}
                 </Link>
                 <div className="text-right">
-                  <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">
+                  <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">
                     {(m.yesRate * 100).toFixed(1)}% yes
                   </span>
                   <p className="mt-1 text-xs text-slate-500">

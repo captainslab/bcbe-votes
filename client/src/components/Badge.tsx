@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type BadgeTone = "slate" | "emerald" | "amber" | "rose" | "blue";
+type BadgeTone = "slate" | "emerald" | "amber" | "rose" | "blue" | "violet";
 
 type BadgeProps = {
   tone?: BadgeTone;
@@ -9,11 +9,12 @@ type BadgeProps = {
 };
 
 const toneClasses: Record<BadgeTone, string> = {
-  slate: "bg-slate-100 text-slate-700",
-  emerald: "bg-emerald-100 text-emerald-800",
-  amber: "bg-amber-100 text-amber-800",
-  rose: "bg-rose-100 text-rose-800",
-  blue: "bg-sky-100 text-sky-800",
+  slate: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200",
+  emerald: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
+  amber: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
+  rose: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20",
+  blue: "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/20",
+  violet: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/20",
 };
 
 export const Badge = ({ tone = "slate", children, className = "" }: BadgeProps) => (
