@@ -53,33 +53,32 @@ export const Members = () => {
   if (error) return <p className="text-red-600">Failed to load members.</p>;
   if (!data) return null;
 
-  const highestYesRate = data.length
-    ? Math.max(...data.map((m) => (m.totalVotes ? (m.yesCount / m.totalVotes) * 100 : 0)))
-    : 0;
-  const highestDissentRate = data.length ? Math.max(...data.map((m) => m.dissentRate * 100)) : 0;
+  const totalRecordedVotes = data.reduce((sum, m) => sum + m.totalVotes, 0);
+  const totalYesVotes = data.reduce((sum, m) => sum + m.yesCount, 0);
+  const totalNoAbstain = data.reduce((sum, m) => sum + m.noCount + m.abstainCount, 0);
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Board Members</h1>
         <p className="text-sm text-slate-600">
-          Per-member voting behavior, approval rates, dissent history, and participation counts.
+          Vote counts for each board member across all recorded meetings.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Members tracked" value={data.length} helper="From imported voting records" />
-        <StatCard label="Highest yes rate" value={`${highestYesRate.toFixed(1)}%`} />
-        <StatCard label="Highest dissent rate" value={`${highestDissentRate.toFixed(1)}%`} />
+        <StatCard label="Total recorded votes" value={totalRecordedVotes.toLocaleString()} />
+        <StatCard label="Yes votes (all members)" value={totalYesVotes.toLocaleString()} helper={`No / abstained: ${totalNoAbstain.toLocaleString()}`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700">Member</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Votes</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Yes rate</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Dissent rate</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Non-unanimous</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Recorded votes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Yes votes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">No / abstained</th>
+              <th className="hidden px-4 py-3 font-semibold text-slate-700 sm:table-cell">Top no/abstained category</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
@@ -95,13 +94,11 @@ export const Members = () => {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-slate-700">{member.totalVotes}</td>
-                <td className="px-4 py-3 text-slate-700">
-                  {(member.totalVotes ? (member.yesCount / member.totalVotes) * 100 : 0).toFixed(1)}%
+                <td className="px-4 py-3 text-slate-700">{member.yesCount}</td>
+                <td className="px-4 py-3 text-slate-700">{member.noCount + member.abstainCount}</td>
+                <td className="hidden px-4 py-3 text-slate-700 sm:table-cell">
+                  {member.topNoAbstainCategory ?? "—"}
                 </td>
-                <td className="px-4 py-3 text-slate-700">
-                  {(member.dissentRate * 100).toFixed(1)}%
-                </td>
-                <td className="px-4 py-3 text-slate-700">{member.nonUnanimousParticipation}</td>
               </tr>
             ))}
           </tbody>

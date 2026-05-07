@@ -64,6 +64,7 @@ export type MemberStat = {
   majorityAlignmentRate: number;
   unanimousParticipation: number;
   nonUnanimousParticipation: number;
+  topNoAbstainCategory: string | null;
 };
 
 export type MemberProfile = {

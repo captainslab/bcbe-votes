@@ -19,6 +19,7 @@ type MemberStats = {
   totalVotes: number;
   unanimousParticipation: number;
   nonUnanimousParticipation: number;
+  noAbstainByCategory: Map<string, number>;
 };
 
 type CanonicalMemberRef = {
@@ -35,6 +36,7 @@ const createCanonicalMemberStats = (memberId: number, name: CanonicalBoardMember
   totalVotes: 0,
   unanimousParticipation: 0,
   nonUnanimousParticipation: 0,
+  noAbstainByCategory: new Map(),
 });
 
 const getMajorityVote = (tally: Record<string, number>) => {
@@ -218,6 +220,10 @@ export const getMemberStats = async () => {
       voteValue: schema.voteRecords.voteValue,
       isNonUnanimous: schema.voteItems.isNonUnanimous,
       voteTally: schema.voteItems.voteTally,
+      itemTitle: schema.voteItems.itemTitle,
+      motionText: schema.voteItems.motionText,
+      summaryText: schema.voteItems.summaryText,
+      sourceExcerpt: schema.voteItems.sourceExcerpt,
     })
     .from(schema.voteRecords)
     .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
@@ -247,23 +253,45 @@ export const getMemberStats = async () => {
     if (!majority) return;
     if (row.voteValue === majority) stat.alignmentCount += 1;
     else stat.dissentCount += 1;
+
+    if (row.voteValue === "no" || row.voteValue === "abstain") {
+      const { category } = categorizeVoteItemText({
+        itemTitle: row.itemTitle ?? null,
+        motionText: row.motionText ?? null,
+        summaryText: row.summaryText ?? null,
+        sourceExcerpt: row.sourceExcerpt ?? null,
+      });
+      stat.noAbstainByCategory.set(category, (stat.noAbstainByCategory.get(category) ?? 0) + 1);
+    }
   });
 
-  return Array.from(stats.values()).map((stat) => ({
-    memberId: stat.memberId,
-    name: stat.name,
-    totalVotes: stat.totalVotes,
-    yesCount: stat.totals.yes ?? 0,
-    noCount: stat.totals.no ?? 0,
-    abstainCount: stat.totals.abstain ?? 0,
-    recusedCount: stat.totals.recused ?? 0,
-    absentCount: stat.totals.absent ?? 0,
-    dissentCount: stat.dissentCount,
-    dissentRate: stat.totalVotes ? stat.dissentCount / stat.totalVotes : 0,
-    majorityAlignmentRate: stat.totalVotes ? stat.alignmentCount / stat.totalVotes : 0,
-    unanimousParticipation: stat.unanimousParticipation,
-    nonUnanimousParticipation: stat.nonUnanimousParticipation,
-  }));
+  return Array.from(stats.values()).map((stat) => {
+    let topNoAbstainCategory: string | null = null;
+    let topCount = 0;
+    stat.noAbstainByCategory.forEach((cnt, cat) => {
+      if (cnt > topCount) {
+        topCount = cnt;
+        topNoAbstainCategory = cat;
+      }
+    });
+
+    return {
+      memberId: stat.memberId,
+      name: stat.name,
+      totalVotes: stat.totalVotes,
+      yesCount: stat.totals.yes ?? 0,
+      noCount: stat.totals.no ?? 0,
+      abstainCount: stat.totals.abstain ?? 0,
+      recusedCount: stat.totals.recused ?? 0,
+      absentCount: stat.totals.absent ?? 0,
+      dissentCount: stat.dissentCount,
+      dissentRate: stat.totalVotes ? stat.dissentCount / stat.totalVotes : 0,
+      majorityAlignmentRate: stat.totalVotes ? stat.alignmentCount / stat.totalVotes : 0,
+      unanimousParticipation: stat.unanimousParticipation,
+      nonUnanimousParticipation: stat.nonUnanimousParticipation,
+      topNoAbstainCategory,
+    };
+  });
 };
 
 type AlignmentSharedVote = {
