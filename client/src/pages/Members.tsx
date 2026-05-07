@@ -62,12 +62,12 @@ export const Members = () => {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Board Members</h1>
         <p className="text-sm text-slate-600">
-          Vote counts for each board member across all recorded meetings.
+          Roll-call vote counts for each board member. Only items where individual member votes were recorded are included — unanimous summary items are not counted.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Members tracked" value={data.length} helper="From imported voting records" />
-        <StatCard label="Total recorded votes" value={totalRecordedVotes.toLocaleString()} />
+        <StatCard label="Total roll-call votes" value={totalRecordedVotes.toLocaleString()} helper="Explicit per-member records only" />
         <StatCard label="Yes votes (all members)" value={totalYesVotes.toLocaleString()} helper={`No / abstained: ${totalNoAbstain.toLocaleString()}`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -75,7 +75,7 @@ export const Members = () => {
           <thead className="bg-slate-50 text-left">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700">Member</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Recorded votes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Roll-call votes</th>
               <th className="px-4 py-3 font-semibold text-slate-700">Yes votes</th>
               <th className="px-4 py-3 font-semibold text-slate-700">No / abstained</th>
               <th className="hidden px-4 py-3 font-semibold text-slate-700 sm:table-cell">Top no/abstained category</th>
