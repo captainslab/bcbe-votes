@@ -5,6 +5,7 @@ import { Badge } from "../components/Badge";
 import type { VoteItem } from "../types";
 
 type UnanimityFilter = "all" | "non-unanimous" | "unanimous";
+type SortDirection = "desc" | "asc";
 
 const normalizeText = (value?: string | null) => (typeof value === "string" ? value.trim() : "");
 
@@ -76,11 +77,14 @@ export const Votes = () => {
   const [selectedMember, setSelectedMember] = useState("all");
   const [unanimityFilter, setUnanimityFilter] = useState<UnanimityFilter>("all");
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  const sortedVotes = useMemo(
-    () => (data ?? []).slice().sort((a, b) => (b.meeting?.date || "").localeCompare(a.meeting?.date || "")),
-    [data],
-  );
+  const sortedVotes = useMemo(() => {
+    const sorted = (data ?? []).slice().sort((a, b) =>
+      (a.meeting?.date || "").localeCompare(b.meeting?.date || ""),
+    );
+    return sortDirection === "desc" ? sorted.reverse() : sorted;
+  }, [data, sortDirection]);
 
   const categoryOptions = useMemo(() => {
     const values = new Set<string>();
@@ -273,6 +277,18 @@ export const Votes = () => {
               <option value="all">All vote items</option>
               <option value="non-unanimous">Non-unanimous only</option>
               <option value="unanimous">Unanimous only</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Sort by date
+            <select
+              value={sortDirection}
+              onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+            >
+              <option value="desc">Newest first</option>
+              <option value="asc">Oldest first</option>
             </select>
           </label>
 

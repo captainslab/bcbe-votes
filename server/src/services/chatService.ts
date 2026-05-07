@@ -156,7 +156,7 @@ const faqAnswer = (question: string, context: ChatContext, previousQuestion = ""
 
   if (/\b(years|covered|coverage|date range|how far back)\b/.test(q)) {
     return baseResponse(
-      "The site includes historical 2020–2023 Regular Board Meeting data, plus newer records where available. Coverage may vary by meeting type and source quality.",
+      "The site includes extracted vote records from 2020 through 2026. Coverage may vary by meeting type and source quality.",
       "answered",
       [{ label: "Meetings", path: "/meetings" }],
     );
@@ -298,7 +298,7 @@ Rules:
 Approved facts:
 - BoardVotes.io is an independent public site for browsing source-traceable meeting and vote data.
 - It is not an official government site.
-- Coverage: The site includes historical 2020–2023 Regular Board Meeting data, plus newer records where available. Coverage may vary by meeting type and source quality.
+- Coverage: The site includes extracted vote records from 2020 through 2026. Coverage may vary by meeting type and source quality.
 - Current public counts: ${context.totalMeetings} meetings, ${context.totalVotes} vote items, ${context.totalVoteRecords} extracted vote records.
 - Verified means the site has strong source evidence for displayed vote information. It does not mean every public source is perfect.
 - Needs Review means source evidence or parsing confidence is not strong enough yet.
