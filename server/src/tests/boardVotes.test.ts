@@ -26,7 +26,7 @@ test("categorizes budget votes from sourced item text", () => {
     sourceExcerpt: "The board approved the budget transfer and appropriation.",
   });
 
-  assert.equal(result.category, "Budget / Finance");
+  assert.equal(result.category, "Budget & Finance");
   assert.ok(result.categoryConfidence >= 0.8);
 });
 
@@ -36,17 +36,17 @@ test("categorizes contracts/procurement votes from sourced item text", () => {
     motionText: "Approve contract award to the selected vendor.",
   });
 
-  assert.equal(result.category, "Contracts / Procurement");
+  assert.equal(result.category, "Contracts & Procurement");
   assert.ok(result.categoryConfidence >= 0.8);
 });
 
-test("categorizes facilities/construction votes from sourced text", () => {
+test("categorizes facilities/property votes from sourced text", () => {
   const result = categorizeVoteItemText({
     itemTitle: "Capital improvement at Bay Minette campus",
     summaryText: "Board approved renovation work for the media center building.",
   });
 
-  assert.equal(result.category, "Facilities / Construction");
+  assert.equal(result.category, "Facilities & Property");
   assert.ok(result.categoryConfidence >= 0.8);
 });
 
@@ -56,28 +56,29 @@ test("categorizes policy/governance votes from sourced text", () => {
     sourceExcerpt: "Resolution adopting updates to policy manual.",
   });
 
-  assert.equal(result.category, "Policy / Governance");
+  assert.equal(result.category, "Policy & Governance");
   assert.ok(result.categoryConfidence >= 0.8);
 });
 
-test("returns Needs review when the source text is too generic", () => {
+test("returns Other / Needs Review when the source text is too generic", () => {
   const result = categorizeVoteItemText({
     itemTitle: "Item 7",
     motionText: "Approved.",
   });
 
-  assert.equal(result.category, "Needs review");
+  assert.equal(result.category, "Other / Needs Review");
   assert.ok(result.categoryConfidence <= 0.5);
 });
 
-test("returns Needs review for parser-artifact text even if it contains category words", () => {
+test("categorizes from title even when source_excerpt has parser artifacts", () => {
+  // Title-first pass categorizes correctly; source_excerpt artifacts no longer block it.
   const result = categorizeVoteItemText({
     itemTitle: "Budget transfer",
     sourceExcerpt: "Motion made by Tony Myrick. Voting: Tony Myrick - Yes Andrea Lindsey - Yes",
   });
 
-  assert.equal(result.category, "Needs review");
-  assert.ok(result.categoryConfidence <= 0.2);
+  assert.equal(result.category, "Budget & Finance");
+  assert.ok(result.categoryConfidence >= 0.8);
 });
 
 test("rejects non-board names and parser artifacts", () => {
@@ -147,7 +148,7 @@ test("builds member no-vote items from real no votes only", () => {
       verificationStatus: "needs_review",
       confidenceScore: 0.44,
       sourceExcerpt: null,
-      category: "Needs review",
+      category: "Other / Needs Review",
       categoryConfidence: 0.4,
       voteRecords: [
         { boardMember: { name: "April Bradley" }, voteValue: "yes" },
@@ -200,7 +201,7 @@ test("sanitizes no-vote display fields before returning member detail items", ()
       confidenceScore: 0.83,
       sourceExcerpt:
         'The superintendent recommends adoption of a motion "to approve the revised Board Policy Manual as stipulated in the agenda exhibit." Motion made by: Cecil Christenberry Motion seconded by: Andrea Lindsey Yes: Mike Johnson Yes: Andrea Lindsey No: Tony Myrick No: Rondi Kirby',
-      category: "Policy / Governance",
+      category: "Policy & Governance",
       categoryConfidence: 0.9,
       voteRecords: [
         { boardMember: { name: "Tony Myrick" }, voteValue: "no" },
@@ -220,7 +221,7 @@ test("sanitizes no-vote display fields before returning member detail items", ()
   );
   assert.equal(items[0]?.sourceUrl, "https://example.com/meeting/103");
   assert.equal(items[0]?.verificationStatus, "verified");
-  assert.equal(items[0]?.category, "Policy / Governance");
+  assert.equal(items[0]?.category, "Policy & Governance");
 });
 
 test("marks missing source links as unavailable", () => {
@@ -246,7 +247,7 @@ test("handles null/undefined fields gracefully", () => {
       verificationStatus: "needs_review",
       confidenceScore: null,
       sourceExcerpt: null,
-      category: "Needs review",
+      category: "Other / Needs Review",
       categoryConfidence: 0.1,
       voteRecords: [
         { boardMember: { name: "Tony Myrick" }, voteValue: "no" },
@@ -279,7 +280,7 @@ test("sanitizes all parser artifact patterns in noVoteItems", () => {
       verificationStatus: "needs_review",
       confidenceScore: 0.5,
       sourceExcerpt: "Mr. Myrick called for the vote. All voiced approval.",
-      category: "Needs review",
+      category: "Other / Needs Review",
       categoryConfidence: 0.1,
       voteRecords: [{ boardMember: { name: "April Bradley" }, voteValue: "no" }],
     },

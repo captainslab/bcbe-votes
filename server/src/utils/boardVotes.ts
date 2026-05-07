@@ -39,20 +39,20 @@ const memberAliasMap: Record<string, CanonicalBoardMemberName> = {
 
 export type VoteItemCategory =
   | "Personnel"
-  | "Contracts / Procurement"
-  | "Budget / Finance"
-  | "Facilities / Construction"
-  | "Policy / Governance"
-  | "Curriculum / Instruction"
+  | "Contracts & Procurement"
+  | "Budget & Finance"
+  | "Facilities & Property"
+  | "Policy & Governance"
+  | "Curriculum & Academics"
   | "Student Services"
-  | "Safety / Security"
+  | "Safety & Operations"
   | "Transportation"
   | "Technology"
-  | "Legal / Compliance"
-  | "Athletics / Extracurricular"
-  | "Operations / Administration"
-  | "Other"
-  | "Needs review";
+  | "Legal & Compliance"
+  | "Athletics & Extracurricular"
+  | "Grants & Federal Programs"
+  | "Routine Administration"
+  | "Other / Needs Review";
 
 export type SourceAuditInfo = {
   sourceUrl: string | null;
@@ -103,56 +103,88 @@ const categoryParserArtifactPatterns = [
 
 const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> = [
   {
+    // Personnel comes first so "transfer of personnel" beats "budget transfer"
     category: "Personnel",
-    patterns: [/\b(personnel|hire|hiring|employment|resign|resignation|appointment|appoint)\b/i],
+    patterns: [
+      /\b(personnel|hire|hiring|employment|employ|resign(?:ation)?|termination|suspension|suspension of personnel|transfer of personnel|leaves? of absence|extra work|certificated|classified|appoint(?:ment)?|retirement|retire|administrative\s+appointment)\b/i,
+    ],
   },
   {
-    category: "Contracts / Procurement",
-    patterns: [/\b(contract|bid|procurement|purchase order|vendor|consulting|agreement|rfp)\b/i],
+    category: "Contracts & Procurement",
+    patterns: [
+      /\b(contracts?|bids?|procurement|purchase\s+order|vendor|consulting|agreements?|rfp|proposals?|owner[\s/]+engineer|teams\s+contracts?)\b/i,
+    ],
   },
   {
-    category: "Budget / Finance",
-    patterns: [/\b(budget|finance|financial|appropriation|amendment|transfer|salary|compensation|fiscal)\b/i],
+    // "amendment" removed — too broad; "budget" alone catches "budget amendment" titles
+    category: "Budget & Finance",
+    patterns: [
+      /\b(budget|finance|financial|appropriation|salary|compensation|fiscal|extra\s+work\s+wages?|stipend|reimbursement|expenditure|tax\s+levy|millage|audit|fund\s+balance)\b/i,
+    ],
   },
   {
-    category: "Facilities / Construction",
-    patterns: [/\b(facility|facilities|construction|renovation|site survey|building|media center|cafeteria|capital improvement)\b/i],
+    category: "Facilities & Property",
+    patterns: [
+      /\b(facility|facilities|construction|renovation|site\s+survey|building|media\s+center|cafeteria|capital\s+improvement|public\s+works|property|real\s+estate|lease|architect|engineering\s+services|owner[\s/]+engineer)\b/i,
+    ],
   },
   {
-    category: "Policy / Governance",
-    patterns: [/\b(policy|governance|board policy|resolution|bylaw|committee|election|vice president|president)\b/i],
+    category: "Policy & Governance",
+    patterns: [
+      /\b(policy|policies|governance|board\s+policy|resolution|bylaw|committee|election|president|executive\s+session|handbook|code\s+of\s+conduct|articles?\s+of\s+incorporation)\b/i,
+    ],
   },
   {
-    category: "Curriculum / Instruction",
-    patterns: [/\b(curriculum|instruction|instructional|academic|learning|classroom)\b/i],
+    category: "Curriculum & Academics",
+    patterns: [
+      /\b(curriculum|instruction|instructional|academic|learning|classroom|textbook|course\s+of\s+study|intervention|screener|assessment|literacy|professional\s+development)\b/i,
+    ],
   },
   {
     category: "Student Services",
-    patterns: [/\b(student services?|special education|discipline|attendance|counseling)\b/i],
+    patterns: [
+      /\b(student\s+services?|special\s+education|discipline|attendance|counseling|iep|mental\s+health|student\s+support|alternative\s+school|juvenile)\b/i,
+    ],
   },
   {
-    category: "Safety / Security",
-    patterns: [/\b(safety|security|safety and security|emergency|security system)\b/i],
+    category: "Safety & Operations",
+    patterns: [
+      /\b(safety|security|emergency|alarm|camera|surveillance|school\s+resource\s+officer|crisis|hazard)\b/i,
+    ],
   },
   {
     category: "Transportation",
-    patterns: [/\b(transportation|bus|route|fleet)\b/i],
+    patterns: [/\b(transportation|bus|route|fleet|vehicle)\b/i],
   },
   {
     category: "Technology",
-    patterns: [/\b(technology|software|hardware|network|device|devices|computer|digital)\b/i],
+    patterns: [
+      /\b(technology|software|hardware|network|device|devices|computer|digital|chromebook|broadband|fiber|infrastructure)\b/i,
+    ],
   },
   {
-    category: "Legal / Compliance",
-    patterns: [/\b(legal|litigation|compliance|act \d{4}-\d+|code of alabama|statute|policy compliance)\b/i],
+    category: "Legal & Compliance",
+    patterns: [
+      /\b(legal|litigation|compliance|act\s+\d{4}-\d+|code\s+of\s+alabama|statute|policy\s+compliance|opioid|settlement|claim|indemnification|liability)\b/i,
+    ],
   },
   {
-    category: "Athletics / Extracurricular",
-    patterns: [/\b(athletic|athletics|extracurricular|sports|coach|stadium|field trip)\b/i],
+    category: "Athletics & Extracurricular",
+    patterns: [
+      /\b(athletic|athletics|extracurricular|sport|coach|stadium|field\s+trip|activity\s+fee|band|choral|drama)\b/i,
+    ],
   },
   {
-    category: "Operations / Administration",
-    patterns: [/\b(operations|administration|superintendent|board members' monthly compensation|organizational chart)\b/i],
+    category: "Grants & Federal Programs",
+    patterns: [
+      /\b(grant|federal\s+program|title\s+[ivxlcdm]+\b|esser|arpa|idea|perkins|essa|federal\s+funds?|memorandum\s+of\s+understanding|economic\s+development|workforce\s+development)\b/i,
+    ],
+  },
+  {
+    category: "Routine Administration",
+    patterns: [
+      /\b(operations|administration|superintendent|approval\s+of\s+minutes|school\s+calendar|items?\s+of\s+business|work\s+session|dissemination|organizational\s+chart|board\s+members'\s+monthly\s+compensation|amendments?\s+to\s+the\s+agenda)\b/i,
+    ],
   },
 ];
 
@@ -162,29 +194,44 @@ export const categorizeVoteItemText = (input: {
   summaryText?: string | null | undefined;
   sourceExcerpt?: string | null | undefined;
 }): { category: VoteItemCategory; categoryConfidence: number; matchedText: string | null } => {
-  const text = normalizeWhitespace([input.itemTitle, input.motionText, input.summaryText, input.sourceExcerpt].filter(Boolean).join(" "));
-  if (!text) {
-    return { category: "Needs review", categoryConfidence: 0.1, matchedText: null };
-  }
-
-  if (categoryParserArtifactPatterns.some((pattern) => pattern.test(text))) {
-    return { category: "Needs review", categoryConfidence: 0.1, matchedText: text };
-  }
-
-  const lowerText = text.toLowerCase();
-  for (const rule of categoryRules) {
-    const matchedPattern = rule.patterns.find((pattern) => pattern.test(lowerText));
-    if (matchedPattern) {
-      const confidence = lowerText.length < 40 ? 0.76 : 0.9;
-      return { category: rule.category, categoryConfidence: confidence, matchedText: text };
+  // Pass 1: title only, no artifact check.
+  // Strip leading agenda numbering (e.g. "1. ", "VIII. ") before matching.
+  const rawTitle = normalizeWhitespace(input.itemTitle ?? "");
+  const titleText = rawTitle.replace(/^(?:\d+\.|[IVXLCDM]+\.)\s+/i, "").trim();
+  if (titleText) {
+    const lowerTitle = titleText.toLowerCase();
+    for (const rule of categoryRules) {
+      if (rule.patterns.some((p) => p.test(lowerTitle))) {
+        return { category: rule.category, categoryConfidence: 0.85, matchedText: titleText };
+      }
     }
   }
 
-  if (/\b(approve|approved|motion|item|matter)\b/i.test(text)) {
-    return { category: "Needs review", categoryConfidence: 0.45, matchedText: text };
+  // Pass 2: title + motion + summary, with artifact check (source_excerpt excluded).
+  const cleanText = normalizeWhitespace(
+    [input.itemTitle, input.motionText, input.summaryText].filter(Boolean).join(" "),
+  );
+  if (!cleanText) {
+    return { category: "Other / Needs Review", categoryConfidence: 0.1, matchedText: null };
   }
 
-  return { category: "Needs review", categoryConfidence: 0.2, matchedText: text };
+  if (categoryParserArtifactPatterns.some((pattern) => pattern.test(cleanText))) {
+    return { category: "Other / Needs Review", categoryConfidence: 0.1, matchedText: cleanText };
+  }
+
+  const lowerClean = cleanText.toLowerCase();
+  for (const rule of categoryRules) {
+    if (rule.patterns.some((p) => p.test(lowerClean))) {
+      const confidence = lowerClean.length < 40 ? 0.76 : 0.9;
+      return { category: rule.category, categoryConfidence: confidence, matchedText: cleanText };
+    }
+  }
+
+  if (/\b(approve|approved|motion|item|matter)\b/i.test(cleanText)) {
+    return { category: "Other / Needs Review", categoryConfidence: 0.45, matchedText: cleanText };
+  }
+
+  return { category: "Other / Needs Review", categoryConfidence: 0.2, matchedText: cleanText };
 };
 
 export const buildSourceAuditInfo = (sourceUrl?: string | null): SourceAuditInfo => {

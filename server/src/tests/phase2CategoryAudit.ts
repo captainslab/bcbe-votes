@@ -2,20 +2,20 @@ const API_BASE = process.env.API_BASE ?? "http://127.0.0.1:4000/api";
 
 const allowedCategories = new Set([
   "Personnel",
-  "Contracts / Procurement",
-  "Budget / Finance",
-  "Facilities / Construction",
-  "Policy / Governance",
-  "Curriculum / Instruction",
+  "Contracts & Procurement",
+  "Budget & Finance",
+  "Facilities & Property",
+  "Policy & Governance",
+  "Curriculum & Academics",
   "Student Services",
-  "Safety / Security",
+  "Safety & Operations",
   "Transportation",
   "Technology",
-  "Legal / Compliance",
-  "Athletics / Extracurricular",
-  "Operations / Administration",
-  "Other",
-  "Needs review",
+  "Legal & Compliance",
+  "Athletics & Extracurricular",
+  "Grants & Federal Programs",
+  "Routine Administration",
+  "Other / Needs Review",
 ]);
 
 const leakPattern =
@@ -152,7 +152,7 @@ const main = async () => {
       } else {
         const category = normalizeCategory(item.category);
         incrementCategory(category);
-        if (category === "Needs review") needsReviewCount += 1;
+        if (category === "Other / Needs Review") needsReviewCount += 1;
       }
 
       if (!item.verificationStatus) {
@@ -184,11 +184,11 @@ const main = async () => {
     (member.noVoteItems ?? []).forEach((item) => {
       if (!isValidCategory(item.category)) {
         memberNoVoteIssues.push({ memberId: member.id, voteItemId: item.voteItemId, reason: "missing/invalid category" });
-      } else if (normalizeCategory(item.category) === "Needs review") {
+      } else if (normalizeCategory(item.category) === "Other / Needs Review") {
         needsReviewCount += 1;
       }
 
-      incrementCategory(normalizeCategory(item.category || "Needs review"));
+      incrementCategory(normalizeCategory(item.category || "Other / Needs Review"));
 
       if (!item.verificationStatus) {
         memberNoVoteIssues.push({ memberId: member.id, voteItemId: item.voteItemId, reason: "missing verificationStatus" });

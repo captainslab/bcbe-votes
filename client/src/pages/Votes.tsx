@@ -53,10 +53,13 @@ const getNoMemberNames = (vote: VoteItem) =>
 const isNeedsReviewVote = (vote: VoteItem) => {
   const confidence = parseConfidence(vote.confidenceScore);
   const title = getVoteTitle(vote);
-  const hasLowConfidence = confidence !== null && confidence < 0.6;
+  // Verified unanimous items are source-limited by design — Simbli only stores
+  // roll-call data for non-unanimous votes.
+  const unanimousVerified = vote.verificationStatus === "verified" && !vote.isNonUnanimous;
+  const hasLowConfidence = !unanimousVerified && confidence !== null && confidence < 0.6;
 
   return (
-    vote.category === "Needs review" ||
+    vote.category === "Other / Needs Review" ||
     vote.verificationStatus !== "verified" ||
     vote.sourceAvailability === "unavailable" ||
     hasLowConfidence ||
@@ -317,7 +320,7 @@ export const Votes = () => {
                     <p>Meeting type: {meetingType}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Badge tone={vote.category === "Needs review" ? "amber" : "blue"}>
+                    <Badge tone={vote.category === "Other / Needs Review" ? "amber" : "blue"}>
                       {vote.category || "Needs review"}
                     </Badge>
                     <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>

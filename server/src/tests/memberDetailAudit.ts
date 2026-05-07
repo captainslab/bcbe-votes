@@ -30,7 +30,7 @@ const main = async () => {
       count: (await getMemberNoVoteItems(s.memberId)).filter(
         (i) =>
           i.verificationStatus !== "verified" ||
-          i.category === "Needs review" ||
+          i.category === "Other / Needs Review" ||
           i.sourceAvailability === "unavailable" ||
           i.overallOutcome === "Needs review",
       ).length,

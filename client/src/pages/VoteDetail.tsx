@@ -58,11 +58,16 @@ const isNeedsReview = (
   confidenceScore?: string | number | null,
   sourceAvailability?: string | null,
   title?: string,
+  isNonUnanimous?: boolean,
+  hasRecords?: boolean,
 ) => {
   const confidence = parseConfidence(confidenceScore);
-  const lowConfidence = confidence !== null && confidence < 0.6;
+  // Verified unanimous items with no individual records are source-limited by design —
+  // Simbli only stores roll-call data for non-unanimous votes.
+  const unanimousNoRecords = verificationStatus === "verified" && !isNonUnanimous && !hasRecords;
+  const lowConfidence = !unanimousNoRecords && confidence !== null && confidence < 0.6;
   return (
-    category === "Needs review" ||
+    category === "Other / Needs Review" ||
     verificationStatus !== "verified" ||
     sourceAvailability === "unavailable" ||
     lowConfidence ||
@@ -98,6 +103,8 @@ export const VoteDetail = () => {
     data.confidenceScore,
     data.sourceAvailability,
     title,
+    data.isNonUnanimous,
+    sortedRecords.length > 0,
   );
 
   return (
@@ -110,7 +117,7 @@ export const VoteDetail = () => {
           <p className="text-sm text-slate-600">Meeting type: {meeting.typeLabel}</p>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
           <div className="flex flex-wrap gap-2">
-            <Badge tone={data.category === "Needs review" ? "amber" : "blue"}>
+            <Badge tone={data.category === "Other / Needs Review" ? "amber" : "blue"}>
               {data.category || "Needs review"}
             </Badge>
             <Badge tone={data.verificationStatus === "verified" ? "emerald" : "amber"}>
@@ -207,7 +214,11 @@ export const VoteDetail = () => {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Member vote records</h2>
         {sortedRecords.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">No member vote records available for this item.</p>
+          <p className="mt-2 text-sm text-slate-600">
+            {data.verificationStatus === "verified" && !data.isNonUnanimous
+              ? "Individual votes not recorded in source minutes (unanimous decision)."
+              : "No member vote records available for this item."}
+          </p>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {sortedRecords.map((record) => {
