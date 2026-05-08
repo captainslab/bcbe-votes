@@ -58,10 +58,10 @@ export const Landing = () => {
         </video>
         <div className="hero-overlay" />
         <div className="hero-content">
-          <h1>Democracy Works Better When Citizens Stay Informed</h1>
+          <h1>Transparency Is the First Step Toward Accountability</h1>
           <p className="hero-subtitle">
-            Access complete, source-traceable records of every Baldwin County Board of Education
-            meeting, vote, and decision.
+            Search Baldwin County Board of Education meetings, motions, agendas, and voting records
+            — all linked to official public sources.
           </p>
           <div className="hero-buttons">
             <Link to="/meetings" className="btn btn-primary">
