@@ -165,7 +165,7 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
   {
     category: "Legal & Compliance",
     patterns: [
-      /\b(legal|litigation|compliance|act\s+\d{4}-\d+|code\s+of\s+alabama|statute|policy\s+compliance|opioid|settlement|claim|indemnification|liability)\b/i,
+      /\b(legal|litigation|compliance|act\s+\d{4}-\d+|code\s+of\s+alabama|statute|policy\s+compliance|opioid|settlement|claim|indemnification|liability|releases?|letter\s+of\s+engagement|ratification\s+of\s+engagement)\b/i,
     ],
   },
   {
@@ -183,7 +183,9 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
   {
     category: "Routine Administration",
     patterns: [
-      /\b(operations|administration|superintendent|approval\s+of\s+minutes|school\s+calendar|items?\s+of\s+business|work\s+session|dissemination|organizational\s+chart|board\s+members'\s+monthly\s+compensation|amendments?\s+to\s+the\s+agenda)\b/i,
+      /\b(operations|administration|superintendent|approval\s+of\s+minutes|school\s+calendar|items?\s+of\s+business|work\s+session|dissemination|organizational\s+chart|board\s+members'\s+monthly\s+compensation|amendments?\s+to\s+the\s+agenda|delegations?|board\s+view|aasb|state\s+convention|membership\s+renewal)\b/i,
+      // Date-formatted approval-of-minutes items: "February 22, 2024 (Regular)"
+      /^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d+,?\s+\d{4}/i,
     ],
   },
 ];
