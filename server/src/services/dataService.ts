@@ -351,6 +351,225 @@ export const searchMemberByNameOrAlias = async (name: string) => {
 // Chat data query functions
 // ---------------------------------------------------------------------------
 
+export type ChatVoteSummary = {
+  voteItemId: number;
+  itemTitle: string;
+  displayText: string;
+  meetingDate: string;
+  meetingTitle: string;
+  meetingType: string;
+  category: string;
+  isNonUnanimous: boolean;
+  tally: Record<string, number>;
+  noOrAbstainVoters: string[];
+  matchedSnippet?: string;
+};
+
+export type ChatMeetingSummary = {
+  meetingId: number;
+  meetingDate: string;
+  meetingTitle: string;
+  meetingType: string;
+  voteItemCount: number;
+  nonUnanimousCount: number;
+  categories: Array<{ category: string; count: number }>;
+  notableVotes: ChatVoteSummary[];
+};
+
+const toDateString = (value?: Date | null) => value?.toISOString().slice(0, 10) ?? "";
+
+const getVoteDisplayText = (voteItem: {
+  itemTitle?: string | null;
+  motionText?: string | null;
+  summaryText?: string | null;
+}) =>
+  [voteItem.motionText, voteItem.summaryText, voteItem.itemTitle]
+    .map((value) => sanitizePublicVoteDisplayText(value))
+    .find((value) => value && value !== "Needs review") ?? "Needs review";
+
+const buildMatchedSnippet = (
+  voteItem: {
+    itemTitle?: string | null;
+    motionText?: string | null;
+    summaryText?: string | null;
+    sourceExcerpt?: string | null;
+    contentText?: string | null;
+  },
+  searchTerm: string,
+) => {
+  const lowerTerm = searchTerm.toLowerCase();
+  const fields = [
+    voteItem.summaryText,
+    voteItem.motionText,
+    voteItem.sourceExcerpt,
+    voteItem.contentText,
+    voteItem.itemTitle,
+  ];
+
+  for (const field of fields) {
+    const normalized = normalizeWhitespace(field ?? "");
+    if (!normalized) continue;
+    const lowerField = normalized.toLowerCase();
+    const matchIndex = lowerField.indexOf(lowerTerm);
+    if (matchIndex === -1) continue;
+
+    const start = Math.max(0, matchIndex - 90);
+    const end = Math.min(normalized.length, matchIndex + searchTerm.length + 140);
+    const prefix = start > 0 ? "... " : "";
+    const suffix = end < normalized.length ? " ..." : "";
+    return `${prefix}${normalized.slice(start, end)}${suffix}`;
+  }
+
+  return undefined;
+};
+
+const toChatVoteSummary = (voteItem: {
+  id: number;
+  itemTitle?: string | null;
+  motionText?: string | null;
+  summaryText?: string | null;
+  sourceExcerpt?: string | null;
+  isNonUnanimous: boolean;
+  voteTally: Record<string, number>;
+  meeting?: { date?: Date | null; title?: string | null; type?: string | null } | null;
+  voteRecords?: Array<{ voteValue: string; boardMember?: { name?: string | null } | null }> | null;
+  matchedSnippet?: string;
+}): ChatVoteSummary => {
+  const { category } = categorizeVoteItemText({
+    itemTitle: voteItem.itemTitle ?? null,
+    motionText: voteItem.motionText ?? null,
+    summaryText: voteItem.summaryText ?? null,
+    sourceExcerpt: voteItem.sourceExcerpt ?? null,
+  });
+  const noOrAbstainVoters = (voteItem.voteRecords ?? [])
+    .filter((record) => record.voteValue === "no" || record.voteValue === "abstain")
+    .map((record) => getNeutralPublicPersonName(record.boardMember?.name ?? null))
+    .filter((name): name is string => name !== null);
+
+  return {
+    voteItemId: voteItem.id,
+    itemTitle: sanitizePublicVoteDisplayText(voteItem.itemTitle),
+    displayText: getVoteDisplayText(voteItem),
+    meetingDate: toDateString(voteItem.meeting?.date ?? null),
+    meetingTitle: voteItem.meeting?.title ?? "Needs review",
+    meetingType: voteItem.meeting?.type ?? "Needs review",
+    category,
+    isNonUnanimous: voteItem.isNonUnanimous,
+    tally: voteItem.voteTally ?? {},
+    noOrAbstainVoters,
+    ...(voteItem.matchedSnippet ? { matchedSnippet: voteItem.matchedSnippet } : {}),
+  };
+};
+
+export const getRecentMeetingSummaries = async (limit = 1): Promise<ChatMeetingSummary[]> => {
+  const meetings = await db.query.meetings.findMany({
+    limit: Math.max(limit * 8, 8),
+    orderBy: (meeting, { desc }) => [desc(meeting.date)],
+    with: {
+      voteItems: {
+        with: {
+          voteRecords: {
+            with: {
+              boardMember: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const meetingsWithVoteItems = meetings.filter((meeting) => meeting.voteItems.length > 0);
+  const selectedMeetings = (meetingsWithVoteItems.length > 0 ? meetingsWithVoteItems : meetings).slice(0, limit);
+
+  return selectedMeetings.map((meeting) => {
+    const categories = new Map<string, number>();
+    for (const voteItem of meeting.voteItems) {
+      const { category } = categorizeVoteItemText({
+        itemTitle: voteItem.itemTitle,
+        motionText: voteItem.motionText,
+        summaryText: voteItem.summaryText,
+        sourceExcerpt: voteItem.sourceExcerpt,
+      });
+      categories.set(category, (categories.get(category) ?? 0) + 1);
+    }
+
+    const notableVotes = [...meeting.voteItems]
+      .sort((a, b) => Number(b.isNonUnanimous) - Number(a.isNonUnanimous))
+      .slice(0, 5)
+      .map((voteItem) => toChatVoteSummary({ ...voteItem, meeting }));
+
+    return {
+      meetingId: meeting.id,
+      meetingDate: toDateString(meeting.date),
+      meetingTitle: meeting.title,
+      meetingType: meeting.type,
+      voteItemCount: meeting.voteItems.length,
+      nonUnanimousCount: meeting.voteItems.filter((item) => item.isNonUnanimous).length,
+      categories: Array.from(categories.entries())
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count),
+      notableVotes,
+    };
+  });
+};
+
+export const getRecentVoteSummaries = async (limit = 8): Promise<ChatVoteSummary[]> => {
+  const votes = await db.query.voteItems.findMany({
+    limit,
+    orderBy: (vote, { desc }) => [desc(vote.createdAt)],
+    with: {
+      meeting: true,
+      voteRecords: {
+        with: {
+          boardMember: true,
+        },
+      },
+    },
+  });
+
+  return votes.map((vote) => toChatVoteSummary(vote));
+};
+
+export const searchVoteItemsForChat = async (searchTerm: string, limit = 8): Promise<ChatVoteSummary[]> => {
+  const normalized = normalizeWhitespace(searchTerm).slice(0, 120);
+  if (!normalized) return [];
+
+  const pattern = `%${normalized}%`;
+  const votes = await db.query.voteItems.findMany({
+    where: or(
+      ilike(schema.voteItems.itemTitle, pattern),
+      ilike(schema.voteItems.motionText, pattern),
+      ilike(schema.voteItems.summaryText, pattern),
+      ilike(schema.voteItems.sourceExcerpt, pattern),
+      ilike(schema.voteItems.contentText, pattern),
+    ),
+    limit: Math.min(Math.max(limit * 3, limit), 50),
+    orderBy: (vote, { desc }) => [desc(vote.createdAt)],
+    with: {
+      meeting: true,
+      voteRecords: {
+        with: {
+          boardMember: true,
+        },
+      },
+    },
+  });
+
+  votes.sort((a, b) => {
+    const dateA = a.meeting?.date ? new Date(a.meeting.date).getTime() : 0;
+    const dateB = b.meeting?.date ? new Date(b.meeting.date).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  return votes.slice(0, limit).map((vote) => {
+    const matchedSnippet = buildMatchedSnippet(vote, normalized);
+    return toChatVoteSummary({
+      ...vote,
+      ...(matchedSnippet ? { matchedSnippet } : {}),
+    });
+  });
+};
+
 export type MemberVoteStats = {
   name: CanonicalBoardMemberName;
   yes: number;

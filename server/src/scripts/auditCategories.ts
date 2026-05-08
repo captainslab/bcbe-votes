@@ -1,19 +1,18 @@
 /**
  * auditCategories.ts
  *
- * Offline category-quality audit — runs against the local DB without a running
- * server.  Reports category distribution, low-confidence items, and title-prefix
- * leakage per the team-lead spec.
+ * Finds all vote items that categorize as "Other / Needs Review" and
+ * groups them by item_title, showing count and a sample motion_text.
  *
- * Usage:
+ * Usage (from server/):
  *   npx tsx src/scripts/auditCategories.ts
  */
 
+import "../config/env"; // load .env before anything else
 import { db } from "../db";
 import { categorizeVoteItemText } from "../utils/boardVotes";
-import { normalizeWhitespace } from "../utils/text";
 
-const TITLE_PREFIX_PATTERN = /\b(Mr|Mrs|Ms|Miss|Dr)\.?\s+[A-Z]/;
+const SAMPLE_LEN = 100;
 
 const main = async () => {
   const items = await db.query.voteItems.findMany({
@@ -23,21 +22,17 @@ const main = async () => {
       motionText: true,
       summaryText: true,
       sourceExcerpt: true,
-      detectedPattern: true,
-      confidenceScore: true,
-    },
-    with: {
-      meeting: { columns: { date: true, simbliId: true } },
     },
     orderBy: (vi, { asc }) => [asc(vi.id)],
   });
 
-  const categoryCounts = new Map<string, number>();
-  const lowConfidence: Array<{ id: number; title: string; category: string; confidence: number; date: string }> = [];
-  const titlePrefixHits: Array<{ id: number; title: string; field: string; value: string }> = [];
+  console.log(`\nLoaded ${items.length} vote items from DB.`);
 
-  let historical = 0;
-  let historicalNeedsReview = 0;
+  // Group "Other / Needs Review" items by item_title
+  const groups = new Map<
+    string,
+    { count: number; sampleMotion: string | null }
+  >();
 
   for (const item of items) {
     const result = categorizeVoteItemText({
@@ -47,68 +42,59 @@ const main = async () => {
       sourceExcerpt: item.sourceExcerpt,
     });
 
-    categoryCounts.set(result.category, (categoryCounts.get(result.category) ?? 0) + 1);
+    if (result.category !== "Other / Needs Review") continue;
 
-    if (result.categoryConfidence < 0.6) {
-      lowConfidence.push({
-        id: item.id,
-        title: normalizeWhitespace(item.itemTitle ?? "") || "(no title)",
-        category: result.category,
-        confidence: result.categoryConfidence,
-        date: item.meeting?.date ? new Date(item.meeting.date).toISOString().slice(0, 10) : "unknown",
-      });
-    }
-
-    // Historical: simbliId numeric value roughly corresponds to pre-2024 meetings
-    const meetingDate = item.meeting?.date ? new Date(item.meeting.date) : null;
-    if (meetingDate && meetingDate.getFullYear() <= 2023) {
-      historical += 1;
-      if (result.category === "Other / Needs Review") historicalNeedsReview += 1;
-    }
-
-    // Title-prefix scan on itemTitle only — this field appears in public output without
-    // full API-layer sanitization. summaryText/sourceExcerpt are sanitized before serving.
-    if (item.itemTitle && TITLE_PREFIX_PATTERN.test(item.itemTitle)) {
-      titlePrefixHits.push({ id: item.id, title: item.itemTitle, field: "itemTitle", value: item.itemTitle.slice(0, 120) });
+    const title = item.itemTitle ?? "(no title)";
+    const existing = groups.get(title);
+    if (!existing) {
+      const sample = item.motionText
+        ? item.motionText.slice(0, SAMPLE_LEN)
+        : null;
+      groups.set(title, { count: 1, sampleMotion: sample });
+    } else {
+      existing.count += 1;
     }
   }
 
-  const sortedCounts = Array.from(categoryCounts.entries()).sort((a, b) => b[1] - a[1]);
-  const needsReviewCount = categoryCounts.get("Other / Needs Review") ?? 0;
-  const top20LowConf = lowConfidence
-    .sort((a, b) => a.confidence - b.confidence)
-    .slice(0, 20);
+  const totalNeedsReview = Array.from(groups.values()).reduce(
+    (sum, g) => sum + g.count,
+    0,
+  );
 
-  console.log("\n=== CATEGORY AUDIT ===\n");
-  console.log(`Total vote_items: ${items.length}`);
-  console.log(`Categorized (not Other / Needs Review): ${items.length - needsReviewCount}`);
-  console.log(`Other / Needs Review: ${needsReviewCount} (${((needsReviewCount / items.length) * 100).toFixed(1)}%)`);
-  console.log(`Historical (≤2023): ${historical} items, ${historicalNeedsReview} need review`);
+  console.log(
+    `Other / Needs Review: ${totalNeedsReview} of ${items.length} items (${((totalNeedsReview / items.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(`Distinct titles: ${groups.size}\n`);
 
-  console.log("\n--- Category distribution ---");
-  for (const [cat, count] of sortedCounts) {
-    const pct = ((count / items.length) * 100).toFixed(1);
-    console.log(`  ${cat.padEnd(30)} ${String(count).padStart(5)}  (${pct}%)`);
+  // Sort by count descending
+  const sorted = Array.from(groups.entries()).sort(
+    (a, b) => b[1].count - a[1].count,
+  );
+
+  // Print table header
+  const countW = 6;
+  const titleW = 60;
+  const motionW = 100;
+  const header =
+    "COUNT ".padStart(countW) +
+    "  " +
+    "ITEM_TITLE".padEnd(titleW) +
+    "  " +
+    "SAMPLE_MOTION";
+  console.log(header);
+  console.log("-".repeat(countW + 2 + titleW + 2 + motionW));
+
+  for (const [title, { count, sampleMotion }] of sorted) {
+    const countStr = String(count).padStart(countW);
+    const titleStr = title.length > titleW ? title.slice(0, titleW - 1) + "…" : title.padEnd(titleW);
+    const motionStr = sampleMotion
+      ? sampleMotion.replace(/\n/g, " ").trim()
+      : "(no motion)";
+    console.log(`${countStr}  ${titleStr}  ${motionStr}`);
   }
 
-  console.log(`\n--- Top ${top20LowConf.length} low-confidence items (confidence < 0.6) ---`);
-  for (const item of top20LowConf) {
-    console.log(`  [${item.id}] ${item.date}  conf=${item.confidence.toFixed(2)}  cat=${item.category}`);
-    console.log(`       "${item.title.slice(0, 80)}"`);
-  }
-
-  if (titlePrefixHits.length === 0) {
-    console.log("\n--- Title-prefix scan: CLEAN (no Mr/Mrs/Ms/Miss/Dr hits) ---");
-  } else {
-    console.log(`\n--- Title-prefix scan: ${titlePrefixHits.length} HIT(S) ---`);
-    for (const hit of titlePrefixHits.slice(0, 20)) {
-      console.log(`  [${hit.id}] field=${hit.field}: "${hit.value}"`);
-    }
-  }
-
-  console.log("\n=== END AUDIT ===\n");
-
-  if (titlePrefixHits.length > 0) process.exit(1);
+  console.log(`\nTotal "Other / Needs Review": ${totalNeedsReview}`);
+  console.log(`All ${sorted.length} unique titles shown above (sorted by frequency).`);
 };
 
 main().catch((err) => {

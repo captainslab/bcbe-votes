@@ -12,7 +12,7 @@ type ChatApiResponse = {
   citations: ChatCitation[];
   suggestions: string[];
   scope: "answered" | "refused" | "fallback";
-  modelUsed: "approved-faq" | "gpt-5-nano" | "setup-required";
+  modelUsed: "approved-faq" | "site-data" | "gpt-4o-mini" | "setup-required";
 };
 
 type ChatMessage = {
@@ -23,10 +23,10 @@ type ChatMessage = {
 };
 
 const starterQuestions = [
-  "What is BoardVotes.io?",
-  "What years are covered?",
-  "What does Needs Review mean?",
-  "What does Voting Alignment mean?",
+  "What happened at the latest meeting?",
+  "Which member has the highest dissent rate?",
+  "What topics does the board vote on most?",
+  "Find votes about mental health",
 ];
 
 const safeFallback = "I don’t know from BoardVotes.io data.";
@@ -48,7 +48,7 @@ export const BoardVotesChat = () => {
     {
       id: "welcome",
       role: "assistant",
-      text: "I’m the BoardVotes.io assistant. Ask me about site coverage, review labels, public pages, and how to read the data.",
+      text: "Hey! I know everything on this site — meetings, votes, member patterns, split decisions, property actions, you name it. What do you want to know about the Baldwin County school board?",
     },
   ]);
   const formRef = useRef<HTMLFormElement>(null);
@@ -112,7 +112,7 @@ export const BoardVotesChat = () => {
           <div className="flex items-start justify-between gap-3 border-b border-indigo-900/50 bg-slate-950 px-4 py-3 text-white">
             <div>
               <h2 className="text-sm font-semibold">BoardVotes.io assistant</h2>
-              <p className="text-xs text-slate-300">Site and data questions only.</p>
+              <p className="text-xs text-slate-300">Answers stay inside public site data.</p>
             </div>
             <button
               type="button"
@@ -156,7 +156,7 @@ export const BoardVotesChat = () => {
                 ) : null}
               </div>
             ))}
-            {isSending ? <p className="text-xs text-slate-500">Checking approved BoardVotes.io context…</p> : null}
+            {isSending ? <p className="text-xs text-slate-500">Checking BoardVotes.io data...</p> : null}
           </div>
 
           <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
@@ -185,7 +185,7 @@ export const BoardVotesChat = () => {
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 maxLength={500}
-                placeholder="Ask about the site or data"
+                placeholder="Ask about votes, members, meetings, or topics"
                 className="min-w-0 flex-1 rounded-full border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 aria-label="Ask the BoardVotes.io assistant"
               />
@@ -198,7 +198,7 @@ export const BoardVotesChat = () => {
               </button>
             </form>
             <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-              Answers are limited to approved BoardVotes.io information and public site data.
+              Answers use BoardVotes.io pages and public extracted records.
             </p>
           </div>
         </section>

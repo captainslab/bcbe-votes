@@ -26,8 +26,8 @@ test("answers approved FAQ questions from BoardVotes context", async () => {
 test("uses safer approved coverage wording", async () => {
   const result = await answerBoardVotesQuestion({ question: "What years are covered?", context });
 
-  assert.match(result.answer, /historical 2020–2023 Regular Board Meeting data/);
-  assert.match(result.answer, /newer records where available/);
+  assert.match(result.answer, /2020 through 2026/);
+  assert.match(result.answer, /Coverage may vary/i);
   assert.doesNotMatch(result.answer, /all meetings/i);
 });
 
@@ -58,7 +58,8 @@ test("refuses internal database requests", async () => {
 test("falls back when answer is not available from BoardVotes data", async () => {
   const result = await answerBoardVotesQuestion({ question: "Who voted against the 2021 budget?", context });
 
-  assert.equal(result.answer, "I don’t know from BoardVotes.io data. Try the Votes page and filter/search the recorded vote items.");
+  assert.match(result.answer, /could not pin that down/i);
+  assert.match(result.answer, /keyword/i);
   assert.equal(result.scope, "fallback");
   assert.equal(result.modelUsed, "approved-faq");
 });
@@ -82,7 +83,7 @@ test("detects and removes title-prefix language from chat output", () => {
   const blockedPrefixExample = "M" + "r. Smith voted yes";
   assert.equal(containsTitlePrefix(blockedPrefixExample), true);
   assert.equal(containsTitlePrefix("Andrea Lindsey voted yes"), false);
-  assert.equal(sanitizeChatAnswer(blockedPrefixExample), "I don’t know from BoardVotes.io data.");
+  assert.equal(sanitizeChatAnswer(blockedPrefixExample), "I don't know from BoardVotes.io data.");
 });
 
 test("answers category list question", async () => {
@@ -114,12 +115,13 @@ test("explains category alignment", async () => {
 });
 
 test("answers top category question when topCategory is in context", async () => {
-  const contextWithCat = buildChatContext({ ...context, topCategory: "Personnel" });
+  const contextWithCat = buildChatContext({ ...context, topCategory: "Personnel", topCategoryVotes: 52 });
   const result = await answerBoardVotesQuestion({
     question: "What category has the most votes?",
     context: contextWithCat,
   });
   assert.match(result.answer, /Personnel/);
+  assert.match(result.answer, /52 vote items/);
   assert.equal(result.scope, "answered");
 });
 
@@ -132,7 +134,7 @@ test("falls back for top category question when topCategory missing from context
   assert.equal(result.scope, "fallback");
 });
 
-test("uses OpenRouter GPT-5 nano when model assistance is enabled", async () => {
+test("uses OpenRouter GPT-4o mini when model assistance is enabled", async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.OPENROUTER_API_KEY;
   const calls: Array<{ url: string; body: { model?: string } }> = [];
@@ -151,9 +153,9 @@ test("uses OpenRouter GPT-5 nano when model assistance is enabled", async () => 
   try {
     const result = await answerBoardVotesQuestion({ question: "What is BoardVotes.io?", context, useModel: true });
 
-    assert.equal(result.modelUsed, "gpt-5-nano");
+    assert.equal(result.modelUsed, "gpt-4o-mini");
     assert.equal(calls[0]?.url, "https://openrouter.ai/api/v1/chat/completions");
-    assert.equal(calls[0]?.body.model, "openai/gpt-5-nano");
+    assert.equal(calls[0]?.body.model, "openai/gpt-4o-mini");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) {
