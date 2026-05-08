@@ -23,6 +23,7 @@ export type PersistedMinutesVoteItem = {
   isNonUnanimous: boolean;
   voteTally: Record<ExtractedVoteValue, number>;
   sourceExcerpt: string | null;
+  contentText: string | null;
   verificationStatus: MinutesVerificationStatus;
   detectedPattern: string;
   confidenceScore: number;
@@ -75,6 +76,18 @@ const buildVoteTally = (extraction: MinutesVoteExtraction) => {
   return tally;
 };
 
+const stripHtml = (value: string | null | undefined) =>
+  (value ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+const extractContentText = (response: AgendaItemLoaderResponse): string | null => {
+  const blocks = response.itemContents
+    .map((block) => stripHtml(block.Content))
+    .filter(Boolean);
+  if (blocks.length === 0) return null;
+  const joined = blocks.join(" ").trim();
+  return joined || null;
+};
+
 export const buildPersistedMinutesVoteOutput = (
   response: AgendaItemLoaderResponse,
 ): PersistedMinutesVoteOutput => {
@@ -106,6 +119,7 @@ export const buildPersistedMinutesVoteOutput = (
       (extraction.tally?.abstain ?? 0) > 0,
     voteTally,
     sourceExcerpt: sanitizeBoardVotesDisplayText(extraction.sourceExcerpt),
+    contentText: extractContentText(response),
     verificationStatus: extraction.verificationStatus,
     detectedPattern: extraction.detectedPattern,
     confidenceScore: extraction.confidenceScore,

@@ -31,6 +31,7 @@ export type ParsedVoteItem = {
   isNonUnanimous: boolean;
   voteTally: Record<string, number>;
   sourceExcerpt?: string;
+  contentText?: string;
   verificationStatus: "unverified" | "needs_review" | "verified" | "flagged";
   detectedPattern?: string;
   confidenceScore?: number;

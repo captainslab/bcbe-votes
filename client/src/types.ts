@@ -37,6 +37,7 @@ export type VoteItem = {
   isNonUnanimous: boolean;
   voteTally: Record<string, number>;
   sourceExcerpt?: string | null;
+  contentText?: string | null;
   summarySource?: string | null;
   verificationStatus: string;
   detectedPattern?: string | null;

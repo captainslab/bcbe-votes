@@ -82,6 +82,7 @@ export const voteItems = pgTable(
     isNonUnanimous: boolean("is_non_unanimous").default(false).notNull(),
     voteTally: jsonb("vote_tally").$type<Record<string, number>>().default({}).notNull(),
     sourceExcerpt: text("source_excerpt"),
+    contentText: text("content_text"),
     verificationStatus: verificationStatusEnum("verification_status")
       .default("unverified")
       .notNull(),

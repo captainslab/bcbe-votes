@@ -173,6 +173,12 @@ export const VoteDetail = () => {
               <dt className="font-semibold text-slate-900">Source excerpt</dt>
               <dd className="mt-1 text-slate-700">{normalizeText(data.sourceExcerpt) || "Needs review"}</dd>
             </div>
+            {normalizeText(data.contentText) && (
+              <div>
+                <dt className="font-semibold text-slate-900">Agenda item content</dt>
+                <dd className="mt-1 text-slate-700 whitespace-pre-wrap">{normalizeText(data.contentText)}</dd>
+              </div>
+            )}
           </dl>
         </div>
 

@@ -6,21 +6,6 @@ import type { CategoryStat, VoteItem } from "../types";
 
 const normalizeText = (value?: string | null) => (typeof value === "string" ? value.trim() : "");
 
-const parseConfidence = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined) return null;
-  const parsed = typeof value === "number" ? value : Number.parseFloat(String(value));
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  if (parsed <= 1) return parsed;
-  if (parsed <= 100) return parsed / 100;
-  return null;
-};
-
-const formatConfidence = (value: string | number | null | undefined) => {
-  const normalized = parseConfidence(value);
-  if (normalized === null) return "Needs review";
-  return `${Math.round(normalized * 100)}%`;
-};
-
 const getVoteTitle = (vote: VoteItem) => {
   const candidates = [vote.itemTitle, vote.motionText, vote.summaryText];
   const firstClean = candidates
@@ -173,7 +158,6 @@ export const Dashboard = () => {
             const sourceUrl = getSourceUrl(vote);
             const sourceState = getSourceState(vote);
             const excerpt = normalizeText(vote.sourceExcerpt);
-            const confidenceLabel = formatConfidence(vote.confidenceScore);
             const meetingDate = vote.meeting?.date ? new Date(vote.meeting.date).toLocaleDateString() : "Needs review";
             const isVerified = vote.verificationStatus === "verified";
 
@@ -200,20 +184,14 @@ export const Dashboard = () => {
                   {excerpt && excerpt.toLowerCase() !== "needs review" ? excerpt : "Needs review"}
                 </p>
 
-                <div className="mt-3 space-y-1 text-xs text-slate-500">
-                  <p>
-                    Confidence: <span className="font-semibold text-slate-700">{confidenceLabel}</span>
-                  </p>
-                  <p className="break-all">
-                    Source:{" "}
-                    {sourceUrl ? (
-                      <a href={sourceUrl} target="_blank" rel="noreferrer" className="underline text-slate-700">
-                        {sourceUrl}
-                      </a>
-                    ) : (
-                      <span>{sourceState}</span>
-                    )}
-                  </p>
+                <div className="mt-3 text-xs text-slate-500">
+                  {sourceUrl ? (
+                    <a href={sourceUrl} target="_blank" rel="noreferrer" className="underline text-slate-700">
+                      View official meeting record
+                    </a>
+                  ) : (
+                    <span className="text-slate-400">Source unavailable</span>
+                  )}
                 </div>
 
                 <div className="mt-3">

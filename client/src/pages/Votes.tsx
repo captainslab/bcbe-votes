@@ -18,12 +18,6 @@ const parseConfidence = (value: string | number | null | undefined) => {
   return null;
 };
 
-const formatConfidence = (value: string | number | null | undefined) => {
-  const normalized = parseConfidence(value);
-  if (normalized === null) return "Needs review";
-  return `${Math.round(normalized * 100)}%`;
-};
-
 const getVoteTitle = (vote: VoteItem) => {
   const candidates = [vote.itemTitle, vote.summaryText, vote.motionText];
   const firstClean = candidates
@@ -144,6 +138,7 @@ export const Votes = () => {
         normalizeText(vote.motionText),
         normalizeText(vote.summaryText),
         normalizeText(vote.sourceExcerpt),
+        normalizeText(vote.contentText),
         meetingTitle,
         meetingType,
         outcome,
@@ -380,10 +375,6 @@ export const Votes = () => {
                   <p>
                     <span className="font-semibold text-slate-900">Outcome:</span> {getOutcomeLabel(vote)}
                   </p>
-                  <p>
-                    <span className="font-semibold text-slate-900">Confidence:</span>{" "}
-                    {formatConfidence(vote.confidenceScore)}
-                  </p>
                   <p className="sm:col-span-2">
                     <span className="font-semibold text-slate-900">Dissenting / No votes:</span>{" "}
                     {noMembers.length > 0 ? noMembers.join(", ") : "None recorded"}
@@ -395,18 +386,17 @@ export const Votes = () => {
                 )}
 
                 <p className="mt-3 text-xs text-slate-500">
-                  Source:{" "}
                   {sourceUrl ? (
                     <a
                       href={sourceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="break-all text-slate-700 underline"
+                      className="text-slate-700 underline"
                     >
-                      {sourceUrl}
+                      View official meeting record
                     </a>
                   ) : (
-                    <span>{vote.sourceLabel || "Source unavailable"}</span>
+                    <span className="text-slate-400">Source unavailable</span>
                   )}
                 </p>
 

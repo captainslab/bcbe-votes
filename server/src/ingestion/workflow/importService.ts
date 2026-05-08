@@ -180,6 +180,7 @@ const upsertVoteItem = async (
       isNonUnanimous: item.isNonUnanimous,
       voteTally: item.voteTally,
       sourceExcerpt: item.sourceExcerpt,
+      contentText: item.contentText,
       verificationStatus: item.verificationStatus,
       detectedPattern: item.detectedPattern,
       confidenceScore: item.confidenceScore,
@@ -202,6 +203,7 @@ const upsertVoteItem = async (
         isNonUnanimous: item.isNonUnanimous,
         voteTally: item.voteTally,
         sourceExcerpt: item.sourceExcerpt,
+        contentText: item.contentText,
         verificationStatus: item.verificationStatus,
         detectedPattern: item.detectedPattern,
         confidenceScore: item.confidenceScore,
@@ -313,6 +315,7 @@ const toParsedVoteItem = (
   if (output.voteItem.motionSecondedBy) item.motionSecondedBy = output.voteItem.motionSecondedBy;
   if (output.voteItem.result) item.result = output.voteItem.result;
   if (output.voteItem.sourceExcerpt) item.sourceExcerpt = output.voteItem.sourceExcerpt;
+  if (output.voteItem.contentText) item.contentText = output.voteItem.contentText;
   if (output.voteItem.detectedPattern) item.detectedPattern = output.voteItem.detectedPattern;
   if (output.voteItem.confidenceScore !== undefined) item.confidenceScore = output.voteItem.confidenceScore;
 
