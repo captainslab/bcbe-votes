@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useVote } from "../api/hooks";
 import { Badge } from "../components/Badge";
-import type { PersonnelAction } from "../types";
+import type { PersonnelAction, PropertyAction } from "../types";
 
 type VoteTone = "emerald" | "rose" | "amber" | "slate";
 
@@ -241,6 +241,40 @@ export const VoteDetail = () => {
                     <td className="py-2 pr-4">{p.position ?? "—"}</td>
                     <td className="py-2 pr-4">{p.schoolOrDepartment ?? "—"}</td>
                     <td className="py-2 pr-4">{p.replacing ?? "—"}</td>
+                    <td className="py-2">{p.effectiveDate ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {data.propertyEntities && data.propertyEntities.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Property details</h2>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wide">
+                  <th className="pb-2 pr-4 font-semibold">Action</th>
+                  <th className="pb-2 pr-4 font-semibold">Party</th>
+                  <th className="pb-2 pr-4 font-semibold">Location</th>
+                  <th className="pb-2 pr-4 font-semibold">Address</th>
+                  <th className="pb-2 pr-4 font-semibold">Stated use</th>
+                  <th className="pb-2 pr-4 font-semibold">Term</th>
+                  <th className="pb-2 font-semibold">Effective</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.propertyEntities.map((p: PropertyAction, i: number) => (
+                  <tr key={i} className="text-slate-700">
+                    <td className="py-2 pr-4 capitalize font-medium text-slate-900">{p.actionType}</td>
+                    <td className="py-2 pr-4">{p.partyName ?? "—"}</td>
+                    <td className="py-2 pr-4">{p.location ?? "—"}</td>
+                    <td className="py-2 pr-4">{p.address ?? "—"}</td>
+                    <td className="py-2 pr-4">{p.statedUse ?? "—"}</td>
+                    <td className="py-2 pr-4">{p.term ?? "—"}</td>
                     <td className="py-2">{p.effectiveDate ?? "—"}</td>
                   </tr>
                 ))}

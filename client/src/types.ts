@@ -8,6 +8,16 @@ export type PersonnelAction = {
   classification: "classified" | "certified" | "administrative" | null;
 };
 
+export type PropertyAction = {
+  actionType: "purchase" | "sale" | "lease" | "easement" | "conveyance" | "construction" | "renovation" | "agreement" | "survey" | "other";
+  partyName: string | null;
+  location: string | null;
+  address: string | null;
+  statedUse: string | null;
+  term: string | null;
+  effectiveDate: string | null;
+};
+
 export type BoardMember = {
   id: number;
   name: string;
@@ -49,6 +59,7 @@ export type VoteItem = {
   sourceExcerpt?: string | null;
   contentText?: string | null;
   personnelEntities?: PersonnelAction[] | null;
+  propertyEntities?: PropertyAction[] | null;
   summarySource?: string | null;
   verificationStatus: string;
   detectedPattern?: string | null;

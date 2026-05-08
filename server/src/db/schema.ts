@@ -22,6 +22,16 @@ export type PersonnelAction = {
   classification: "classified" | "certified" | "administrative" | null;
 };
 
+export type PropertyAction = {
+  actionType: "purchase" | "sale" | "lease" | "easement" | "conveyance" | "construction" | "renovation" | "agreement" | "survey" | "other";
+  partyName: string | null;
+  location: string | null;
+  address: string | null;
+  statedUse: string | null;
+  term: string | null;
+  effectiveDate: string | null;
+};
+
 export const ingestionStatusEnum = pgEnum("ingestion_status", [
   "pending",
   "in_progress",
@@ -94,6 +104,7 @@ export const voteItems = pgTable(
     sourceExcerpt: text("source_excerpt"),
     contentText: text("content_text"),
     personnelEntities: jsonb("personnel_entities").$type<PersonnelAction[] | null>(),
+    propertyEntities: jsonb("property_entities").$type<PropertyAction[] | null>(),
     verificationStatus: verificationStatusEnum("verification_status")
       .default("unverified")
       .notNull(),

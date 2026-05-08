@@ -54,6 +54,90 @@ const getNoMemberNames = (vote: VoteItem) =>
     .map((record) => normalizeText(record.boardMember?.name))
     .filter((name): name is string => Boolean(name));
 
+const boilerplatePrefix = /^The superintendent recommends adoption of a motion\s*["']?\s*to\s+/i;
+const boilerplateSuffix = /[,\s]+(?:as (?:amended(?:\s+and)?|stipulated)[\s,]+)?(?:provided\s+to\s+board\s+members|stipulated\s+in\s+the\s+agenda\s+exhibit)\s+under\s+separate\s+cover.*$/i;
+const genericBoilerplate = /^(?:approve|adopt)\s+the\s+(?:employment|transfer|suspension|termination|retirement|resignation|appointment)s?\s+of\s+personnel(?:\s+as.*)?$/i;
+
+const cleanMotionText = (raw: string): string | null => {
+  const stripped = raw
+    .replace(boilerplatePrefix, "")
+    .replace(boilerplateSuffix, "")
+    .replace(/["']+$/, "")
+    .trim();
+  if (!stripped || genericBoilerplate.test(stripped)) return null;
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+};
+
+const getVoteSummary = (vote: VoteItem): string | null => {
+  const tally = vote.voteTally ?? {};
+  const yes = tally.yes ?? 0;
+  const no = tally.no ?? 0;
+  const abstain = tally.abstain ?? 0;
+  const total = yes + no + abstain;
+  const carried = yes > no;
+  const outcomeVerb = carried ? "approved" : "rejected";
+
+  let outcomeClause = "";
+  if (total > 0) {
+    if (!vote.isNonUnanimous) {
+      outcomeClause = "unanimously";
+    } else {
+      const tallyStr = abstain > 0 ? `${yes}–${no}, ${abstain} abstained` : `${yes}–${no}`;
+      const noNames = getNoMemberNames(vote);
+      const dissentPart = noNames.length === 1 ? `, ${noNames[0]} dissenting` : "";
+      outcomeClause = `${tallyStr}${dissentPart}`;
+    }
+  }
+
+  const wrap = (action: string) =>
+    outcomeClause
+      ? `The board ${outcomeVerb} ${action} (${outcomeClause}).`
+      : `The board ${outcomeVerb} ${action}.`;
+
+  // Personnel items with extracted entities
+  const entities = vote.personnelEntities;
+  if (entities && entities.length > 0) {
+    if (entities.length === 1) {
+      const e = entities[0];
+      const positionPart = e.position
+        ? ` as ${e.position}${e.schoolOrDepartment ? ` (${e.schoolOrDepartment})` : ""}`
+        : e.schoolOrDepartment ? ` at ${e.schoolOrDepartment}` : "";
+      const replacingPart = e.replacing ? `, replacing ${e.replacing}` : "";
+      const datePart = e.effectiveDate ? `, effective ${e.effectiveDate}` : "";
+      const action = `the ${e.actionType} of ${e.personName}${positionPart}${replacingPart}${datePart}`;
+      return wrap(action);
+    }
+    const names = entities.slice(0, 2).map((e) =>
+      `${e.personName}${e.position ? ` as ${e.position}` : ""}`
+    ).join(" and ");
+    const more = entities.length > 2 ? ` and ${entities.length - 2} others` : "";
+    return wrap(`${entities.length} personnel actions including ${names}${more}`);
+  }
+
+  // Property items with extracted entities
+  const propEntities = vote.propertyEntities;
+  if (propEntities && propEntities.length > 0) {
+    const p = propEntities[0];
+    const partyPart = p.partyName ? ` with ${p.partyName}` : "";
+    const locationPart = p.address ? ` at ${p.address}` : p.location ? ` in ${p.location}` : "";
+    const usePart = p.statedUse ? ` for ${p.statedUse}` : "";
+    const termPart = p.term ? ` (${p.term})` : "";
+    const action = `a ${p.actionType}${partyPart}${locationPart}${usePart}${termPart}`;
+    return wrap(action);
+  }
+
+  // Clean boilerplate from motion or summary text
+  const raw = normalizeText(vote.motionText) || normalizeText(vote.summaryText);
+  if (raw) {
+    const cleaned = cleanMotionText(raw);
+    if (cleaned && cleaned.toLowerCase() !== normalizeText(vote.itemTitle).toLowerCase()) {
+      return wrap(`a motion to ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`);
+    }
+  }
+
+  return null;
+};
+
 const isNeedsReviewVote = (vote: VoteItem) => {
   const confidence = parseConfidence(vote.confidenceScore);
   const title = getVoteTitle(vote);
@@ -340,22 +424,16 @@ export const Votes = () => {
               ? new Date(vote.meeting.date).toLocaleDateString()
               : "Needs review";
             const meetingTitle = normalizeText(vote.meeting?.title) || "Needs review";
-            const meetingType = normalizeText(vote.meeting?.type) || "Needs review";
             const sourceUrl = getSourceUrl(vote);
-            const noMembers = getNoMemberNames(vote);
+            const summary = getVoteSummary(vote);
 
             return (
               <article
                 key={vote.id}
                 className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1 text-sm text-slate-600">
-                    <p>
-                      {meetingDate} · {meetingTitle}
-                    </p>
-                    <p>Meeting type: {meetingType}</p>
-                  </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-slate-500">{meetingDate} · {meetingTitle}</p>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone={vote.category === "Other / Needs Review" ? "amber" : "blue"}>
                       {vote.category || "Needs review"}
@@ -363,62 +441,29 @@ export const Votes = () => {
                     <Badge tone={vote.verificationStatus === "verified" ? "emerald" : "amber"}>
                       {vote.verificationStatus === "verified" ? "Verified" : "Needs review"}
                     </Badge>
-                    <Badge tone={vote.isNonUnanimous ? "amber" : "emerald"}>
-                      {vote.isNonUnanimous ? "Non-unanimous" : "Unanimous"}
-                    </Badge>
+                    {vote.isNonUnanimous && <Badge tone="amber">Non-unanimous</Badge>}
                   </div>
                 </div>
 
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{title}</h3>
+                <h3 className="mt-2 text-base font-semibold text-slate-900 leading-snug">{title}</h3>
 
-                <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                  <p>
-                    <span className="font-semibold text-slate-900">Outcome:</span> {getOutcomeLabel(vote)}
-                  </p>
-                  <p className="sm:col-span-2">
-                    <span className="font-semibold text-slate-900">Dissenting / No votes:</span>{" "}
-                    {noMembers.length > 0 ? noMembers.join(", ") : "None recorded"}
-                  </p>
-                </div>
-
-                {vote.personnelEntities && vote.personnelEntities.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-sm text-slate-700">
-                    {vote.personnelEntities.slice(0, 3).map((p, i) => (
-                      <li key={i} className="flex flex-wrap items-baseline gap-x-1">
-                        <span className="font-semibold text-slate-900">{p.personName}</span>
-                        {p.position && <span>· {p.position}</span>}
-                        {p.schoolOrDepartment && <span className="text-slate-500">({p.schoolOrDepartment})</span>}
-                        {p.replacing && <span className="text-slate-500">replacing {p.replacing}</span>}
-                        {p.effectiveDate && <span className="text-slate-500">eff. {p.effectiveDate}</span>}
-                      </li>
-                    ))}
-                    {vote.personnelEntities.length > 3 && (
-                      <li className="text-slate-400 text-xs">+{vote.personnelEntities.length - 3} more</li>
-                    )}
-                  </ul>
+                {summary && (
+                  <p className="mt-2 text-sm text-slate-700">{summary}</p>
                 )}
 
-                {!vote.personnelEntities && normalizeText(vote.sourceExcerpt) && normalizeText(vote.sourceExcerpt) !== "Needs review" && (
-                  <p className="mt-3 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt}</p>
+                {!summary && normalizeText(vote.sourceExcerpt) && normalizeText(vote.sourceExcerpt) !== "Needs review" && (
+                  <p className="mt-2 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt}</p>
                 )}
 
-                <p className="mt-3 text-xs text-slate-500">
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
                   {sourceUrl ? (
-                    <a
-                      href={sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-slate-700 underline"
-                    >
+                    <a href={sourceUrl} target="_blank" rel="noreferrer" className="text-slate-600 underline">
                       View official meeting record
                     </a>
                   ) : (
-                    <span className="text-slate-400">Source unavailable</span>
+                    <span>Source unavailable</span>
                   )}
-                </p>
-
-                <div className="mt-3">
-                  <Link to={`/votes/${vote.id}`} className="text-sm font-semibold text-slate-800 underline">
+                  <Link to={`/votes/${vote.id}`} className="font-semibold text-slate-700 underline">
                     View vote detail
                   </Link>
                 </div>

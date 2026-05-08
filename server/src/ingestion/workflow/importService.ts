@@ -11,6 +11,7 @@ import { logger } from "../../logging/logger";
 import { HttpError } from "../../utils/httpError";
 import { buildPersistedMinutesVoteOutput } from "../../services/minutesVoteService";
 import { extractPersonnelEntities } from "../../services/personnelEntityService";
+import { extractPropertyEntities } from "../../services/propertyEntityService";
 import {
   canonicalizeBoardMemberName,
   getBoardMemberLookupVariants,
@@ -292,6 +293,17 @@ const extractAndPersistPersonnelEntities = async (items: SavedVoteItemStub[]) =>
   }
 };
 
+const extractAndPersistPropertyEntities = async (items: SavedVoteItemStub[]) => {
+  for (const item of items) {
+    const entities = await extractPropertyEntities(item);
+    if (!entities) continue;
+    await db
+      .update(schema.voteItems)
+      .set({ propertyEntities: entities })
+      .where(eq(schema.voteItems.id, item.id));
+  }
+};
+
 export const persistImportedMeetingVoteItems = async ({
   meeting,
   voteItems,
@@ -318,6 +330,7 @@ export const persistImportedMeetingVoteItems = async ({
   });
 
   await extractAndPersistPersonnelEntities(savedItems);
+  await extractAndPersistPropertyEntities(savedItems);
   return result;
 };
 
@@ -438,6 +451,7 @@ const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inf
   });
 
   await extractAndPersistPersonnelEntities(savedItems);
+  await extractAndPersistPropertyEntities(savedItems);
   return result;
 };
 
@@ -490,6 +504,7 @@ export const importMeetingById = async (simbliId: string) => {
     });
 
     await extractAndPersistPersonnelEntities(htmlSavedItems);
+    await extractAndPersistPropertyEntities(htmlSavedItems);
 
     await completeImportLog(log.id, {
       meetingsProcessed: 1,

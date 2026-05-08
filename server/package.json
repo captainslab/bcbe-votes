@@ -19,6 +19,7 @@
     "prove:minutes-votes": "tsx src/scripts/proveMinutesVoteExtraction.ts",
     "prove:crawlee-minutes": "tsx src/scripts/runCrawleeMinutesProof.ts",
     "extract:personnel-entities": "tsx src/scripts/batchExtractPersonnelEntities.ts",
+    "extract:property-entities": "tsx src/scripts/batchExtractPropertyEntities.ts",
     "normalize:member-aliases": "tsx src/scripts/normalizeBoardMemberAliases.ts",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push",
