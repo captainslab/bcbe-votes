@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useVote } from "../api/hooks";
 import { Badge } from "../components/Badge";
+import type { PersonnelAction } from "../types";
 
 type VoteTone = "emerald" | "rose" | "amber" | "slate";
 
@@ -216,6 +217,38 @@ export const VoteDetail = () => {
           </dl>
         </div>
       </div>
+
+      {data.personnelEntities && data.personnelEntities.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Personnel actions</h2>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wide">
+                  <th className="pb-2 pr-4 font-semibold">Name</th>
+                  <th className="pb-2 pr-4 font-semibold">Action</th>
+                  <th className="pb-2 pr-4 font-semibold">Position</th>
+                  <th className="pb-2 pr-4 font-semibold">School / Dept</th>
+                  <th className="pb-2 pr-4 font-semibold">Replacing</th>
+                  <th className="pb-2 font-semibold">Effective</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.personnelEntities.map((p: PersonnelAction, i: number) => (
+                  <tr key={i} className="text-slate-700">
+                    <td className="py-2 pr-4 font-medium text-slate-900">{p.personName}</td>
+                    <td className="py-2 pr-4 capitalize">{p.actionType}</td>
+                    <td className="py-2 pr-4">{p.position ?? "—"}</td>
+                    <td className="py-2 pr-4">{p.schoolOrDepartment ?? "—"}</td>
+                    <td className="py-2 pr-4">{p.replacing ?? "—"}</td>
+                    <td className="py-2">{p.effectiveDate ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Member vote records</h2>

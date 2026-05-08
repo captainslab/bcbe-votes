@@ -10,6 +10,7 @@ import { normalizeWhitespace } from "../../utils/text";
 import { logger } from "../../logging/logger";
 import { HttpError } from "../../utils/httpError";
 import { buildPersistedMinutesVoteOutput } from "../../services/minutesVoteService";
+import { extractPersonnelEntities } from "../../services/personnelEntityService";
 import {
   canonicalizeBoardMemberName,
   getBoardMemberLookupVariants,
@@ -216,13 +217,34 @@ const upsertVoteItem = async (
   return saved;
 };
 
+type SavedVoteItemStub = {
+  id: number;
+  itemTitle: string;
+  agendaSection: string | null | undefined;
+  contentText: string | null | undefined;
+  summaryText: string | null | undefined;
+  motionText: string | null | undefined;
+  sourceExcerpt: string | null | undefined;
+};
+
 const persistVoteItems = async (
   tx: any,
   meetingRow: typeof schema.meetings.$inferSelect,
   voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"],
-) => {
+): Promise<SavedVoteItemStub[]> => {
+  const saved: SavedVoteItemStub[] = [];
+
   for (const item of voteItems) {
     const voteItemRow = await upsertVoteItem(tx, meetingRow.id, item);
+    saved.push({
+      id: voteItemRow.id,
+      itemTitle: item.itemTitle,
+      agendaSection: item.agendaSection,
+      contentText: item.contentText,
+      summaryText: item.summaryText,
+      motionText: item.motionText,
+      sourceExcerpt: item.sourceExcerpt,
+    });
 
     const motionMakerId = await resolveBoardMemberId(tx, item.motionMadeBy);
     const motionSecondedId = await resolveBoardMemberId(tx, item.motionSecondedBy);
@@ -255,6 +277,19 @@ const persistVoteItems = async (
         });
     }
   }
+
+  return saved;
+};
+
+const extractAndPersistPersonnelEntities = async (items: SavedVoteItemStub[]) => {
+  for (const item of items) {
+    const entities = await extractPersonnelEntities(item);
+    if (!entities) continue;
+    await db
+      .update(schema.voteItems)
+      .set({ personnelEntities: entities })
+      .where(eq(schema.voteItems.id, item.id));
+  }
 };
 
 export const persistImportedMeetingVoteItems = async ({
@@ -264,9 +299,11 @@ export const persistImportedMeetingVoteItems = async ({
   meeting: ReturnType<typeof parseMeetingDetail>["meeting"] & { simbliId: string };
   voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"];
 }) => {
-  return await db.transaction(async (tx) => {
+  let savedItems: SavedVoteItemStub[] = [];
+
+  const result = await db.transaction(async (tx) => {
     const meetingRow = await upsertMeeting(tx, meeting);
-    await persistVoteItems(tx, meetingRow, voteItems);
+    savedItems = await persistVoteItems(tx, meetingRow, voteItems);
 
     await tx
       .update(schema.meetings)
@@ -279,6 +316,9 @@ export const persistImportedMeetingVoteItems = async ({
 
     return { meetingRow, voteItemsCreated: voteItems.length };
   });
+
+  await extractAndPersistPersonnelEntities(savedItems);
+  return result;
 };
 
 const matchesMinutesSearchRow = (
@@ -372,7 +412,9 @@ const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inf
     );
   }
 
-  return await db.transaction(async (tx) => {
+  let savedItems: SavedVoteItemStub[] = [];
+
+  const result = await db.transaction(async (tx) => {
     const meetingRow = await upsertMeeting(tx, {
       simbliId: meeting.simbliId,
       date: meeting.date.toISOString(),
@@ -382,7 +424,7 @@ const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inf
       minutesUrl: minutesUrl ?? undefined,
     });
 
-    await persistVoteItems(tx, meetingRow, voteItems);
+    savedItems = await persistVoteItems(tx, meetingRow, voteItems);
     await tx
       .update(schema.meetings)
       .set({
@@ -394,6 +436,9 @@ const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inf
 
     return { meetingRow, voteItemsCreated: voteItems.length };
   });
+
+  await extractAndPersistPersonnelEntities(savedItems);
+  return result;
 };
 
 export const importMeetingById = async (simbliId: string) => {
@@ -428,9 +473,10 @@ export const importMeetingById = async (simbliId: string) => {
       throw new NoVoteContentError(`No vote items found for meeting ${simbliId}`);
     }
 
+    let htmlSavedItems: SavedVoteItemStub[] = [];
     const savedMeeting = await db.transaction(async (tx) => {
       const meetingRow = await upsertMeeting(tx, { ...parsed.meeting, simbliId });
-      await persistVoteItems(tx, meetingRow, parsed.voteItems);
+      htmlSavedItems = await persistVoteItems(tx, meetingRow, parsed.voteItems);
 
       await tx
         .update(schema.meetings)
@@ -442,6 +488,8 @@ export const importMeetingById = async (simbliId: string) => {
 
       return meetingRow;
     });
+
+    await extractAndPersistPersonnelEntities(htmlSavedItems);
 
     await completeImportLog(log.id, {
       meetingsProcessed: 1,

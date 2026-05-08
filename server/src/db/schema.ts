@@ -12,6 +12,16 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+export type PersonnelAction = {
+  personName: string;
+  actionType: "appointment" | "resignation" | "retirement" | "termination" | "transfer" | "leave" | "other";
+  position: string | null;
+  schoolOrDepartment: string | null;
+  replacing: string | null;
+  effectiveDate: string | null;
+  classification: "classified" | "certified" | "administrative" | null;
+};
+
 export const ingestionStatusEnum = pgEnum("ingestion_status", [
   "pending",
   "in_progress",
@@ -83,6 +93,7 @@ export const voteItems = pgTable(
     voteTally: jsonb("vote_tally").$type<Record<string, number>>().default({}).notNull(),
     sourceExcerpt: text("source_excerpt"),
     contentText: text("content_text"),
+    personnelEntities: jsonb("personnel_entities").$type<PersonnelAction[] | null>(),
     verificationStatus: verificationStatusEnum("verification_status")
       .default("unverified")
       .notNull(),

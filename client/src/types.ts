@@ -1,3 +1,13 @@
+export type PersonnelAction = {
+  personName: string;
+  actionType: "appointment" | "resignation" | "retirement" | "termination" | "transfer" | "leave" | "other";
+  position: string | null;
+  schoolOrDepartment: string | null;
+  replacing: string | null;
+  effectiveDate: string | null;
+  classification: "classified" | "certified" | "administrative" | null;
+};
+
 export type BoardMember = {
   id: number;
   name: string;
@@ -38,6 +48,7 @@ export type VoteItem = {
   voteTally: Record<string, number>;
   sourceExcerpt?: string | null;
   contentText?: string | null;
+  personnelEntities?: PersonnelAction[] | null;
   summarySource?: string | null;
   verificationStatus: string;
   detectedPattern?: string | null;

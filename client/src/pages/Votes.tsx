@@ -381,7 +381,24 @@ export const Votes = () => {
                   </p>
                 </div>
 
-                {normalizeText(vote.sourceExcerpt) && normalizeText(vote.sourceExcerpt) !== "Needs review" && (
+                {vote.personnelEntities && vote.personnelEntities.length > 0 && (
+                  <ul className="mt-3 space-y-1 text-sm text-slate-700">
+                    {vote.personnelEntities.slice(0, 3).map((p, i) => (
+                      <li key={i} className="flex flex-wrap items-baseline gap-x-1">
+                        <span className="font-semibold text-slate-900">{p.personName}</span>
+                        {p.position && <span>· {p.position}</span>}
+                        {p.schoolOrDepartment && <span className="text-slate-500">({p.schoolOrDepartment})</span>}
+                        {p.replacing && <span className="text-slate-500">replacing {p.replacing}</span>}
+                        {p.effectiveDate && <span className="text-slate-500">eff. {p.effectiveDate}</span>}
+                      </li>
+                    ))}
+                    {vote.personnelEntities.length > 3 && (
+                      <li className="text-slate-400 text-xs">+{vote.personnelEntities.length - 3} more</li>
+                    )}
+                  </ul>
+                )}
+
+                {!vote.personnelEntities && normalizeText(vote.sourceExcerpt) && normalizeText(vote.sourceExcerpt) !== "Needs review" && (
                   <p className="mt-3 text-sm text-slate-600 line-clamp-2">{vote.sourceExcerpt}</p>
                 )}
 
