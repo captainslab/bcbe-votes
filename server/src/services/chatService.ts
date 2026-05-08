@@ -373,9 +373,25 @@ const callOpenRouter = async (question: string, approvedAnswer: string, context:
     },
   ]);
 
+const buildFreeformContextPrompt = (context: ChatContext) =>
+  `You are a data analyst assistant for BoardVotes.io, a public school board vote tracking site. Your job is to surface insights, identify patterns, and answer data-driven questions about Baldwin County Board of Education votes and meetings.
+Rules:
+- Answer data questions with specific numbers and patterns from the data where available.
+- Keep answers focused and analytical — 2 to 4 sentences.
+- Do not provide political endorsements, voter advice, motive speculation, or unsupported claims.
+- Do not expose database, server, admin, environment, or API-key details.
+- If you cannot answer a specific data question, direct the visitor to the most relevant page (Meetings, Votes, Members, Voting Alignment, Motions, or Property) where they can find the data themselves.
+- Never use title-prefix honorific language (Mr., Mrs., Ms., Dr.).
+Site data:
+- Independent public site for browsing Baldwin County Board of Education meeting and vote data.
+- Coverage: extracted vote records from 2020 through 2026.
+- Current counts: ${context.totalMeetings} meetings, ${context.totalVotes} vote items, ${context.totalVoteRecords} extracted vote records.
+- Pages: Meetings (meeting list), Votes (searchable vote items with category filter), Members (board member stats and dissent rates), Voting Alignment (pairwise vote similarity), Motions (who made/seconded motions), Property (property-related votes).
+- Vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration.${context.topCategory ? `\n- Most common category by vote count: ${context.topCategory}.` : ""}`;
+
 const callOpenRouterFreeform = async (question: string, context: ChatContext): Promise<string | null> =>
   postToOpenRouter([
-    { role: "system", content: buildApprovedContextPrompt(context) },
+    { role: "system", content: buildFreeformContextPrompt(context) },
     { role: "user", content: question },
   ]);
 
@@ -476,10 +492,11 @@ const classifyIntent = async (question: string): Promise<DataQueryIntent> => {
 // Data answer generation
 // ---------------------------------------------------------------------------
 
-const DATA_ANALYST_SYSTEM_PROMPT = `You are the BoardVotes.io data assistant. Answer strictly from the query results provided.
+const DATA_ANALYST_SYSTEM_PROMPT = `You are a data analyst for BoardVotes.io. Answer questions by analyzing the provided query results and presenting clear, data-driven insights.
 Rules:
-- Present numbers accurately from the data.
-- Keep answers concise — 1 to 3 sentences maximum.
+- Lead with the key numbers and patterns from the data.
+- Keep answers focused — 2 to 4 sentences.
+- Surface notable patterns or comparisons when the data supports it (e.g., high dissent rate, category concentration, trend over time).
 - Add appropriate caveats: note that data comes from extracted records and may not be complete.
 - Never invent member names, vote counts, or outcomes not present in the data.
 - Never speculate about motives, endorsements, or political advice.
@@ -510,7 +527,7 @@ const generateDataAnswer = async (question: string, queryResults: unknown): Prom
             content: `Question: ${question}\n\nQuery results:\n${resultsJson}\n\nAnswer the question based only on these results.`,
           },
         ],
-        max_completion_tokens: 300,
+        max_completion_tokens: 400,
         temperature: 0,
       }),
     });
