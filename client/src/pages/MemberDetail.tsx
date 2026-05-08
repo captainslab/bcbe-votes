@@ -96,6 +96,24 @@ const getOutcomeFromTally = (tally: Record<string, number>, isNonUnanimous: bool
   return abstain > 0 ? `${verb} (${yes}–${no}, ${abstain} abstained)` : `${verb} (${yes}–${no})`;
 };
 
+const MOTIONS_PREVIEW = 10;
+
+const buildMotionCategoryRows = (made: MemberMotionItem[], seconded: MemberMotionItem[]) => {
+  const map = new Map<string, { made: number; seconded: number }>();
+  for (const item of made) {
+    const cat = item.category || "Other / Needs Review";
+    const e = map.get(cat) ?? { made: 0, seconded: 0 };
+    map.set(cat, { ...e, made: e.made + 1 });
+  }
+  for (const item of seconded) {
+    const cat = item.category || "Other / Needs Review";
+    const e = map.get(cat) ?? { made: 0, seconded: 0 };
+    map.set(cat, { ...e, seconded: e.seconded + 1 });
+  }
+  return Array.from(map.entries())
+    .sort(([, a], [, b]) => (b.made + b.seconded) - (a.made + a.seconded));
+};
+
 const MotionRow = ({ item }: { item: MemberMotionItem }) => {
   const title = item.itemTitle && item.itemTitle !== "Needs review"
     ? item.itemTitle
@@ -370,40 +388,109 @@ export const MemberDetail = () => {
         </div>
       )}
 
-      {((data.motions?.made.length ?? 0) > 0 || (data.motions?.seconded.length ?? 0) > 0) && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Motions proposed and seconded</h2>
-          <p className="text-sm text-slate-500">
-            Vote items where this member made or seconded the motion, from the extracted dataset.
-          </p>
+      {((data.motions?.made.length ?? 0) > 0 || (data.motions?.seconded.length ?? 0) > 0) && (() => {
+        const made = data.motions!.made;
+        const seconded = data.motions!.seconded;
+        const madeCarried = made.filter((i) => (i.voteTally.yes ?? 0) > (i.voteTally.no ?? 0)).length;
+        const secondedCarried = seconded.filter((i) => (i.voteTally.yes ?? 0) > (i.voteTally.no ?? 0)).length;
+        const categoryRows = buildMotionCategoryRows(made, seconded);
 
-          {(data.motions?.made.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-3">
-                Motions made ({data.motions!.made.length})
-              </h3>
-              <div className="space-y-3">
-                {data.motions!.made.map((item) => (
-                  <MotionRow key={item.voteItemId} item={item} />
-                ))}
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Motions proposed and seconded</h2>
+            <p className="text-sm text-slate-500">
+              Vote items where this member made or seconded the motion, from the extracted dataset.
+            </p>
+
+            {/* Tally summary */}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-2xl font-bold text-slate-900">{made.length}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Motions made</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-700">{madeCarried}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Made & carried</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-2xl font-bold text-slate-900">{seconded.length}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Motions seconded</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+                <p className="text-2xl font-bold text-emerald-700">{secondedCarried}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Seconded & carried</p>
               </div>
             </div>
-          )}
 
-          {(data.motions?.seconded.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-3">
-                Motions seconded ({data.motions!.seconded.length})
-              </h3>
-              <div className="space-y-3">
-                {data.motions!.seconded.map((item) => (
-                  <MotionRow key={item.voteItemId} item={item} />
-                ))}
+            {/* Category breakdown */}
+            {categoryRows.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">By category</h3>
+                <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2">Category</th>
+                        <th className="px-4 py-2 text-right">Made</th>
+                        <th className="px-4 py-2 text-right">Seconded</th>
+                        <th className="px-4 py-2 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {categoryRows.map(([cat, counts]) => (
+                        <tr key={cat} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 font-medium text-slate-800">{cat}</td>
+                          <td className="px-4 py-2 text-right text-slate-700">{counts.made > 0 ? counts.made : "—"}</td>
+                          <td className="px-4 py-2 text-right text-slate-700">{counts.seconded > 0 ? counts.seconded : "—"}</td>
+                          <td className="px-4 py-2 text-right font-medium text-slate-900">{counts.made + counts.seconded}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+
+            {/* Recent motions made */}
+            {made.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-3">
+                  Most recent motions made
+                </h3>
+                <div className="space-y-3">
+                  {made.slice(0, MOTIONS_PREVIEW).map((item) => (
+                    <MotionRow key={item.voteItemId} item={item} />
+                  ))}
+                </div>
+                {made.length > MOTIONS_PREVIEW && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Showing {MOTIONS_PREVIEW} of {made.length} motions made. See category breakdown above for full counts.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Recent motions seconded */}
+            {seconded.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-3">
+                  Most recent motions seconded
+                </h3>
+                <div className="space-y-3">
+                  {seconded.slice(0, MOTIONS_PREVIEW).map((item) => (
+                    <MotionRow key={item.voteItemId} item={item} />
+                  ))}
+                </div>
+                {seconded.length > MOTIONS_PREVIEW && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Showing {MOTIONS_PREVIEW} of {seconded.length} motions seconded.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">No and abstained votes</h2>
