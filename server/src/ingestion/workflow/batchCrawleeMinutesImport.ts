@@ -1,22 +1,22 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, or } from "drizzle-orm";
 import { db, schema } from "../../db";
 import { logger } from "../../logging/logger";
 import { buildPersistedMinutesVoteOutput } from "../../services/minutesVoteService";
-import { fetchMeetingMinutesWithCrawlee, type CrawleeMeetingTarget } from "../fetchers/simbliCrawleeMeetingMinutesFetcher";
+import { fetchMeetingMinutesWithFirecrawl, type MeetingTarget } from "../fetchers/simbliFirecrawlMeetingMinutesFetcher";
 import {
   flattenMeetingMinutesItems,
   toSyntheticAgendaItemLoaderResponse,
 } from "../parsers/meetingMinutesParser";
 import { persistImportedMeetingVoteItems } from "./importService";
 
-export type CrawleeFailureClass =
+export type MinutesFailureClass =
   | "failed_browser_blocked"
   | "failed_no_minutes_document"
   | "failed_no_vote_content"
   | "failed_persist"
   | "failed_other";
 
-type BatchCrawleeMinutesImportOptions = {
+type BatchMinutesImportOptions = {
   limit?: number;
   simbliIds?: string[];
 };
@@ -33,15 +33,15 @@ type FailedMeeting = {
   meetingId: number;
   simbliId: string;
   title: string;
-  failureClass: CrawleeFailureClass;
+  failureClass: MinutesFailureClass;
   reason: string;
 };
 
-export type BatchCrawleeMinutesImportResult = {
+export type BatchMinutesImportResult = {
   before: CountSnapshot;
   meetingsAttemptedInBatch: number;
   meetingsCompletedInBatch: number;
-  meetingsFailedByClass: Record<CrawleeFailureClass, number>;
+  meetingsFailedByClass: Record<MinutesFailureClass, number>;
   failedMeetings: FailedMeeting[];
   attemptedMeetings: Array<{
     meetingId: number;
@@ -56,7 +56,7 @@ export type BatchCrawleeMinutesImportResult = {
 
 const defaultLimit = 5;
 
-const createFailedByClass = (): Record<CrawleeFailureClass, number> => ({
+const createFailedByClass = (): Record<MinutesFailureClass, number> => ({
   failed_browser_blocked: 0,
   failed_no_minutes_document: 0,
   failed_no_vote_content: 0,
@@ -82,10 +82,10 @@ const getSnapshot = async (): Promise<CountSnapshot> => ({
   voteRecordsPersisted: (await db.select({ count: count() }).from(schema.voteRecords))[0]?.count ?? 0,
 });
 
-const classifyFailure = (error: unknown): { failureClass: CrawleeFailureClass; reason: string } => {
+const classifyFailure = (error: unknown): { failureClass: MinutesFailureClass; reason: string } => {
   const reason = error instanceof Error ? error.message : String(error);
 
-  if (/Incapsula|DISPLAY is required|hydration tokens|GetMeetingMinutes returned/i.test(reason)) {
+  if (/Incapsula|hydration tokens|GetMeetingMinutes returned|Firecrawl scrape failed/i.test(reason)) {
     return { failureClass: "failed_browser_blocked", reason };
   }
 
@@ -107,25 +107,25 @@ const classifyFailure = (error: unknown): { failureClass: CrawleeFailureClass; r
 const toScalabilityStatement = (
   attempted: number,
   completed: number,
-  failedByClass: Record<CrawleeFailureClass, number>,
+  failedByClass: Record<MinutesFailureClass, number>,
 ) => {
   if (attempted === 0) {
-    return "No failed meetings were attempted, so the Crawlee lane remains unproven.";
+    return "No failed meetings were attempted.";
   }
 
   if (completed >= Math.ceil(attempted / 2)) {
-    return "The Crawlee minutes lane is materially stronger than the prior blocked routes and is viable to continue as the primary historical pull route for public minutes-bearing meetings.";
+    return "Firecrawl minutes import succeeded on the majority of attempted meetings.";
   }
 
   if (completed > 0) {
-    return "The Crawlee minutes lane is useful and materially different, but this proof slice did not complete often enough to declare it the primary historical pull route yet.";
+    return "Firecrawl minutes import succeeded on some meetings but not the majority.";
   }
 
   if (failedByClass.failed_browser_blocked === attempted) {
-    return "The Crawlee minutes lane is blocked at browser hydration and should not replace the current primary route.";
+    return "All meetings failed at the browser/hydration stage — Simbli may be blocking the Firecrawl IP range.";
   }
 
-  return "The Crawlee minutes lane did not show enough completed meeting coverage in this proof slice to become the primary historical pull route.";
+  return "Firecrawl minutes import did not complete enough meetings in this batch.";
 };
 
 const normalizeMotionText = (motionText?: string | null) =>
@@ -176,14 +176,17 @@ const buildItemSourceUrl = (
 ) => `${minutesTabUrl}&enIID=${encodeURIComponent(agendaId)}#source=${encodeURIComponent(minutesRequestUrl)}`;
 
 const buildMeetingTargets = async (
-  options: BatchCrawleeMinutesImportOptions,
-): Promise<CrawleeMeetingTarget[]> => {
+  options: BatchMinutesImportOptions,
+): Promise<MeetingTarget[]> => {
   const limit = options.limit ?? defaultLimit;
   const meetings = await db.query.meetings.findMany({
     where:
       options.simbliIds && options.simbliIds.length
-        ? and(eq(schema.meetings.ingestionStatus, "failed"), inArray(schema.meetings.simbliId, options.simbliIds))
-        : eq(schema.meetings.ingestionStatus, "failed"),
+        ? and(
+            or(eq(schema.meetings.ingestionStatus, "failed"), eq(schema.meetings.ingestionStatus, "partial")),
+            inArray(schema.meetings.simbliId, options.simbliIds),
+          )
+        : or(eq(schema.meetings.ingestionStatus, "failed"), eq(schema.meetings.ingestionStatus, "partial")),
     with: {
       voteItems: {
         columns: {
@@ -213,16 +216,16 @@ const buildMeetingTargets = async (
   }));
 };
 
-export const runBatchCrawleeMinutesImport = async (
-  options: BatchCrawleeMinutesImportOptions = {},
-): Promise<BatchCrawleeMinutesImportResult> => {
+export const runBatchMinutesImport = async (
+  options: BatchMinutesImportOptions = {},
+): Promise<BatchMinutesImportResult> => {
   const before = await getSnapshot();
   const meetingsFailedByClass = createFailedByClass();
   const failedMeetings: FailedMeeting[] = [];
-  const attemptedMeetings: BatchCrawleeMinutesImportResult["attemptedMeetings"] = [];
+  const attemptedMeetings: BatchMinutesImportResult["attemptedMeetings"] = [];
 
   const targetMeetings = await buildMeetingTargets(options);
-  const fetchResult = await fetchMeetingMinutesWithCrawlee(targetMeetings);
+  const fetchResult = await fetchMeetingMinutesWithFirecrawl(targetMeetings);
 
   let meetingsCompletedInBatch = 0;
 
@@ -249,7 +252,7 @@ export const runBatchCrawleeMinutesImport = async (
       const flattened = flattenMeetingMinutesItems(success.response);
       if (flattened.length === 0) {
         throw new Error(
-          `Crawlee minutes lane did not return item minutes for meeting ${success.meeting.simbliId}`,
+          `Firecrawl minutes import did not return item minutes for meeting ${success.meeting.simbliId}`,
         );
       }
 
@@ -280,7 +283,7 @@ export const runBatchCrawleeMinutesImport = async (
 
       if (voteItems.length === 0) {
         throw new Error(
-          `Crawlee minutes lane did not produce vote-bearing items for meeting ${success.meeting.simbliId}`,
+          `Firecrawl minutes import did not produce vote-bearing items for meeting ${success.meeting.simbliId}`,
         );
       }
 
@@ -321,7 +324,7 @@ export const runBatchCrawleeMinutesImport = async (
       });
       logger.warn(
         { meetingId: success.meeting.meetingId, simbliId: success.meeting.simbliId, err: error },
-        "Crawlee minutes batch import failed",
+        "Firecrawl minutes batch import failed",
       );
     }
   }

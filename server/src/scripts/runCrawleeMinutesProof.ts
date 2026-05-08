@@ -1,4 +1,4 @@
-import { runBatchCrawleeMinutesImport } from "../ingestion/workflow/batchCrawleeMinutesImport";
+import { runBatchMinutesImport } from "../ingestion/workflow/batchCrawleeMinutesImport";
 
 const defaultProofSlice = ["22486", "22694", "22834", "22981", "23153"];
 
@@ -26,7 +26,7 @@ const parseArgs = () => {
 
 const main = async () => {
   const args = parseArgs();
-  const result = await runBatchCrawleeMinutesImport({
+  const result = await runBatchMinutesImport({
     ...(args.limit !== undefined ? { limit: args.limit } : {}),
     simbliIds: args.simbliIds ?? defaultProofSlice,
   });

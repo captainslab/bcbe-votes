@@ -17,7 +17,7 @@
     "probe:agenda-tree": "tsx src/scripts/probeAgendaTree.ts",
     "probe:minutes-votes": "tsx src/scripts/probeMinutesVotes.ts",
     "prove:minutes-votes": "tsx src/scripts/proveMinutesVoteExtraction.ts",
-    "prove:crawlee-minutes": "tsx src/scripts/runCrawleeMinutesProof.ts",
+    "prove:minutes": "tsx src/scripts/runCrawleeMinutesProof.ts",
     "extract:personnel-entities": "tsx src/scripts/batchExtractPersonnelEntities.ts",
     "extract:property-entities": "tsx src/scripts/batchExtractPropertyEntities.ts",
     "normalize:member-aliases": "tsx src/scripts/normalizeBoardMemberAliases.ts",
@@ -31,10 +31,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@mendable/firecrawl-js": "^4.22.2",
     "axios": "^1.15.0",
     "cheerio": "^1.2.0",
     "cors": "^2.8.6",
-    "crawlee": "^3.16.0",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.1",
     "dotenv-expand": "^12.0.3",
@@ -45,7 +45,6 @@
     "pg": "^8.20.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
-    "playwright": "^1.59.1",
     "zod": "^4.3.6"
   },
   "overrides": {
