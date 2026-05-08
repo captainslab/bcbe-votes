@@ -1,4 +1,4 @@
-import { runBatchMinutesImport } from "../ingestion/workflow/batchCrawleeMinutesImport";
+import { runBatchMinutesImport } from "../ingestion/workflow/batchMinutesImport";
 
 const defaultProofSlice = ["22486", "22694", "22834", "22981", "23153"];
 

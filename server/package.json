@@ -17,7 +17,7 @@
     "probe:agenda-tree": "tsx src/scripts/probeAgendaTree.ts",
     "probe:minutes-votes": "tsx src/scripts/probeMinutesVotes.ts",
     "prove:minutes-votes": "tsx src/scripts/proveMinutesVoteExtraction.ts",
-    "prove:minutes": "tsx src/scripts/runCrawleeMinutesProof.ts",
+    "import:minutes": "tsx src/scripts/runMinutesImport.ts",
     "extract:personnel-entities": "tsx src/scripts/batchExtractPersonnelEntities.ts",
     "extract:property-entities": "tsx src/scripts/batchExtractPropertyEntities.ts",
     "normalize:member-aliases": "tsx src/scripts/normalizeBoardMemberAliases.ts",

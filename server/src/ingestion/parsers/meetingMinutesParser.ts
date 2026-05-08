@@ -97,7 +97,7 @@ export const parseMeetingMinutesResponse = (text: string) =>
   JSON.parse(text) as MeetingMinutesResponse;
 
 export const flattenMeetingMinutesItems = (response: MeetingMinutesResponse) =>
-  response.LstItemMinutes.flatMap((item) => flattenMeetingMinutesNode(item, null, 1));
+  (response.LstItemMinutes ?? []).flatMap((item) => flattenMeetingMinutesNode(item, null, 1));
 
 export const toSyntheticAgendaItemLoaderResponse = (
   meeting: SyntheticMeetingContext,
