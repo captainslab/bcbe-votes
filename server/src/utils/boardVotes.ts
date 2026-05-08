@@ -106,26 +106,26 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
     // Personnel comes first so "transfer of personnel" beats "budget transfer"
     category: "Personnel",
     patterns: [
-      /\b(personnel|hire|hiring|employment|employ|resign(?:ation)?|termination|suspension|suspension of personnel|transfer of personnel|leaves? of absence|extra work|certificated|classified|appoint(?:ment)?|retirement|retire|administrative\s+appointment)\b/i,
+      /\b(personnel|hire|hiring|employment|employ|resign(?:ation)?|termination|suspension|transfer of personnel|leaves? of absence|extra work|certificated|classified|appoint(?:ment)?s?|retirement|retire|administrative\s+appointments?|new\s+position)\b/i,
     ],
   },
   {
     category: "Contracts & Procurement",
     patterns: [
-      /\b(contracts?|bids?|procurement|purchase\s+order|vendor|consulting|agreements?|rfp|proposals?|owner[\s/]+engineer|teams\s+contracts?)\b/i,
+      /\b(contracts?|bids?|procurement|purchase|vendor|consulting|agreements?|rfp|proposals?|owner[\s/]+engineer|teams\s+contracts?|engagement|ratification|mou|donation)\b/i,
     ],
   },
   {
     // "amendment" removed — too broad; "budget" alone catches "budget amendment" titles
     category: "Budget & Finance",
     patterns: [
-      /\b(budget|finance|financial|appropriation|salary|compensation|fiscal|extra\s+work\s+wages?|stipend|reimbursement|expenditure|tax\s+levy|millage|audit|fund\s+balance)\b/i,
+      /\b(budget|finance|financial|appropriation|salary|compensation|fiscal|extra\s+work\s+wages?|stipend|reimbursement|expenditure|tax\s+levy|millage|mill\s+commission|audit|fund\s+balance|contribution)\b/i,
     ],
   },
   {
     category: "Facilities & Property",
     patterns: [
-      /\b(facility|facilities|construction|renovation|site\s+survey|building|media\s+center|cafeteria|capital\s+improvement|public\s+works|property|real\s+estate|lease|architect|engineering\s+services|owner[\s/]+engineer)\b/i,
+      /\b(facility|facilities|construction|renovation|site\s+survey|building|media\s+center|cafeteria|capital\s+improvement|public\s+works|property|real\s+estate|lease|architect|engineering\s+services|owner[\s/]+engineer|change\s+orders?|deed|easement|drainage|conveyance)\b/i,
     ],
   },
   {
@@ -137,7 +137,7 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
   {
     category: "Curriculum & Academics",
     patterns: [
-      /\b(curriculum|instruction|instructional|academic|learning|classroom|textbook|course\s+of\s+study|intervention|screener|assessment|literacy|professional\s+development)\b/i,
+      /\b(curriculum|instruction|instructional|academic|learning|classroom|textbooks?|course\s+of\s+study|course\s+fee|intervention|screener|assessment|literacy|professional\s+development)\b/i,
     ],
   },
   {
@@ -159,31 +159,31 @@ const categoryRules: Array<{ category: VoteItemCategory; patterns: RegExp[] }> =
   {
     category: "Technology",
     patterns: [
-      /\b(technology|software|hardware|network|device|devices|computer|digital|chromebook|broadband|fiber|infrastructure)\b/i,
+      /\b(technology|software|hardware|network|device|devices|computer|digital|chromebooks?|broadband|fiber|infrastructure|licenses?|subscription)\b/i,
     ],
   },
   {
     category: "Legal & Compliance",
     patterns: [
-      /\b(legal|litigation|compliance|act\s+\d{4}-\d+|code\s+of\s+alabama|statute|policy\s+compliance|opioid|settlement|claim|indemnification|liability|releases?|letter\s+of\s+engagement|ratification\s+of\s+engagement)\b/i,
+      /\b(legal|litigation|compliance|act\s+\d{4}-\d+|code\s+of\s+alabama|statute|policy\s+compliance|opioid|settlement|claim|indemnification|liability|releases?|letter\s+of\s+engagement|ratification\s+of\s+engagement|attorn(?:ey|eys))\b/i,
     ],
   },
   {
     category: "Athletics & Extracurricular",
     patterns: [
-      /\b(athletic|athletics|extracurricular|sport|coach|stadium|field\s+trip|activity\s+fee|band|choral|drama)\b/i,
+      /\b(athletic|athletics|extracurricular|sport|coach|stadium|field\s+trip|activity\s+fee|band|choral|chorus|drama|theatre|theater)\b/i,
     ],
   },
   {
     category: "Grants & Federal Programs",
     patterns: [
-      /\b(grant|federal\s+program|title\s+[ivxlcdm]+\b|esser|arpa|idea|perkins|essa|federal\s+funds?|memorandum\s+of\s+understanding|economic\s+development|workforce\s+development)\b/i,
+      /\b(grant|federal\s+program|title\s+[ivxlcdm]+\b|esser|arpa|idea|perkins|essa|federal\s+funds?|memorandum\s+of\s+understanding|economic\s+development|workforce\s+development|lea\s+plan|alabama\s+works)\b/i,
     ],
   },
   {
     category: "Routine Administration",
     patterns: [
-      /\b(operations|administration|superintendent|approval\s+of\s+minutes|school\s+calendar|items?\s+of\s+business|work\s+session|dissemination|organizational\s+chart|board\s+members'\s+monthly\s+compensation|amendments?\s+to\s+the\s+agenda|delegations?|board\s+view|aasb|state\s+convention|membership\s+renewal)\b/i,
+      /\b(operations|administration|superintendent|approval\s+of\s+minutes|school\s+calendar|items?\s+of\s+business|work\s+session|dissemination|organizational\s+chart|board\s+members'\s+monthly\s+compensation|amendments?\s+to\s+the\s+agenda|delegations?|board\s+view|aasb|convention|delegate\s+assembly|membership\s+renewal)\b/i,
       // Date-formatted approval-of-minutes items: "February 22, 2024 (Regular)"
       /^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d+,?\s+\d{4}/i,
     ],
