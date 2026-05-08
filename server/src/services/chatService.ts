@@ -333,7 +333,7 @@ Approved facts:
 // OpenRouter helpers
 // ---------------------------------------------------------------------------
 
-const callOpenRouter = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> => {
+const postToOpenRouter = async (messages: Array<{ role: string; content: string }>, maxTokens = 220): Promise<string | null> => {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
@@ -346,25 +346,13 @@ const callOpenRouter = async (question: string, approvedAnswer: string, context:
         "HTTP-Referer": "https://boardvotes.io",
         "X-Title": "BoardVotes.io",
       },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [
-          { role: "system", content: buildApprovedContextPrompt(context) },
-          {
-            role: "user",
-            content: `Visitor question: ${question}\n\nApproved answer to preserve exactly in meaning and scope: ${approvedAnswer}\n\nReturn one short visitor-facing answer. Do not add facts, names, counts, reasons, or claims beyond the approved answer.`,
-          },
-        ],
-        max_completion_tokens: 220,
-        temperature: 0,
-      }),
+      body: JSON.stringify({ model: OPENROUTER_MODEL, messages, max_completion_tokens: maxTokens, temperature: 0 }),
     });
 
     if (!response.ok) return null;
     const payload = await response.json() as {
       choices?: Array<{ message?: { content?: string | Array<{ text?: string; type?: string }> } }>;
     };
-
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content === "string") return content;
     for (const item of content ?? []) {
@@ -375,6 +363,21 @@ const callOpenRouter = async (question: string, approvedAnswer: string, context:
   }
   return null;
 };
+
+const callOpenRouter = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> =>
+  postToOpenRouter([
+    { role: "system", content: buildApprovedContextPrompt(context) },
+    {
+      role: "user",
+      content: `Visitor question: ${question}\n\nApproved answer to preserve exactly in meaning and scope: ${approvedAnswer}\n\nReturn one short visitor-facing answer. Do not add facts, names, counts, reasons, or claims beyond the approved answer.`,
+    },
+  ]);
+
+const callOpenRouterFreeform = async (question: string, context: ChatContext): Promise<string | null> =>
+  postToOpenRouter([
+    { role: "system", content: buildApprovedContextPrompt(context) },
+    { role: "user", content: question },
+  ]);
 
 // ---------------------------------------------------------------------------
 // Intent classification via gpt-4o-mini
@@ -619,7 +622,7 @@ export const answerBoardVotesQuestion = async ({
     return deterministic;
   }
 
-  // 2. If model is available, try to classify intent and run a data query
+  // 2. If model is available, classify intent and attempt a data query or freeform answer
   if (useModel) {
     const intent = await classifyIntent(trimmedQuestion);
 
@@ -635,12 +638,27 @@ export const answerBoardVotesQuestion = async ({
         };
       }
     }
+
+    // Intent was faq or data query returned nothing — try freeform from site context
+    const freeformAnswer = await callOpenRouterFreeform(trimmedQuestion, context);
+    if (freeformAnswer) {
+      const answer = sanitizeChatAnswer(freeformAnswer);
+      if (answer !== FALLBACK_ANSWER) {
+        return {
+          answer,
+          citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }],
+          suggestions,
+          scope: "answered",
+          modelUsed: "gpt-4o-mini",
+        };
+      }
+    }
   }
 
-  // 3. Fallback
+  // 3. Hard fallback
   return {
-    answer: `${FALLBACK_ANSWER} Try the Votes page and filter/search the recorded vote items.`,
-    citations: [{ label: "Votes", path: "/votes" }],
+    answer: "I couldn't find a specific answer for that. Try the Votes page to search vote items, or the Members page for board member statistics.",
+    citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }],
     suggestions,
     scope: "fallback",
     modelUsed: useModel && !process.env.OPENROUTER_API_KEY ? "setup-required" : "approved-faq",
