@@ -213,7 +213,7 @@ const faqAnswer = (question: string, context: ChatContext, previousQuestion = ""
     );
   }
 
-  if (/\b(find a board member|find member|board member|members page)\b/.test(q)) {
+  if (/\b(find a board member|find member|members page|how do i find.*member|where.*member.*page)\b/.test(q)) {
     return baseResponse(
       "Use the Members page to browse canonical public board member statistics. Member detail pages show extracted vote totals, dissent counts, and sourced profile details where available.",
       "answered",
