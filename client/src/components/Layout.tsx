@@ -1,13 +1,13 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
 import { BoardVotesChat } from "./BoardVotesChat";
 
 type LayoutProps = {
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 const navItems = [
-  { to: "/", label: "Dashboard" },
+  { to: "/dashboard", label: "Dashboard" },
   { to: "/votes", label: "Votes" },
   { to: "/members", label: "Members" },
   { to: "/meetings", label: "Meetings" },
@@ -46,7 +46,7 @@ export const Layout = ({ children }: LayoutProps) => {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl w-full px-6 py-8 flex-1">{children}</main>
+      <main className="mx-auto max-w-7xl w-full px-6 py-8 flex-1">{children ?? <Outlet />}</main>
       <footer className="bg-slate-900 text-slate-400 mt-auto">
         <div className="mx-auto max-w-7xl px-6 py-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs">

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { Landing } from "./pages/Landing";
 import { Dashboard } from "./pages/Dashboard";
 import { Votes } from "./pages/Votes";
 import { VoteDetail } from "./pages/VoteDetail";
@@ -9,12 +10,14 @@ import { Meetings } from "./pages/Meetings";
 import { MeetingDetail } from "./pages/MeetingDetail";
 import { Alliances } from "./pages/Alliances";
 import { Admin } from "./pages/Admin";
+
 function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/votes" element={<Votes />} />
           <Route path="/votes/:id" element={<VoteDetail />} />
           <Route path="/members" element={<Members />} />
@@ -23,8 +26,8 @@ function App() {
           <Route path="/meetings/:id" element={<MeetingDetail />} />
           <Route path="/alliances" element={<Alliances />} />
           <Route path="/admin" element={<Admin />} />
-        </Routes>
-      </Layout>
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 }
