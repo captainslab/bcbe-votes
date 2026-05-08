@@ -12,6 +12,8 @@ const navItems = [
   { to: "/members", label: "Members" },
   { to: "/meetings", label: "Meetings" },
   { to: "/alliances", label: "Alliances" },
+  { to: "/motions", label: "Motions" },
+  { to: "/property", label: "Property" },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {

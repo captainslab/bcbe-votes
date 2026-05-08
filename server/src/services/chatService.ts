@@ -1,4 +1,13 @@
 import { getCategoryStats, getSummaryStats } from "./analyticsService";
+import {
+  canonicalBoardMembers,
+  getCategoryCount,
+  getMemberCategoryBreakdown,
+  getMemberVoteStats,
+  getPersonnelActions,
+  getPropertyTransactions,
+  getRecentNonUnanimousVotes,
+} from "./dataService";
 
 export type ChatContext = {
   totalMeetings: number;
@@ -18,7 +27,7 @@ export type ChatResponse = {
   citations: ChatCitation[];
   suggestions: string[];
   scope: "answered" | "refused" | "fallback";
-  modelUsed: "approved-faq" | "gpt-5-nano" | "setup-required";
+  modelUsed: "approved-faq" | "gpt-4o-mini" | "setup-required";
 };
 
 type AnswerInput = {
@@ -34,12 +43,22 @@ type RateLimitBucket = {
   count: number;
 };
 
-const FALLBACK_ANSWER = "I don’t know from BoardVotes.io data.";
+// Intent classification types
+type DataQueryIntent =
+  | { type: "member_vote_stats"; memberName: string }
+  | { type: "member_category_breakdown"; memberName: string }
+  | { type: "recent_non_unanimous"; limit: number }
+  | { type: "category_count"; category: string }
+  | { type: "property_transactions"; actionType?: string }
+  | { type: "personnel_actions"; actionType?: string }
+  | { type: "faq" };
+
+const FALLBACK_ANSWER = "I don't know from BoardVotes.io data.";
 const MOTIVE_ANSWER = "BoardVotes.io records vote outcomes, but it does not provide reasons unless the public source states them.";
 const MAX_QUESTION_LENGTH = 500;
 const CHAT_RATE_LIMIT_WINDOW_MS = 60_000;
 const CHAT_RATE_LIMIT_MAX = 12;
-const OPENROUTER_MODEL = "openai/gpt-5-nano";
+const OPENROUTER_MODEL = "openai/gpt-4o-mini";
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 const suggestions = [
@@ -310,6 +329,10 @@ Approved facts:
 - Use the Category filter on the Votes page or the Voting Alignment page to browse by topic.${context.topCategory ? `\n- Most common category by extracted vote count: ${context.topCategory}.` : ""}
 - Correction reports should include meeting date, item title, what looks wrong, and source context when available.`;
 
+// ---------------------------------------------------------------------------
+// OpenRouter helpers
+// ---------------------------------------------------------------------------
+
 const callOpenRouter = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> => {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -333,7 +356,7 @@ const callOpenRouter = async (question: string, approvedAnswer: string, context:
           },
         ],
         max_completion_tokens: 220,
-        reasoning: { effort: "minimal" },
+        temperature: 0,
       }),
     });
 
@@ -353,6 +376,214 @@ const callOpenRouter = async (question: string, approvedAnswer: string, context:
   return null;
 };
 
+// ---------------------------------------------------------------------------
+// Intent classification via gpt-4o-mini
+// ---------------------------------------------------------------------------
+
+const INTENT_SYSTEM_PROMPT = `You are an intent classifier for BoardVotes.io, a school board vote tracking site.
+Classify the user question into one of these intents. Return JSON only — no markdown.
+
+Intents:
+- member_vote_stats: question about a specific board member's vote counts (yes/no/abstain totals, dissent rate)
+- member_category_breakdown: question about which categories a specific member votes no/abstain on
+- recent_non_unanimous: question about recent split votes, disagreements, or non-unanimous votes
+- category_count: question about how many votes are in a category (personnel, budget, contracts, etc.)
+- property_transactions: question about property purchases, sales, leases, or real estate actions
+- personnel_actions: question about hiring, retirements, appointments, resignations
+- faq: anything else (site navigation, definitions, general questions)
+
+Board members: ${canonicalBoardMembers.join(", ")}
+
+Return exactly this JSON shape:
+{
+  "type": "<intent>",
+  "memberName": "<canonical name or null>",
+  "category": "<category string or null>",
+  "actionType": "<action type string or null>",
+  "limit": <number or null>
+}`;
+
+const classifyIntent = async (question: string): Promise<DataQueryIntent> => {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return { type: "faq" };
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://boardvotes.io",
+        "X-Title": "BoardVotes.io",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: INTENT_SYSTEM_PROMPT },
+          { role: "user", content: question },
+        ],
+        max_completion_tokens: 120,
+        temperature: 0,
+      }),
+    });
+
+    if (!response.ok) return { type: "faq" };
+
+    const payload = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const raw = payload.choices?.[0]?.message?.content ?? "";
+    const trimmed = raw.trim().replace(/^```(?:json)?|```$/g, "").trim();
+    const parsed = JSON.parse(trimmed) as {
+      type: string;
+      memberName?: string | null;
+      category?: string | null;
+      actionType?: string | null;
+      limit?: number | null;
+    };
+
+    const t = parsed.type;
+
+    if (t === "member_vote_stats" && parsed.memberName) {
+      return { type: "member_vote_stats", memberName: parsed.memberName };
+    }
+    if (t === "member_category_breakdown" && parsed.memberName) {
+      return { type: "member_category_breakdown", memberName: parsed.memberName };
+    }
+    if (t === "recent_non_unanimous") {
+      return { type: "recent_non_unanimous", limit: parsed.limit ?? 8 };
+    }
+    if (t === "category_count" && parsed.category) {
+      return { type: "category_count", category: parsed.category };
+    }
+    if (t === "property_transactions") {
+      return { type: "property_transactions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
+    }
+    if (t === "personnel_actions") {
+      return { type: "personnel_actions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
+    }
+  } catch {
+    // fall through to faq
+  }
+
+  return { type: "faq" };
+};
+
+// ---------------------------------------------------------------------------
+// Data answer generation
+// ---------------------------------------------------------------------------
+
+const DATA_ANALYST_SYSTEM_PROMPT = `You are the BoardVotes.io data assistant. Answer strictly from the query results provided.
+Rules:
+- Present numbers accurately from the data.
+- Keep answers concise — 1 to 3 sentences maximum.
+- Add appropriate caveats: note that data comes from extracted records and may not be complete.
+- Never invent member names, vote counts, or outcomes not present in the data.
+- Never speculate about motives, endorsements, or political advice.
+- Do not use honorific title prefixes (Mr., Mrs., Ms., Dr.).
+- If the data is empty, say you found no matching records in the extracted data.`;
+
+const generateDataAnswer = async (question: string, queryResults: unknown): Promise<string | null> => {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  const resultsJson = JSON.stringify(queryResults, null, 2).slice(0, 3000);
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://boardvotes.io",
+        "X-Title": "BoardVotes.io",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: DATA_ANALYST_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Question: ${question}\n\nQuery results:\n${resultsJson}\n\nAnswer the question based only on these results.`,
+          },
+        ],
+        max_completion_tokens: 300,
+        temperature: 0,
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const payload = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    return payload.choices?.[0]?.message?.content ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Data query dispatcher
+// ---------------------------------------------------------------------------
+
+type DataAnswerResult = {
+  answer: string;
+  citations: ChatCitation[];
+};
+
+const answerDataQuestion = async (question: string, intent: DataQueryIntent): Promise<DataAnswerResult | null> => {
+  if (intent.type === "faq") return null;
+
+  let queryResults: unknown = null;
+  let citations: ChatCitation[] = [{ label: "Votes", path: "/votes" }];
+
+  switch (intent.type) {
+    case "member_vote_stats": {
+      queryResults = await getMemberVoteStats(intent.memberName);
+      citations = [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }];
+      break;
+    }
+    case "member_category_breakdown": {
+      queryResults = await getMemberCategoryBreakdown(intent.memberName);
+      citations = [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }];
+      break;
+    }
+    case "recent_non_unanimous": {
+      queryResults = await getRecentNonUnanimousVotes(intent.limit);
+      citations = [{ label: "Votes", path: "/votes" }];
+      break;
+    }
+    case "category_count": {
+      queryResults = await getCategoryCount(intent.category);
+      citations = [{ label: "Votes", path: "/votes" }];
+      break;
+    }
+    case "property_transactions": {
+      queryResults = await getPropertyTransactions(intent.actionType);
+      citations = [{ label: "Votes", path: "/votes" }, { label: "Meetings", path: "/meetings" }];
+      break;
+    }
+    case "personnel_actions": {
+      queryResults = await getPersonnelActions(intent.actionType);
+      citations = [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }];
+      break;
+    }
+  }
+
+  const rawAnswer = await generateDataAnswer(question, queryResults);
+  if (!rawAnswer) return null;
+
+  const answer = sanitizeChatAnswer(rawAnswer);
+  if (answer === FALLBACK_ANSWER) return null;
+
+  return { answer, citations };
+};
+
+// ---------------------------------------------------------------------------
+// Main entry point
+// ---------------------------------------------------------------------------
+
 export const answerBoardVotesQuestion = async ({
   question,
   context,
@@ -369,6 +600,7 @@ export const answerBoardVotesQuestion = async ({
     return baseResponse("Please ask a shorter question about BoardVotes.io.", "refused");
   }
 
+  // 1. Deterministic FAQ check (always runs first, no LLM cost)
   const deterministic = faqAnswer(trimmedQuestion, context, previousQuestion, previousAssistantAnswer);
   if (deterministic) {
     if (useModel && deterministic.scope === "answered") {
@@ -379,7 +611,7 @@ export const answerBoardVotesQuestion = async ({
           return {
             ...deterministic,
             answer,
-            modelUsed: "gpt-5-nano",
+            modelUsed: "gpt-4o-mini",
           };
         }
       }
@@ -387,6 +619,25 @@ export const answerBoardVotesQuestion = async ({
     return deterministic;
   }
 
+  // 2. If model is available, try to classify intent and run a data query
+  if (useModel) {
+    const intent = await classifyIntent(trimmedQuestion);
+
+    if (intent.type !== "faq") {
+      const dataResult = await answerDataQuestion(trimmedQuestion, intent);
+      if (dataResult) {
+        return {
+          answer: dataResult.answer,
+          citations: dataResult.citations,
+          suggestions,
+          scope: "answered",
+          modelUsed: "gpt-4o-mini",
+        };
+      }
+    }
+  }
+
+  // 3. Fallback
   return {
     answer: `${FALLBACK_ANSWER} Try the Votes page and filter/search the recorded vote items.`,
     citations: [{ label: "Votes", path: "/votes" }],

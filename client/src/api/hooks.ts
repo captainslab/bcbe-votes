@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
+import type { CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, MotionsItem, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
 
 export const useSummary = () =>
   useQuery({
@@ -94,6 +94,15 @@ export const useMemberAlignment = (id?: string | number) =>
     enabled: Boolean(id),
     queryFn: async () => {
       const res = await api.get<PairwiseAlignment[]>(`/members/${id}/alignment`);
+      return res.data;
+    },
+  });
+
+export const useMotions = () =>
+  useQuery({
+    queryKey: ["motions"],
+    queryFn: async () => {
+      const res = await api.get<MotionsItem[]>("/motions");
       return res.data;
     },
   });

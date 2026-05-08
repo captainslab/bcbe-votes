@@ -3,10 +3,12 @@ import { db, schema } from "../db";
 import {
   buildMemberNoVoteItems,
   buildSourceAuditInfo,
+  canonicalBoardMembers,
   categorizeVoteItemText,
   getCanonicalBoardMemberName,
   getNeutralPublicPersonName,
   sanitizePublicVoteDisplayText,
+  type CanonicalBoardMemberName,
 } from "../utils/boardVotes";
 import { getSourcedMemberProfile } from "../utils/memberProfiles";
 import { normalizeWhitespace } from "../utils/text";
@@ -288,6 +290,49 @@ export const getMemberMotions = async (memberId: number) => {
   };
 };
 
+export const getAllMotions = async () => {
+  const items = await db.query.voteItems.findMany({
+    where: or(
+      isNotNull(schema.voteItems.motionMadeByMemberId),
+      isNotNull(schema.voteItems.motionSecondedByMemberId),
+    ),
+    with: {
+      meeting: true,
+      motionMadeByMember: true,
+      motionSecondedByMember: true,
+    },
+    orderBy: (item, { desc }) => [desc(item.createdAt)],
+  });
+
+  return items.map((item) => {
+    const categoryInfo = categorizeVoteItemText({
+      itemTitle: item.itemTitle,
+      motionText: item.motionText,
+      summaryText: item.summaryText,
+      sourceExcerpt: item.sourceExcerpt,
+    });
+    const sourceInfo = buildSourceAuditInfo(item.meeting?.sourceUrl ?? null);
+
+    return {
+      voteItemId: item.id,
+      meetingDate: item.meeting?.date ? item.meeting.date.toISOString() : null,
+      meetingTitle: item.meeting?.title ?? null,
+      meetingType: item.meeting?.type ?? null,
+      sourceUrl: sourceInfo.sourceUrl,
+      sourceAvailability: sourceInfo.sourceAvailability,
+      itemTitle: sanitizePublicVoteDisplayText(item.itemTitle),
+      motionText: sanitizePublicVoteDisplayText(item.motionText),
+      summaryText: sanitizePublicVoteDisplayText(item.summaryText),
+      isNonUnanimous: item.isNonUnanimous,
+      voteTally: item.voteTally,
+      verificationStatus: item.verificationStatus,
+      category: categoryInfo.category,
+      madeByName: getNeutralPublicPersonName(item.motionMadeByMember?.name ?? null),
+      secondedByName: getNeutralPublicPersonName(item.motionSecondedByMember?.name ?? null),
+    };
+  });
+};
+
 export const searchMemberByNameOrAlias = async (name: string) => {
   const normalized = normalizeWhitespace(name);
   return db
@@ -301,3 +346,346 @@ export const searchMemberByNameOrAlias = async (name: string) => {
     )
     .limit(5);
 };
+
+// ---------------------------------------------------------------------------
+// Chat data query functions
+// ---------------------------------------------------------------------------
+
+export type MemberVoteStats = {
+  name: CanonicalBoardMemberName;
+  yes: number;
+  no: number;
+  abstain: number;
+  recused: number;
+  absent: number;
+  total: number;
+  dissentRate: number;
+};
+
+/**
+ * Returns vote totals and dissent rate for a canonical board member.
+ * Fuzzy-matches the supplied name via the canonical alias map.
+ */
+export const getMemberVoteStats = async (memberName: string): Promise<MemberVoteStats | null> => {
+  const canonical = getCanonicalBoardMemberName(memberName);
+  if (!canonical) return null;
+
+  const members = await db
+    .select({ id: schema.boardMembers.id, name: schema.boardMembers.name })
+    .from(schema.boardMembers);
+
+  // Collect all member IDs that map to this canonical name
+  const matchIds = members
+    .filter((m) => getCanonicalBoardMemberName(m.name) === canonical)
+    .map((m) => m.id);
+
+  if (matchIds.length === 0) return null;
+
+  const rows = await db
+    .select({
+      voteValue: schema.voteRecords.voteValue,
+      isNonUnanimous: schema.voteItems.isNonUnanimous,
+      voteTally: schema.voteItems.voteTally,
+    })
+    .from(schema.voteRecords)
+    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
+    .where(sql`${schema.voteRecords.boardMemberId} = ANY(${sql.raw(`ARRAY[${matchIds.join(",")}]::int[]`)})`);
+
+  const totals: Record<string, number> = { yes: 0, no: 0, abstain: 0, recused: 0, absent: 0 };
+  let dissentCount = 0;
+  let total = 0;
+
+  for (const row of rows) {
+    total += 1;
+    totals[row.voteValue] = (totals[row.voteValue] ?? 0) + 1;
+
+    // Dissent = voted differently from plurality
+    const tally = row.voteTally ?? {};
+    let maxCount = 0;
+    let majorityVote: string | null = null;
+    for (const [v, c] of Object.entries(tally)) {
+      if (c > maxCount) { maxCount = c; majorityVote = v; }
+    }
+    if (majorityVote && row.voteValue !== majorityVote) dissentCount += 1;
+  }
+
+  return {
+    name: canonical,
+    yes: totals.yes ?? 0,
+    no: totals.no ?? 0,
+    abstain: totals.abstain ?? 0,
+    recused: totals.recused ?? 0,
+    absent: totals.absent ?? 0,
+    total,
+    dissentRate: total > 0 ? dissentCount / total : 0,
+  };
+};
+
+export type MemberCategoryBreakdownRow = {
+  category: string;
+  yes: number;
+  no: number;
+  abstain: number;
+  total: number;
+};
+
+/**
+ * Returns per-category vote breakdown for a canonical board member.
+ */
+export const getMemberCategoryBreakdown = async (memberName: string): Promise<MemberCategoryBreakdownRow[]> => {
+  const canonical = getCanonicalBoardMemberName(memberName);
+  if (!canonical) return [];
+
+  const members = await db
+    .select({ id: schema.boardMembers.id, name: schema.boardMembers.name })
+    .from(schema.boardMembers);
+
+  const matchIds = members
+    .filter((m) => getCanonicalBoardMemberName(m.name) === canonical)
+    .map((m) => m.id);
+
+  if (matchIds.length === 0) return [];
+
+  const rows = await db
+    .select({
+      voteValue: schema.voteRecords.voteValue,
+      itemTitle: schema.voteItems.itemTitle,
+      motionText: schema.voteItems.motionText,
+      summaryText: schema.voteItems.summaryText,
+      sourceExcerpt: schema.voteItems.sourceExcerpt,
+    })
+    .from(schema.voteRecords)
+    .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
+    .where(sql`${schema.voteRecords.boardMemberId} = ANY(${sql.raw(`ARRAY[${matchIds.join(",")}]::int[]`)})`);
+
+  const byCategory = new Map<string, { yes: number; no: number; abstain: number; total: number }>();
+
+  for (const row of rows) {
+    const { category } = categorizeVoteItemText({
+      itemTitle: row.itemTitle ?? null,
+      motionText: row.motionText ?? null,
+      summaryText: row.summaryText ?? null,
+      sourceExcerpt: row.sourceExcerpt ?? null,
+    });
+    const entry = byCategory.get(category) ?? { yes: 0, no: 0, abstain: 0, total: 0 };
+    entry.total += 1;
+    if (row.voteValue === "yes") entry.yes += 1;
+    else if (row.voteValue === "no") entry.no += 1;
+    else if (row.voteValue === "abstain") entry.abstain += 1;
+    byCategory.set(category, entry);
+  }
+
+  return Array.from(byCategory.entries())
+    .map(([category, data]) => ({ category, ...data }))
+    .sort((a, b) => b.total - a.total);
+};
+
+export type NonUnanimousVoteSummary = {
+  voteItemId: number;
+  itemTitle: string;
+  meetingDate: string;
+  category: string;
+  tally: Record<string, number>;
+  noVoters: string[];
+};
+
+/**
+ * Returns the most recent non-unanimous vote items with who voted no.
+ */
+export const getRecentNonUnanimousVotes = async (limit = 10): Promise<NonUnanimousVoteSummary[]> => {
+  const items = await db.query.voteItems.findMany({
+    where: eq(schema.voteItems.isNonUnanimous, true),
+    with: {
+      meeting: { columns: { date: true } },
+      voteRecords: {
+        with: { boardMember: { columns: { name: true } } },
+      },
+    },
+    orderBy: (item, { desc: orderDesc }) => [orderDesc(item.createdAt)],
+    limit,
+  });
+
+  return items.map((item) => {
+    const { category } = categorizeVoteItemText({
+      itemTitle: item.itemTitle,
+      motionText: item.motionText,
+      summaryText: item.summaryText,
+      sourceExcerpt: item.sourceExcerpt,
+    });
+    const noVoters = item.voteRecords
+      .filter((r) => r.voteValue === "no" || r.voteValue === "abstain")
+      .map((r) => getNeutralPublicPersonName(r.boardMember?.name ?? null))
+      .filter((n): n is string => n !== null);
+
+    return {
+      voteItemId: item.id,
+      itemTitle: sanitizePublicVoteDisplayText(item.itemTitle),
+      meetingDate: item.meeting?.date ? item.meeting.date.toISOString().slice(0, 10) : "",
+      category,
+      tally: item.voteTally ?? {},
+      noVoters,
+    };
+  });
+};
+
+export type CategoryCountResult = {
+  category: string;
+  total: number;
+  nonUnanimous: number;
+};
+
+/**
+ * Returns the total and non-unanimous vote count for a given category name
+ * (fuzzy-matched against known category labels).
+ */
+export const getCategoryCount = async (categoryQuery: string): Promise<CategoryCountResult | null> => {
+  const items = await db.query.voteItems.findMany({
+    columns: {
+      itemTitle: true,
+      motionText: true,
+      summaryText: true,
+      sourceExcerpt: true,
+      isNonUnanimous: true,
+    },
+  });
+
+  const counts = new Map<string, { total: number; nonUnanimous: number }>();
+
+  for (const item of items) {
+    const { category } = categorizeVoteItemText({
+      itemTitle: item.itemTitle ?? null,
+      motionText: item.motionText ?? null,
+      summaryText: item.summaryText ?? null,
+      sourceExcerpt: item.sourceExcerpt ?? null,
+    });
+    const entry = counts.get(category) ?? { total: 0, nonUnanimous: 0 };
+    entry.total += 1;
+    if (item.isNonUnanimous) entry.nonUnanimous += 1;
+    counts.set(category, entry);
+  }
+
+  const normalized = categoryQuery.toLowerCase().trim();
+  for (const [cat, data] of counts.entries()) {
+    if (cat.toLowerCase().includes(normalized) || normalized.includes(cat.toLowerCase().split(" ")[0] ?? "")) {
+      return { category: cat, ...data };
+    }
+  }
+
+  // Try partial word match
+  const words = normalized.split(/\s+/);
+  for (const [cat, data] of counts.entries()) {
+    const catLower = cat.toLowerCase();
+    if (words.some((w) => w.length >= 4 && catLower.includes(w))) {
+      return { category: cat, ...data };
+    }
+  }
+
+  return null;
+};
+
+export type PropertyTransactionRow = {
+  voteItemId: number;
+  itemTitle: string;
+  meetingDate: string;
+  actionType: string;
+  party: string | null;
+  location: string | null;
+  statedUse: string | null;
+};
+
+/**
+ * Returns property transactions extracted from vote items, optionally filtered by action type.
+ */
+export const getPropertyTransactions = async (actionType?: string): Promise<PropertyTransactionRow[]> => {
+  const items = await db.query.voteItems.findMany({
+    columns: {
+      id: true,
+      itemTitle: true,
+      propertyEntities: true,
+    },
+    with: {
+      meeting: { columns: { date: true } },
+    },
+    where: sql`${schema.voteItems.propertyEntities} IS NOT NULL`,
+    orderBy: (item, { desc: orderDesc }) => [orderDesc(item.createdAt)],
+  });
+
+  const results: PropertyTransactionRow[] = [];
+
+  for (const item of items) {
+    const entities = item.propertyEntities;
+    if (!Array.isArray(entities) || entities.length === 0) continue;
+
+    for (const entity of entities) {
+      if (actionType) {
+        const at = entity.actionType?.toLowerCase() ?? "";
+        if (!at.includes(actionType.toLowerCase())) continue;
+      }
+      results.push({
+        voteItemId: item.id,
+        itemTitle: sanitizePublicVoteDisplayText(item.itemTitle),
+        meetingDate: item.meeting?.date ? item.meeting.date.toISOString().slice(0, 10) : "",
+        actionType: entity.actionType ?? "other",
+        party: entity.partyName ?? null,
+        location: entity.location ?? entity.address ?? null,
+        statedUse: entity.statedUse ?? null,
+      });
+    }
+  }
+
+  return results;
+};
+
+export type PersonnelActionRow = {
+  voteItemId: number;
+  personName: string;
+  actionType: string;
+  position: string | null;
+  school: string | null;
+  meetingDate: string;
+};
+
+/**
+ * Returns personnel actions extracted from vote items, optionally filtered by action type.
+ */
+export const getPersonnelActions = async (actionType?: string): Promise<PersonnelActionRow[]> => {
+  const items = await db.query.voteItems.findMany({
+    columns: {
+      id: true,
+      itemTitle: true,
+      personnelEntities: true,
+    },
+    with: {
+      meeting: { columns: { date: true } },
+    },
+    where: sql`${schema.voteItems.personnelEntities} IS NOT NULL`,
+    orderBy: (item, { desc: orderDesc }) => [orderDesc(item.createdAt)],
+  });
+
+  const results: PersonnelActionRow[] = [];
+
+  for (const item of items) {
+    const entities = item.personnelEntities;
+    if (!Array.isArray(entities) || entities.length === 0) continue;
+
+    for (const entity of entities) {
+      if (actionType) {
+        const at = entity.actionType?.toLowerCase() ?? "";
+        if (!at.includes(actionType.toLowerCase())) continue;
+      }
+      results.push({
+        voteItemId: item.id,
+        personName: entity.personName,
+        actionType: entity.actionType,
+        position: entity.position ?? null,
+        school: entity.schoolOrDepartment ?? null,
+        meetingDate: item.meeting?.date ? item.meeting.date.toISOString().slice(0, 10) : "",
+      });
+    }
+  }
+
+  return results;
+};
+
+// Re-export canonicalBoardMembers so chatService can use it without touching boardVotes directly
+export { canonicalBoardMembers };
