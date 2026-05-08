@@ -123,6 +123,8 @@ export type MemberMotionItem = {
   verificationStatus: string;
   category: string;
   role: "made" | "seconded";
+  personnelEntities?: PersonnelAction[] | null;
+  propertyEntities?: PropertyAction[] | null;
 };
 
 
@@ -146,6 +148,8 @@ export type MemberNoVoteItem = {
   categoryConfidence: string | number | null;
   memberVote: "No";
   overallOutcome: string;
+  personnelEntities?: PersonnelAction[] | null;
+  propertyEntities?: PropertyAction[] | null;
 };
 
 export type AlignmentSharedVote = {

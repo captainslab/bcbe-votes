@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
-import type { MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
+import type { MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, PairwiseAlignment, PersonnelAction, PropertyAction } from "../types";
 
 const memberPortraits: Record<string, string> = {
   "Ken Bradley": "/board-members/ken-bradley.jpg",
@@ -123,6 +123,69 @@ const resolveTitle = (itemTitle?: string | null, motionText?: string | null) => 
   return null;
 };
 
+const actionTypeLabel: Record<PersonnelAction["actionType"], string> = {
+  appointment: "Appointment",
+  resignation: "Resignation",
+  retirement: "Retirement",
+  termination: "Termination",
+  transfer: "Transfer",
+  leave: "Leave",
+  other: "Personnel action",
+};
+
+const PropertyEntityDetail = ({ entities }: { entities: PropertyAction[] }) => (
+  <div className="mt-2 space-y-2">
+    {entities.map((entity, i) => {
+      const locationParts = [entity.address, entity.location].filter(Boolean);
+      const where = locationParts.join(" — ");
+      return (
+        <div key={i} className="rounded border border-slate-200 bg-white px-3 py-2 text-sm">
+          <p className="font-medium text-slate-800 capitalize">{entity.actionType}{entity.partyName ? ` · ${entity.partyName}` : ""}</p>
+          {where && <p className="mt-0.5 text-slate-600">Location: {where}</p>}
+          {entity.statedUse && <p className="mt-0.5 text-slate-600">Proposed use: {entity.statedUse}</p>}
+          {entity.term && <p className="mt-0.5 text-slate-500 text-xs">Term: {entity.term}</p>}
+        </div>
+      );
+    })}
+  </div>
+);
+
+const PersonnelEntityDetail = ({ entities }: { entities: PersonnelAction[] }) => (
+  <div className="mt-2 space-y-1.5">
+    {entities.map((entity, i) => {
+      const detail = [entity.position, entity.schoolOrDepartment].filter(Boolean).join(", ");
+      return (
+        <div key={i} className="rounded border border-slate-200 bg-white px-3 py-2 text-sm">
+          <p className="font-medium text-slate-800">{entity.personName}</p>
+          <p className="mt-0.5 text-slate-600">{actionTypeLabel[entity.actionType] ?? entity.actionType}{detail ? ` — ${detail}` : ""}</p>
+          {entity.replacing && <p className="mt-0.5 text-slate-500 text-xs">Replacing: {entity.replacing}</p>}
+        </div>
+      );
+    })}
+  </div>
+);
+
+const CategoryEntityDetail = ({
+  category,
+  personnelEntities,
+  propertyEntities,
+}: {
+  category: string;
+  personnelEntities?: PersonnelAction[] | null;
+  propertyEntities?: PropertyAction[] | null;
+}) => {
+  const isPersonnel = category === "Personnel";
+  const isProperty = category === "Facilities & Property" || category === "Contracts & Procurement";
+
+  if (isPersonnel && personnelEntities?.length) {
+    return <PersonnelEntityDetail entities={personnelEntities} />;
+  }
+  if (isProperty && propertyEntities?.length) {
+    return <PropertyEntityDetail entities={propertyEntities} />;
+  }
+  return null;
+};
+
 const MotionRow = ({ item }: { item: MemberMotionItem }) => {
   const title = resolveTitle(item.itemTitle, item.motionText) ?? "—";
   const outcome = getOutcomeFromTally(item.voteTally, item.isNonUnanimous);
@@ -161,6 +224,11 @@ const MotionRow = ({ item }: { item: MemberMotionItem }) => {
           {item.isNonUnanimous && <Badge tone="amber">Non-unanimous</Badge>}
         </div>
       </div>
+      <CategoryEntityDetail
+        category={item.category}
+        personnelEntities={item.personnelEntities}
+        propertyEntities={item.propertyEntities}
+      />
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
         {item.sourceUrl ? (
           <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline text-slate-600">
@@ -557,6 +625,11 @@ export const MemberDetail = () => {
                     </div>
                   </div>
 
+                  <CategoryEntityDetail
+                    category={item.category}
+                    personnelEntities={item.personnelEntities}
+                    propertyEntities={item.propertyEntities}
+                  />
                   {description && (
                     <p className="mt-3 text-sm text-slate-700 leading-relaxed">{description}</p>
                   )}

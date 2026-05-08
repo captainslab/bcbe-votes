@@ -235,6 +235,8 @@ export const getMemberNoVoteItems = async (memberId: number) => {
         sourceExcerpt: item.sourceExcerpt,
         category: categoryInfo.category,
         categoryConfidence: categoryInfo.categoryConfidence,
+        personnelEntities: item.personnelEntities ?? null,
+        propertyEntities: item.propertyEntities ?? null,
         voteRecords: item.voteRecords.map((record) => ({
           boardMember: { name: record.boardMember?.name ?? null },
           voteValue: record.voteValue,
@@ -281,6 +283,8 @@ export const getMemberMotions = async (memberId: number) => {
       verificationStatus: item.verificationStatus,
       category: categoryInfo.category,
       role,
+      personnelEntities: item.personnelEntities ?? null,
+      propertyEntities: item.propertyEntities ?? null,
     };
   };
 

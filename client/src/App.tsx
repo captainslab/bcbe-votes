@@ -10,6 +10,7 @@ import { Meetings } from "./pages/Meetings";
 import { MeetingDetail } from "./pages/MeetingDetail";
 import { Alliances } from "./pages/Alliances";
 import { Admin } from "./pages/Admin";
+import { BoardVotesChat } from "./components/BoardVotesChat";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
         </Route>
       </Routes>
+      <BoardVotesChat />
     </BrowserRouter>
   );
 }

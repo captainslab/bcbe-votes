@@ -1,6 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
-import { BoardVotesChat } from "./BoardVotesChat";
 
 type LayoutProps = {
   children?: ReactNode;
@@ -59,7 +58,6 @@ export const Layout = ({ children }: LayoutProps) => {
           </nav>
         </div>
       </footer>
-      <BoardVotesChat />
     </div>
   );
 };

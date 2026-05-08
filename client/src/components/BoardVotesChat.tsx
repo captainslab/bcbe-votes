@@ -100,7 +100,7 @@ export const BoardVotesChat = () => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
+    <div className="fixed bottom-4 right-4 z-[200] sm:bottom-6 sm:right-6">
       {isOpen ? (
         <section
           className="flex max-h-[82vh] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-indigo-900/50 bg-white shadow-2xl sm:w-96"
