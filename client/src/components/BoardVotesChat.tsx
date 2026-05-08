@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 
@@ -51,9 +51,6 @@ export const BoardVotesChat = () => {
       text: "Hey! I know everything on this site — meetings, votes, member patterns, split decisions, property actions, you name it. What do you want to know about the Baldwin County school board?",
     },
   ]);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const latestSuggestions = useMemo(() => starterQuestions, []);
 
   const submitQuestion = async (rawQuestion: string) => {
     const trimmed = rawQuestion.trim();
@@ -161,7 +158,7 @@ export const BoardVotesChat = () => {
 
           <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
             <div className="mb-3 flex flex-wrap gap-2">
-              {latestSuggestions.map((starter) => (
+              {starterQuestions.map((starter) => (
                 <button
                   key={starter}
                   type="button"
@@ -174,7 +171,6 @@ export const BoardVotesChat = () => {
               ))}
             </div>
             <form
-              ref={formRef}
               className="flex gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
