@@ -1,4 +1,4 @@
-import { eq, ilike, or, sql } from "drizzle-orm";
+import { eq, ilike, or, sql, isNotNull } from "drizzle-orm";
 import { db, schema } from "../db";
 import {
   buildMemberNoVoteItems,
@@ -240,6 +240,52 @@ export const getMemberNoVoteItems = async (memberId: number) => {
       };
     }),
   );
+};
+
+export const getMemberMotions = async (memberId: number) => {
+  const made = await db.query.voteItems.findMany({
+    where: eq(schema.voteItems.motionMadeByMemberId, memberId),
+    with: { meeting: true },
+    orderBy: (item, { desc }) => [desc(item.createdAt)],
+  });
+
+  const seconded = await db.query.voteItems.findMany({
+    where: eq(schema.voteItems.motionSecondedByMemberId, memberId),
+    with: { meeting: true },
+    orderBy: (item, { desc }) => [desc(item.createdAt)],
+  });
+
+  const toShape = (item: typeof made[number], role: "made" | "seconded") => {
+    const categoryInfo = categorizeVoteItemText({
+      itemTitle: item.itemTitle,
+      motionText: item.motionText,
+      summaryText: item.summaryText,
+      sourceExcerpt: item.sourceExcerpt,
+    });
+    const sourceInfo = buildSourceAuditInfo(item.meeting?.sourceUrl ?? null);
+    return {
+      voteItemId: item.id,
+      meetingId: item.meetingId,
+      meetingDate: item.meeting?.date ? item.meeting.date.toISOString() : null,
+      meetingTitle: item.meeting?.title ?? null,
+      meetingType: item.meeting?.type ?? null,
+      sourceUrl: sourceInfo.sourceUrl,
+      sourceAvailability: sourceInfo.sourceAvailability,
+      itemTitle: sanitizePublicVoteDisplayText(item.itemTitle),
+      motionText: sanitizePublicVoteDisplayText(item.motionText),
+      summaryText: sanitizePublicVoteDisplayText(item.summaryText),
+      isNonUnanimous: item.isNonUnanimous,
+      voteTally: item.voteTally,
+      verificationStatus: item.verificationStatus,
+      category: categoryInfo.category,
+      role,
+    };
+  };
+
+  return {
+    made: made.map((item) => toShape(item, "made")),
+    seconded: seconded.map((item) => toShape(item, "seconded")),
+  };
 };
 
 export const searchMemberByNameOrAlias = async (name: string) => {

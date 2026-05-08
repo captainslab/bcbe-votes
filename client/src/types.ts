@@ -107,6 +107,24 @@ export type MemberProfile = {
   profileLastReviewedAt: string | null;
 };
 
+export type MemberMotionItem = {
+  voteItemId: number;
+  meetingId: number;
+  meetingDate: string | null;
+  meetingTitle: string | null;
+  meetingType: string | null;
+  sourceUrl: string | null;
+  sourceAvailability: "available" | "unavailable";
+  itemTitle: string | null;
+  motionText: string | null;
+  summaryText: string | null;
+  isNonUnanimous: boolean;
+  voteTally: Record<string, number>;
+  verificationStatus: string;
+  category: string;
+  role: "made" | "seconded";
+};
+
 export type MemberNoVoteItem = {
   voteItemId: number;
   meetingId: number;

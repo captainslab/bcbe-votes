@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
-import type { MemberCategoryStat, MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
+import type { MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, PairwiseAlignment } from "../types";
 
 const memberPortraits: Record<string, string> = {
   "Ken Bradley": "/board-members/ken-bradley.jpg",
@@ -83,6 +83,61 @@ const formatTerm = (profile?: MemberProfile | null) => {
   if (profile.termStart) return `${profile.termStart}`;
   if (profile.termEnd) return `${profile.termEnd}`;
   return null;
+};
+
+const getOutcomeFromTally = (tally: Record<string, number>, isNonUnanimous: boolean) => {
+  const yes = tally.yes ?? 0;
+  const no = tally.no ?? 0;
+  const abstain = tally.abstain ?? 0;
+  const total = yes + no + abstain;
+  if (total === 0) return "—";
+  const verb = yes > no ? "Carried" : "Failed";
+  if (!isNonUnanimous) return `${verb} (unanimous)`;
+  return abstain > 0 ? `${verb} (${yes}–${no}, ${abstain} abstained)` : `${verb} (${yes}–${no})`;
+};
+
+const MotionRow = ({ item }: { item: MemberMotionItem }) => {
+  const title = item.itemTitle && item.itemTitle !== "Needs review"
+    ? item.itemTitle
+    : item.motionText && item.motionText !== "Needs review"
+      ? item.motionText
+      : "Needs review";
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm text-slate-500">{formatDate(item.meetingDate)} · {item.meetingType || "Needs review"}</p>
+          <p className="text-base font-semibold text-slate-900 leading-snug">{title}</p>
+          <p className="text-sm text-slate-700">
+            Outcome: {getOutcomeFromTally(item.voteTally, item.isNonUnanimous)}
+          </p>
+          <p className="text-sm text-slate-600">Category: {item.category || "Needs review"}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
+            {item.category || "Needs review"}
+          </Badge>
+          <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
+            {item.verificationStatus === "verified" ? "Verified" : "Needs review"}
+          </Badge>
+          {item.isNonUnanimous && <Badge tone="amber">Non-unanimous</Badge>}
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+        {item.sourceUrl ? (
+          <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline text-slate-600">
+            View official meeting record
+          </a>
+        ) : (
+          <span>Source unavailable</span>
+        )}
+        <Link to={`/votes/${item.voteItemId}`} className="font-semibold text-slate-700 underline">
+          View vote detail
+        </Link>
+      </div>
+    </div>
+  );
 };
 
 const renderAuditLine = (item: MemberNoVoteItem) => (
@@ -312,6 +367,41 @@ export const MemberDetail = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {((data.motions?.made.length ?? 0) > 0 || (data.motions?.seconded.length ?? 0) > 0) && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Motions proposed and seconded</h2>
+          <p className="text-sm text-slate-500">
+            Vote items where this member made or seconded the motion, from the extracted dataset.
+          </p>
+
+          {(data.motions?.made.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-3">
+                Motions made ({data.motions!.made.length})
+              </h3>
+              <div className="space-y-3">
+                {data.motions!.made.map((item) => (
+                  <MotionRow key={item.voteItemId} item={item} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(data.motions?.seconded.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 mb-3">
+                Motions seconded ({data.motions!.seconded.length})
+              </h3>
+              <div className="space-y-3">
+                {data.motions!.seconded.map((item) => (
+                  <MotionRow key={item.voteItemId} item={item} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
