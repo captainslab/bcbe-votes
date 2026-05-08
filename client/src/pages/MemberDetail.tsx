@@ -114,27 +114,34 @@ const buildMotionCategoryRows = (made: MemberMotionItem[], seconded: MemberMotio
     .sort(([, a], [, b]) => (b.made + b.seconded) - (a.made + a.seconded));
 };
 
+const PLACEHOLDER = "Needs review";
+const isPlaceholder = (v?: string | null) => !v || v === PLACEHOLDER;
+
+const resolveTitle = (itemTitle?: string | null, motionText?: string | null) => {
+  if (!isPlaceholder(itemTitle)) return itemTitle!;
+  if (!isPlaceholder(motionText)) return motionText!;
+  return null;
+};
+
 const MotionRow = ({ item }: { item: MemberMotionItem }) => {
-  const title = item.itemTitle && item.itemTitle !== "Needs review"
-    ? item.itemTitle
-    : item.motionText && item.motionText !== "Needs review"
-      ? item.motionText
-      : "Needs review";
+  const title = resolveTitle(item.itemTitle, item.motionText) ?? "—";
+  const outcome = getOutcomeFromTally(item.voteTally, item.isNonUnanimous);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 min-w-0">
-          <p className="text-sm text-slate-500">{formatDate(item.meetingDate)} · {item.meetingType || "Needs review"}</p>
-          <p className="text-base font-semibold text-slate-900 leading-snug">{title}</p>
-          <p className="text-sm text-slate-700">
-            Outcome: {getOutcomeFromTally(item.voteTally, item.isNonUnanimous)}
+          <p className="text-sm text-slate-500">
+            {formatDate(item.meetingDate)} · {item.meetingType || "—"}
           </p>
-          <p className="text-sm text-slate-600">Category: {item.category || "Needs review"}</p>
+          <p className="text-base font-semibold text-slate-900 leading-snug">{title}</p>
+          {outcome !== "—" && (
+            <p className="text-sm text-slate-700">Outcome: {outcome}</p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
-            {item.category || "Needs review"}
+            {item.category || "—"}
           </Badge>
           <Badge
             tone={
@@ -157,7 +164,7 @@ const MotionRow = ({ item }: { item: MemberMotionItem }) => {
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
         {item.sourceUrl ? (
           <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline text-slate-600">
-            View official meeting record
+            View official record
           </a>
         ) : (
           <span>Source unavailable</span>
@@ -170,19 +177,6 @@ const MotionRow = ({ item }: { item: MemberMotionItem }) => {
   );
 };
 
-const renderAuditLine = (item: MemberNoVoteItem) => (
-  <div className="mt-3 space-y-1 text-xs text-slate-500">
-    <p>Meeting date: {formatDate(item.meetingDate)}</p>
-    <p>Meeting type: {item.meetingType || "Needs review"}</p>
-    <p>Meeting ID: {item.meetingId}</p>
-    <p>Verification status: {item.verificationStatus || "needs_review"}</p>
-    <p>Confidence score: {item.confidenceScore ?? "Needs review"}</p>
-    <p>Category confidence: {item.categoryConfidence ?? "Needs review"}</p>
-    <p className="break-all">
-      Source: {item.sourceAvailability === "available" ? item.sourceLabel : "Source unavailable"}
-    </p>
-  </div>
-);
 
 const PairwiseSection = ({
   memberId,
@@ -513,68 +507,83 @@ export const MemberDetail = () => {
               No recorded no votes in the currently extracted dataset.
             </div>
           ) : (
-            noVoteItems.map((item) => (
-              <div key={item.voteItemId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm text-slate-500">{formatDate(item.meetingDate)} · {item.meetingType || "Needs review"}</p>
-                    <p className="text-sm text-slate-600">Meeting: {item.meetingTitle || "Needs review"}</p>
-                    <p className="text-lg font-semibold text-slate-900">
-                      {item.itemTitle !== "Needs review"
-                        ? item.itemTitle
-                        : item.motionText && item.motionText !== "Needs review"
-                          ? item.motionText
-                          : "Needs review"}
-                    </p>
-                    <p className="text-sm text-slate-700">Member vote: {item.memberVote}</p>
-                    <p className="text-sm text-slate-700">Category: {item.category || "Needs review"}</p>
-                    <p className="text-sm text-slate-700">Outcome: {item.overallOutcome || "Needs review"}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
-                      {item.category || "Needs review"}
-                    </Badge>
-                    <Badge
-                      tone={
-                        item.verificationStatus === "verified"
-                          ? "emerald"
+            noVoteItems.map((item) => {
+              const title = resolveTitle(item.itemTitle, item.motionText);
+              // Show description only once: prefer summaryText, fall back to motionText if different
+              const description = !isPlaceholder(item.summaryText) ? item.summaryText : null;
+              const showMotion =
+                !isPlaceholder(item.motionText) &&
+                item.motionText !== item.summaryText &&
+                item.motionText !== item.itemTitle;
+              const outcome = isPlaceholder(item.overallOutcome) ? "—" : item.overallOutcome!;
+
+              return (
+                <div key={item.voteItemId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-sm text-slate-500">
+                        {formatDate(item.meetingDate)} · {item.meetingType || "—"}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-900 leading-snug">
+                        {title ?? "—"}
+                      </p>
+                      <p className="text-sm text-slate-700">
+                        Voted <span className="font-semibold">{item.memberVote}</span>
+                        {outcome !== "—" && <> · Outcome: {outcome}</>}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
+                        {item.category || "—"}
+                      </Badge>
+                      <Badge
+                        tone={
+                          item.verificationStatus === "verified"
+                            ? "emerald"
+                            : item.verificationStatus === "unverified"
+                              ? "slate"
+                              : "amber"
+                        }
+                      >
+                        {item.verificationStatus === "verified"
+                          ? "Verified"
                           : item.verificationStatus === "unverified"
-                            ? "slate"
-                            : "amber"
-                      }
-                    >
-                      {item.verificationStatus === "verified"
-                        ? "Verified"
-                        : item.verificationStatus === "unverified"
-                          ? "Agenda sourced"
-                          : "Pending review"}
-                    </Badge>
-                    <Badge tone={item.sourceAvailability === "available" ? "emerald" : "amber"}>
-                      {item.sourceAvailability === "available" ? "Source linked" : "Source unavailable"}
-                    </Badge>
+                            ? "Agenda sourced"
+                            : "Pending review"}
+                      </Badge>
+                      <Badge tone={item.sourceAvailability === "available" ? "emerald" : "amber"}>
+                        {item.sourceAvailability === "available" ? "Source linked" : "Source unavailable"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {description && (
+                    <p className="mt-3 text-sm text-slate-700 leading-relaxed">{description}</p>
+                  )}
+                  {showMotion && (
+                    <p className="mt-2 text-sm text-slate-600 italic">{item.motionText}</p>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                    {item.sourceUrl ? (
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline text-slate-600"
+                      >
+                        View official record
+                      </a>
+                    ) : (
+                      <span>Source unavailable</span>
+                    )}
+                    <Link to={`/votes/${item.voteItemId}`} className="font-semibold text-slate-700 underline">
+                      View vote detail
+                    </Link>
                   </div>
                 </div>
-
-                {item.summaryText && <p className="mt-3 text-sm text-slate-700">{item.summaryText}</p>}
-                {item.motionText && <p className="mt-2 text-sm text-slate-700">Motion: {item.motionText}</p>}
-                {item.sourceExcerpt && <p className="mt-2 text-sm text-slate-600">{item.sourceExcerpt}</p>}
-
-                {renderAuditLine(item)}
-
-                {item.sourceUrl ? (
-                  <a
-                    href={item.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-block text-sm font-semibold text-slate-800 underline"
-                  >
-                    Open official Simbli meeting/minutes page
-                  </a>
-                ) : (
-                  <p className="mt-3 text-sm text-slate-500">Source unavailable</p>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
