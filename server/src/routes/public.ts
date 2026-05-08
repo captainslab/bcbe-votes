@@ -9,7 +9,6 @@ import {
   getMember,
   getMemberMotions,
   getMemberNoVoteItems,
-  getAllMotions,
 } from "../services/dataService";
 import {
   getCategoryStats,
@@ -253,14 +252,6 @@ router.get("/alliances", async (_req, res, next) => {
   }
 });
 
-router.get("/motions", async (_req, res, next) => {
-  try {
-    const motions = await getAllMotions();
-    res.json(motions);
-  } catch (err) {
-    next(err);
-  }
-});
 
 router.get(
   "/members/:id/alignment",

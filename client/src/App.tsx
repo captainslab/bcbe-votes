@@ -9,9 +9,6 @@ import { Meetings } from "./pages/Meetings";
 import { MeetingDetail } from "./pages/MeetingDetail";
 import { Alliances } from "./pages/Alliances";
 import { Admin } from "./pages/Admin";
-import { Motions } from "./pages/Motions";
-import { PropertyTransactions } from "./pages/PropertyTransactions";
-
 function App() {
   return (
     <BrowserRouter>
@@ -25,8 +22,6 @@ function App() {
           <Route path="/meetings" element={<Meetings />} />
           <Route path="/meetings/:id" element={<MeetingDetail />} />
           <Route path="/alliances" element={<Alliances />} />
-          <Route path="/motions" element={<Motions />} />
-          <Route path="/property" element={<PropertyTransactions />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </Layout>

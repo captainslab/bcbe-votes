@@ -1,4 +1,4 @@
-import { eq, ilike, or, sql, isNotNull } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
 import { db, schema } from "../db";
 import {
   buildMemberNoVoteItems,
@@ -290,48 +290,6 @@ export const getMemberMotions = async (memberId: number) => {
   };
 };
 
-export const getAllMotions = async () => {
-  const items = await db.query.voteItems.findMany({
-    where: or(
-      isNotNull(schema.voteItems.motionMadeByMemberId),
-      isNotNull(schema.voteItems.motionSecondedByMemberId),
-    ),
-    with: {
-      meeting: true,
-      motionMadeByMember: true,
-      motionSecondedByMember: true,
-    },
-    orderBy: (item, { desc }) => [desc(item.createdAt)],
-  });
-
-  return items.map((item) => {
-    const categoryInfo = categorizeVoteItemText({
-      itemTitle: item.itemTitle,
-      motionText: item.motionText,
-      summaryText: item.summaryText,
-      sourceExcerpt: item.sourceExcerpt,
-    });
-    const sourceInfo = buildSourceAuditInfo(item.meeting?.sourceUrl ?? null);
-
-    return {
-      voteItemId: item.id,
-      meetingDate: item.meeting?.date ? item.meeting.date.toISOString() : null,
-      meetingTitle: item.meeting?.title ?? null,
-      meetingType: item.meeting?.type ?? null,
-      sourceUrl: sourceInfo.sourceUrl,
-      sourceAvailability: sourceInfo.sourceAvailability,
-      itemTitle: sanitizePublicVoteDisplayText(item.itemTitle),
-      motionText: sanitizePublicVoteDisplayText(item.motionText),
-      summaryText: sanitizePublicVoteDisplayText(item.summaryText),
-      isNonUnanimous: item.isNonUnanimous,
-      voteTally: item.voteTally,
-      verificationStatus: item.verificationStatus,
-      category: categoryInfo.category,
-      madeByName: getNeutralPublicPersonName(item.motionMadeByMember?.name ?? null),
-      secondedByName: getNeutralPublicPersonName(item.motionSecondedByMember?.name ?? null),
-    };
-  });
-};
 
 export const searchMemberByNameOrAlias = async (name: string) => {
   const normalized = normalizeWhitespace(name);

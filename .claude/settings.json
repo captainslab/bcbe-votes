@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(firecrawl scrape *)",
+      "Bash(firecrawl search *)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run lint)",
+      "Bash(npm run historical:agenda-item:dry-run)",
+      "Bash(npm run probe:agenda-tree)",
+      "Bash(npm run prove:minutes-votes)",
+      "Bash(systemctl show *)",
+      "Bash(systemctl --user show *)",
+      "Bash(systemctl status *)",
+      "Bash(systemctl --user status *)",
+      "Bash(systemctl is-active *)",
+      "Bash(systemctl --user is-active *)"
+    ]
+  }
+}
