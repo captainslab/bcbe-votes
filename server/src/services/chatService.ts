@@ -50,7 +50,6 @@ type RateLimitBucket = {
   count: number;
 };
 
-// Intent classification types
 type DataQueryIntent =
   | { type: "member_vote_stats"; memberName: string }
   | { type: "member_category_breakdown"; memberName: string }
@@ -66,8 +65,7 @@ type DataQueryIntent =
   | { type: "personnel_actions"; actionType?: string }
   | { type: "faq" };
 
-const FALLBACK_ANSWER = "I don't know from BoardVotes.io data.";
-const MOTIVE_ANSWER = "BoardVotes.io records vote outcomes, but it does not provide reasons unless the public source states them.";
+const FALLBACK_ANSWER = "I don't have that in the BoardVotes.io data.";
 const MAX_QUESTION_LENGTH = 500;
 const CHAT_RATE_LIMIT_WINDOW_MS = 60_000;
 const CHAT_RATE_LIMIT_MAX = 12;
@@ -123,12 +121,16 @@ export const isChatRateLimited = (key: string, now = Date.now()) => {
     rateLimitBuckets.set(key, { windowStart: now, count: 1 });
     return false;
   }
-
   bucket.count += 1;
   return bucket.count > CHAT_RATE_LIMIT_MAX;
 };
 
-const normalizeQuestion = (question: string) => question.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const normalizeQuestion = (question: string) =>
+  question.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 const formatPercent = (value: number) => {
   const percent = value * 100;
@@ -178,7 +180,6 @@ const extractSearchTerm = (question: string) => {
     /\b(?:votes?|items?|records?)\s+(?:about|for|on|related to)\s+(.+)$/i,
     /\b(?:anything|data|information)\s+(?:about|for|on|related to)\s+(.+)$/i,
   ];
-
   for (const pattern of patterns) {
     const match = cleaned.match(pattern);
     const rawTerm = match?.[1]?.trim();
@@ -188,23 +189,150 @@ const extractSearchTerm = (question: string) => {
       .replace(/\s+/g, " ")
       .trim();
     const normalized = normalizeQuestion(term);
-    if (normalized.length >= 3 && !/^(votes?|items?|records?|data|the board|board)$/.test(normalized)) {
-      return term;
-    }
+    if (normalized.length >= 3 && !/^(votes?|items?|records?|data|the board|board)$/.test(normalized)) return term;
+  }
+  return null;
+};
+
+// ---------------------------------------------------------------------------
+// System prompt — used for ALL LLM calls
+// ---------------------------------------------------------------------------
+
+const buildChatSystemPrompt = (context: ChatContext) =>
+  `You are the BoardVotes.io assistant — a knowledgeable, friendly expert on this site and the data it tracks. Talk like a helpful, curious friend who knows the records inside out, not like a FAQ bot or formal analyst.
+
+Tone:
+- Be conversational and natural. No bullet-point dumps — weave numbers and facts into flowing sentences.
+- A little warmth or enthusiasm is fine when something in the data is genuinely interesting.
+- 2–5 sentences is usually right. Don't over-explain.
+- If data is empty or unavailable, just say so and suggest where to look.
+- Handle follow-ups naturally using the conversation history.
+
+Rules — always enforced:
+- Only discuss BoardVotes.io and its public data. For anything outside that scope say "that's outside what I cover."
+- Never speculate about why a member voted a certain way — you can describe what the record shows, not the motive.
+- Never give political endorsements, voter advice, or candidate recommendations.
+- Never reveal database schemas, server internals, API keys, or admin details.
+- Never invent vote counts, names, or outcomes not present in the data provided.
+- Never use honorific prefixes (Mr., Mrs., Ms., Dr.).
+- When query data is provided, base your answer on it. Don't contradict or ignore it.
+
+What you know about the site:
+- BoardVotes.io is an independent public site — not an official government site.
+- Tracks Baldwin County Board of Education meeting and vote records extracted from public Simbli pages.
+- Coverage: extracted records from 2020 through 2026; varies by meeting.
+- Live stats: ${context.totalMeetings} meetings, ${context.totalVotes} vote items, ${context.totalVoteRecords} extracted vote records.${context.topCategory ? ` Most common category by vote count: ${context.topCategory}.` : ""}
+- Pages: Dashboard, Votes (filterable by category, member, outcome, date), Meetings, Members (stats and dissent rates), Voting Alignment (pairwise vote similarity).
+- Vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration, Other/Needs Review.
+- "Verified" = strong source evidence for the displayed vote info. "Needs Review" = not enough confidence — check the source.
+- "Non-unanimous" = at least one recorded vote differed (no vote, abstention, recusal, or absence).
+- Voting Alignment shows how often members voted similarly across records — not proof of coordination or motive.
+- Some vote items have no individual member records because the source only reported the outcome.
+- Board members tracked: ${canonicalBoardMembers.join(", ")}.`;
+
+// ---------------------------------------------------------------------------
+// Hard refusals — checked before any LLM call
+// ---------------------------------------------------------------------------
+
+const checkHardRefusal = (question: string): ChatResponse | null => {
+  const q = normalizeQuestion(question);
+
+  if (/\b(who should i vote for|who to vote for|endorse|recommend.*candidate|voter advice|political advice)\b/.test(q)) {
+    return {
+      answer: "I don't do voter advice or endorsements — I just show what's in the public records on BoardVotes.io. Check the Members or Votes pages to review the record yourself.",
+      citations: [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }],
+      suggestions,
+      scope: "refused",
+      modelUsed: "approved-faq",
+    };
+  }
+
+  if (/\b(why did|reason why|motive|motivation|intent)\b.*\b(vote|voted|voting)\b/.test(q)) {
+    return {
+      answer: "The records show how they voted, but not why. BoardVotes.io doesn't have that — you'd need to check the meeting minutes or contact the board directly.",
+      citations: [{ label: "Meetings", path: "/meetings" }],
+      suggestions,
+      scope: "refused",
+      modelUsed: "approved-faq",
+    };
+  }
+
+  if (/\b(database|db|table|schema|sql|admin|server|environment|api key|secret|internal)\b/.test(q)) {
+    return {
+      answer: "I only work with the public-facing site data — I can't tell you anything about the underlying infrastructure.",
+      citations: [],
+      suggestions,
+      scope: "refused",
+      modelUsed: "approved-faq",
+    };
   }
 
   return null;
 };
 
-const baseResponse = (answer: string, scope: ChatResponse["scope"], citations: ChatCitation[] = []): ChatResponse => ({
-  answer: sanitizeChatAnswer(answer),
-  citations,
-  suggestions,
-  scope,
-  modelUsed: "approved-faq",
-});
+// ---------------------------------------------------------------------------
+// OpenRouter
+// ---------------------------------------------------------------------------
 
-const isVotingAlignmentContext = (value: string) => /\b(voting alignment|alignment|alliances|voted together|voted similarly|voted differently)\b/.test(normalizeQuestion(value));
+const postToOpenRouter = async (
+  messages: Array<{ role: string; content: string }>,
+  maxTokens = 400,
+): Promise<string | null> => {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://boardvotes.io",
+        "X-Title": "BoardVotes.io",
+      },
+      body: JSON.stringify({ model: OPENROUTER_MODEL, messages, max_completion_tokens: maxTokens, temperature: 0.4 }),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as {
+      choices?: Array<{ message?: { content?: string | Array<{ text?: string; type?: string }> } }>;
+    };
+    const content = payload.choices?.[0]?.message?.content;
+    if (typeof content === "string") return content;
+    for (const item of content ?? []) {
+      if (typeof item.text === "string") return item.text;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const generateChatAnswer = async (
+  question: string,
+  queryResults: unknown,
+  context: ChatContext,
+  previousQuestion?: string,
+  previousAssistantAnswer?: string,
+): Promise<string | null> => {
+  const messages: Array<{ role: string; content: string }> = [
+    { role: "system", content: buildChatSystemPrompt(context) },
+  ];
+
+  if (previousQuestion && previousAssistantAnswer) {
+    messages.push({ role: "user", content: previousQuestion });
+    messages.push({ role: "assistant", content: previousAssistantAnswer });
+  }
+
+  const userContent = queryResults
+    ? `Here is relevant data from the site:\n${JSON.stringify(queryResults, null, 2).slice(0, 3000)}\n\nQuestion: ${question}`
+    : question;
+
+  messages.push({ role: "user", content: userContent });
+  return postToOpenRouter(messages, 500);
+};
+
+// ---------------------------------------------------------------------------
+// Intent classification
+// ---------------------------------------------------------------------------
 
 const classifyIntentLocally = (question: string): DataQueryIntent => {
   const q = normalizeQuestion(question);
@@ -213,27 +341,21 @@ const classifyIntentLocally = (question: string): DataQueryIntent => {
   if (/\b(latest|recent|last|newest|most recent)\b.*\bmeetings?\b/.test(q) || /\bwhat happened\b.*\bmeetings?\b/.test(q)) {
     return { type: "recent_meetings", limit: getRequestedLimit(q, 1) };
   }
-
   if (/\b(latest|recent|last|newest|lately)\b.*\b(votes?|items?|actions?)\b/.test(q) || /\bwhat has the board been voting on\b/.test(q)) {
     return { type: "recent_votes", limit };
   }
-
   if (/\b(non unanimous|nonunanimous|not unanimous|split votes?|disagreements?)\b/.test(q) && /\b(show|list|recent|latest|which|what|find)\b/.test(q)) {
     return { type: "recent_non_unanimous", limit };
   }
-
   if (/\b(who|which member|top|highest|most)\b.*\b(dissent|no votes?|abstain|split)\b/.test(q)) {
     return { type: "member_leaderboard", metric: "dissent_rate" };
   }
-
   if (/\b(who|which member|top|highest|most)\b.*\b(yes|approval|majority alignment)\b/.test(q)) {
     return { type: "member_leaderboard", metric: "yes_rate" };
   }
-
   if (/\b(who|which member|top|highest|most)\b.*\b(votes?|participation|records?)\b/.test(q)) {
     return { type: "member_leaderboard", metric: "vote_volume" };
   }
-
   if (
     /\b(top|most|common|dominant|overview|breakdown)\b.*\b(categories|category|topics?|areas)\b/.test(q) ||
     /\bwhat\s+(topics?|categories|areas)\b.*\b(board|votes?|voted)\b/.test(q) ||
@@ -242,11 +364,9 @@ const classifyIntentLocally = (question: string): DataQueryIntent => {
   ) {
     return { type: "category_overview" };
   }
-
   if (/\b(who|which members?)\b.*\b(vote together|align|aligned|similar)\b/.test(q) || /\bmost aligned\b/.test(q)) {
     return { type: "alignment_highlights", direction: "most_aligned" };
   }
-
   if (/\b(who|which members?)\b.*\b(disagree|differ|different|split)\b/.test(q) || /\b(most split|least aligned)\b/.test(q)) {
     return { type: "alignment_highlights", direction: "most_split" };
   }
@@ -263,18 +383,12 @@ const classifyIntentLocally = (question: string): DataQueryIntent => {
   if (category && /\b(how many|count|total|number of)\b/.test(q)) {
     return { type: "category_count", category };
   }
-
   if (/\b(property|real estate|lease|purchase|sale|easement|conveyance|construction|renovation)\b/.test(q)) {
-    const actionType = ["purchase", "sale", "lease", "easement", "conveyance", "construction", "renovation"].find((word) =>
-      q.includes(word),
-    );
+    const actionType = ["purchase", "sale", "lease", "easement", "conveyance", "construction", "renovation"].find((w) => q.includes(w));
     return { type: "property_transactions", ...(actionType ? { actionType } : {}) };
   }
-
   if (/\b(personnel|hiring|hire|resignation|resignations|retirement|retirements|appointments?|termination|transfer|leave)\b/.test(q)) {
-    const actionType = ["appointment", "resignation", "retirement", "termination", "transfer", "leave"].find((word) =>
-      q.includes(word),
-    );
+    const actionType = ["appointment", "resignation", "retirement", "termination", "transfer", "leave"].find((w) => q.includes(w));
     return { type: "personnel_actions", ...(actionType ? { actionType } : {}) };
   }
 
@@ -283,288 +397,6 @@ const classifyIntentLocally = (question: string): DataQueryIntent => {
 
   return { type: "faq" };
 };
-
-const faqAnswer = (question: string, context: ChatContext, previousQuestion = "", previousAssistantAnswer = ""): ChatResponse | null => {
-  const q = normalizeQuestion(question);
-
-  if (/\b(why does that matter|why is that important|why should i care|so what|what does that tell me)\b/.test(q)) {
-    if (isVotingAlignmentContext(previousQuestion) || isVotingAlignmentContext(previousAssistantAnswer)) {
-      return baseResponse(
-        "Voting Alignment matters because it helps visitors decide what to inspect next: which board members often voted similarly or differently across recorded vote items. It is a starting point for reviewing public records, not proof of motives, coordination, or personal alliances.",
-        "answered",
-        [{ label: "Voting Alignment", path: "/alliances" }, { label: "Votes", path: "/votes" }],
-      );
-    }
-  }
-
-  if (/\b(who should i vote for|who to vote for|endorse|recommend a candidate|voter advice|political advice)\b/.test(q)) {
-    return baseResponse(
-      "BoardVotes.io does not provide political endorsements or voter advice. It presents source-traceable meeting and vote data so visitors can review the records themselves.",
-      "refused",
-      [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(why did|reason|motive|motivation|intent)\b/.test(q)) {
-    return baseResponse(MOTIVE_ANSWER, "refused", [{ label: "Votes", path: "/votes" }]);
-  }
-
-  if (/\b(database|db|table|schema|sql|admin|server|environment|api key|secret|internal)\b/.test(q)) {
-    return baseResponse(
-      "BoardVotes.io only exposes public pages and public API data to visitors. Use the Meetings, Votes, Members, and Voting Alignment pages to review public records.",
-      "refused",
-      [
-        { label: "Meetings", path: "/meetings" },
-        { label: "Votes", path: "/votes" },
-        { label: "Members", path: "/members" },
-      ],
-    );
-  }
-
-  if (/\b(what is boardvotes|what is this site|about boardvotes|what does boardvotes do)\b/.test(q)) {
-    return baseResponse(
-      `BoardVotes.io is a public, independent site for browsing source-traceable Baldwin County Board of Education meeting and vote data. It currently shows ${context.totalMeetings} meetings, ${context.totalVotes} vote items, and ${context.totalVoteRecords} extracted vote records where available.`,
-      "answered",
-      [{ label: "Dashboard", path: "/" }, { label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(official|government site|bcbe site|county site)\b/.test(q)) {
-    return baseResponse(
-      "No. BoardVotes.io is not an official government site. It presents source-traceable meeting and vote data and links back to available public source records where possible.",
-      "answered",
-      [{ label: "Meetings", path: "/meetings" }],
-    );
-  }
-
-  if (/\b(years|covered|coverage|date range|how far back)\b/.test(q)) {
-    return baseResponse(
-      "The site includes extracted vote records from 2020 through 2026. Coverage may vary by meeting type and source quality.",
-      "answered",
-      [{ label: "Meetings", path: "/meetings" }],
-    );
-  }
-
-  if (/\b(needs review|need review|review means)\b/.test(q)) {
-    return baseResponse(
-      "Needs Review means the site does not yet have strong enough source evidence or parsing confidence for that displayed item. Treat it as a flag to check the source details before relying on the text.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(verified|verification)\b/.test(q)) {
-    return baseResponse(
-      "Verified means the site has strong source evidence for the displayed vote information. It does not mean every public source is perfect.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(what does|what is|means?|meaning|define|explain)\b.*\b(non unanimous|nonunanimous|not unanimous|split vote)\b/.test(q)) {
-    return baseResponse(
-      "Non-unanimous means at least one recorded vote differed from the others, such as a no vote, abstention, recusal, or absence in the extracted vote records.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(zero individual|no individual|no vote records|no individual records|0 individual)\b/.test(q)) {
-    return baseResponse(
-      "Some vote items have no individual records because the public source may report only the outcome or the extraction may not identify individual member votes. Check the related meeting or vote page for source details and review status.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }, { label: "Meetings", path: "/meetings" }],
-    );
-  }
-
-  if (/\b(find a board member|find member|members page|how do i find.*member|where.*member.*page)\b/.test(q)) {
-    return baseResponse(
-      "Use the Members page to browse canonical public board member statistics. Member detail pages show extracted vote totals, dissent counts, and sourced profile details where available.",
-      "answered",
-      [{ label: "Members", path: "/members" }],
-    );
-  }
-
-  if (/\b(find a vote|find vote|vote page|votes page|search votes)\b/.test(q) && !extractSearchTerm(question)) {
-    return baseResponse(
-      "Use the Votes page to review extracted vote items. Open a vote detail page to see the meeting, source status, category, motion text when available, and individual records when extracted.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (
-    /\b(what does|what is|means?|meaning|define|explain)\b.*\b(voting alignment|alignment|alliances|voted together|voted similarly)\b/.test(q) &&
-    !/\bcategory alignment\b/.test(q)
-  ) {
-    return baseResponse(
-      "Voting Alignment shows how often board members voted similarly or differently across recorded vote items. It is a pattern tool, not proof of motives, coordination, or personal alliances.",
-      "answered",
-      [{ label: "Voting Alignment", path: "/alliances" }],
-    );
-  }
-
-  if (/\b(report a correction|correction|wrong|error|fix|missing link|report)\b/.test(q)) {
-    return baseResponse(
-      "To report a correction, include the meeting date, item title, what looks wrong, and any source link or context you have. If a source link is unavailable, include the meeting date, item title, and missing link details so it can be reviewed.",
-      "answered",
-      [{ label: "Meetings", path: "/meetings" }, { label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(source unavailable|source link|missing source|unavailable source)\b/.test(q)) {
-    return baseResponse(
-      "If a source link is unavailable, check the related meeting or vote page for other source details. You can also report the meeting date, item title, and missing link so it can be reviewed.",
-      "answered",
-      [{ label: "Meetings", path: "/meetings" }, { label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(bias|biased|neutral|trust)\b/.test(q)) {
-    return baseResponse(
-      "BoardVotes.io presents source-traceable meeting and vote data. Visitors should review the source records and decide how to interpret the information.",
-      "answered",
-      [{ label: "Meetings", path: "/meetings" }, { label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(?:list|which|how many)\s+categor(?:y|ies)?\b/.test(q) || /\bwhat\s+categor(?:y|ies)?\s+(?:exist|available|types?|are there)\b/.test(q)) {
-    return baseResponse(
-      "BoardVotes.io uses 15 vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration, and Other / Needs Review. Use the Category filter on the Votes page to browse by topic.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(what does|what is|means?|meaning|define|explain)\b.*\bpersonnel(?:\s+category)?\b/.test(q)) {
-    return baseResponse(
-      "The Personnel category covers vote items about staffing, hiring, appointments, leaves of absence, resignations, retirements, and similar employment matters.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(find contract|contract vote|procurement vote|vendor vote|find procurement|contract category)\b/.test(q)) {
-    return baseResponse(
-      "Use the Votes page and filter by 'Contracts & Procurement' to find extracted vote items about vendor contracts, bids, and procurement decisions.",
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(top category|most votes category|most common category|category has the most|which category|biggest category)\b/.test(q)) {
-    const topCat = context.topCategory;
-    if (!topCat) return baseResponse(FALLBACK_ANSWER, "fallback");
-    const countText = typeof context.topCategoryVotes === "number" ? ` with ${formatCount(context.topCategoryVotes, "vote item")}` : "";
-    return baseResponse(
-      `Based on extracted vote records, ${topCat} is the most common vote-topic category on BoardVotes.io${countText}. Use the Votes page and filter by category to explore vote items in any topic area.`,
-      "answered",
-      [{ label: "Votes", path: "/votes" }],
-    );
-  }
-
-  if (/\b(category alignment|alignment by category|category filter alignment|filter.*alignment|alignment.*category)\b/.test(q)) {
-    return baseResponse(
-      "Category alignment shows vote-pattern similarity within a specific topic area. It is not proof of motive, coordination, or personal alliance. Use the Category filter on the Voting Alignment page to compare how members voted within a topic.",
-      "answered",
-      [{ label: "Voting Alignment", path: "/alliances" }],
-    );
-  }
-
-  return null;
-};
-
-const buildApprovedContextPrompt = (context: ChatContext) => `You are the BoardVotes.io assistant. Answer only from this approved site context.
-Rules:
-- Answer only about BoardVotes.io site navigation, definitions, coverage, and public data limitations.
-- Do not provide political endorsements, voter advice, motive speculation, or unsupported claims.
-- Do not expose database, server, admin, environment, or API-key details.
-- If the answer is unavailable, say exactly: "${FALLBACK_ANSWER}"
-- If asked about motives, say exactly: "${MOTIVE_ANSWER}"
-- Never use title-prefix honorific language.
-Approved facts:
-- BoardVotes.io is an independent public site for browsing source-traceable meeting and vote data.
-- It is not an official government site.
-- Coverage: The site includes extracted vote records from 2020 through 2026. Coverage may vary by meeting type and source quality.
-- Current public counts: ${context.totalMeetings} meetings, ${context.totalVotes} vote items, ${context.totalVoteRecords} extracted vote records.
-- Verified means the site has strong source evidence for displayed vote information. It does not mean every public source is perfect.
-- Needs Review means source evidence or parsing confidence is not strong enough yet.
-- Non-unanimous means at least one recorded vote differed from the others.
-- Some vote items have no individual records because the public source may report only the outcome or extraction may not identify individual votes.
-- Voting Alignment shows how often board members voted similarly or differently across recorded vote items. It is not proof of motives, coordination, or personal alliances.
-- Category alignment shows vote-pattern similarity within a specific topic area. It is not proof of motive, coordination, or personal alliance.
-- Vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration, Other / Needs Review.
-- Use the Category filter on the Votes page or the Voting Alignment page to browse by topic.${context.topCategory ? `\n- Most common category by extracted vote count: ${context.topCategory}.` : ""}
-- Correction reports should include meeting date, item title, what looks wrong, and source context when available.`;
-
-// ---------------------------------------------------------------------------
-// OpenRouter helpers
-// ---------------------------------------------------------------------------
-
-const postToOpenRouter = async (messages: Array<{ role: string; content: string }>, maxTokens = 220): Promise<string | null> => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
-
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://boardvotes.io",
-        "X-Title": "BoardVotes.io",
-      },
-      body: JSON.stringify({ model: OPENROUTER_MODEL, messages, max_completion_tokens: maxTokens, temperature: 0 }),
-    });
-
-    if (!response.ok) return null;
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string | Array<{ text?: string; type?: string }> } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    if (typeof content === "string") return content;
-    for (const item of content ?? []) {
-      if (typeof item.text === "string") return item.text;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
-
-const callOpenRouter = async (question: string, approvedAnswer: string, context: ChatContext): Promise<string | null> =>
-  postToOpenRouter([
-    { role: "system", content: buildApprovedContextPrompt(context) },
-    {
-      role: "user",
-      content: `Visitor question: ${question}\n\nApproved answer to preserve exactly in meaning and scope: ${approvedAnswer}\n\nReturn one short visitor-facing answer. Do not add facts, names, counts, reasons, or claims beyond the approved answer.`,
-    },
-  ]);
-
-const buildFreeformContextPrompt = (context: ChatContext) =>
-  `You are a friendly, knowledgeable assistant for BoardVotes.io — a public site tracking Baldwin County Board of Education votes and meetings. You talk like a helpful expert friend who happens to know all the data on the site.
-Rules:
-- Be conversational and natural, not like a formal report or FAQ bot.
-- Answer based only on what the site covers — don't speculate about motives, endorse candidates, or give political advice.
-- Do not expose database, server, admin, environment, or API-key details.
-- If you don't have the answer from the data available, point the visitor to the most relevant page (Meetings, Votes, Members, Voting Alignment, Motions, or Property) in a natural way.
-- Never use honorific title prefixes (Mr., Mrs., Ms., Dr.).
-Site facts:
-- Independent public site tracking Baldwin County Board of Education meeting and vote data (not an official government site).
-- Coverage: extracted vote records from 2020 through 2026.
-- Current counts: ${context.totalMeetings} meetings, ${context.totalVotes} vote items, ${context.totalVoteRecords} extracted vote records.
-- Pages: Meetings, Votes (with category filter), Members (stats and dissent rates), Voting Alignment (pairwise similarity), Motions, Property.
-- Vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration.${context.topCategory ? `\n- Most common category by vote count: ${context.topCategory}.` : ""}`;
-
-const callOpenRouterFreeform = async (question: string, context: ChatContext): Promise<string | null> =>
-  postToOpenRouter([
-    { role: "system", content: buildFreeformContextPrompt(context) },
-    { role: "user", content: question },
-  ]);
-
-// ---------------------------------------------------------------------------
-// Intent classification via gpt-4o-mini
-// ---------------------------------------------------------------------------
 
 const INTENT_SYSTEM_PROMPT = `You are an intent classifier for BoardVotes.io, a school board vote tracking site.
 Classify the user question into one of these intents. Return JSON only — no markdown.
@@ -601,7 +433,6 @@ Return exactly this JSON shape:
 const classifyIntent = async (question: string): Promise<DataQueryIntent> => {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return { type: "faq" };
-
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -621,149 +452,102 @@ const classifyIntent = async (question: string): Promise<DataQueryIntent> => {
         temperature: 0,
       }),
     });
-
     if (!response.ok) return { type: "faq" };
-
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const raw = payload.choices?.[0]?.message?.content ?? "";
     const trimmed = raw.trim().replace(/^```(?:json)?|```$/g, "").trim();
     const parsed = JSON.parse(trimmed) as {
-      type: string;
-      memberName?: string | null;
-      category?: string | null;
-      metric?: string | null;
-      direction?: string | null;
-      searchTerm?: string | null;
-      actionType?: string | null;
-      limit?: number | null;
+      type: string; memberName?: string | null; category?: string | null;
+      metric?: string | null; direction?: string | null; searchTerm?: string | null;
+      actionType?: string | null; limit?: number | null;
     };
-
     const t = parsed.type;
-
-    if (t === "member_vote_stats" && parsed.memberName) {
-      return { type: "member_vote_stats", memberName: parsed.memberName };
-    }
-    if (t === "member_category_breakdown" && parsed.memberName) {
-      return { type: "member_category_breakdown", memberName: parsed.memberName };
-    }
+    if (t === "member_vote_stats" && parsed.memberName) return { type: "member_vote_stats", memberName: parsed.memberName };
+    if (t === "member_category_breakdown" && parsed.memberName) return { type: "member_category_breakdown", memberName: parsed.memberName };
     if (t === "member_leaderboard") {
       const metric = parsed.metric === "yes_rate" || parsed.metric === "vote_volume" ? parsed.metric : "dissent_rate";
       return { type: "member_leaderboard", metric };
     }
-    if (t === "recent_meetings") {
-      return { type: "recent_meetings", limit: parsed.limit ?? 1 };
-    }
-    if (t === "recent_votes") {
-      return { type: "recent_votes", limit: parsed.limit ?? 8 };
-    }
-    if (t === "recent_non_unanimous") {
-      return { type: "recent_non_unanimous", limit: parsed.limit ?? 8 };
-    }
-    if (t === "category_overview") {
-      return { type: "category_overview" };
-    }
-    if (t === "category_count" && parsed.category) {
-      return { type: "category_count", category: parsed.category };
-    }
+    if (t === "recent_meetings") return { type: "recent_meetings", limit: parsed.limit ?? 1 };
+    if (t === "recent_votes") return { type: "recent_votes", limit: parsed.limit ?? 8 };
+    if (t === "recent_non_unanimous") return { type: "recent_non_unanimous", limit: parsed.limit ?? 8 };
+    if (t === "category_overview") return { type: "category_overview" };
+    if (t === "category_count" && parsed.category) return { type: "category_count", category: parsed.category };
     if (t === "alignment_highlights") {
       const direction = parsed.direction === "most_split" ? "most_split" : "most_aligned";
       return { type: "alignment_highlights", direction };
     }
-    if (t === "vote_search" && parsed.searchTerm) {
-      return { type: "vote_search", searchTerm: parsed.searchTerm, limit: parsed.limit ?? 8 };
-    }
-    if (t === "property_transactions") {
-      return { type: "property_transactions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
-    }
-    if (t === "personnel_actions") {
-      return { type: "personnel_actions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
-    }
+    if (t === "vote_search" && parsed.searchTerm) return { type: "vote_search", searchTerm: parsed.searchTerm, limit: parsed.limit ?? 8 };
+    if (t === "property_transactions") return { type: "property_transactions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
+    if (t === "personnel_actions") return { type: "personnel_actions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
   } catch {
-    // fall through to faq
+    // fall through
   }
-
   return { type: "faq" };
 };
 
 // ---------------------------------------------------------------------------
-// Data answer generation
+// Data fetching — returns raw results + default citations per intent
 // ---------------------------------------------------------------------------
 
-const DATA_ANALYST_SYSTEM_PROMPT = `You are a friendly, knowledgeable assistant for BoardVotes.io — a public site tracking Baldwin County Board of Education votes and meetings. You know the data inside and out and you talk to visitors like a helpful expert friend, not a formal analyst.
+type FetchedData = { queryResults: unknown; citations: ChatCitation[] };
 
-Rules:
-- Be conversational and natural. Write like you're explaining something interesting to a curious person, not generating a report.
-- Weave the numbers and patterns into natural sentences rather than bullet lists.
-- You can be a little warm or enthusiastic when something is genuinely interesting in the data.
-- Keep it focused — don't over-explain. 2-5 sentences is usually enough.
-- If something stands out in the data (an unusually high dissent rate, a category dominating votes, two members who almost never disagree), mention it naturally.
-- Add a light caveat when relevant: data comes from extracted public records and may not be complete.
-- Never invent member names, vote counts, or outcomes not present in the data.
-- Never speculate about motives, endorse candidates, or give political advice.
-- Do not use honorific title prefixes (Mr., Mrs., Ms., Dr.).
-- If the data is empty, say so naturally and suggest where the visitor might look.`;
-
-const generateDataAnswer = async (
-  question: string,
-  queryResults: unknown,
-  previousQuestion?: string,
-  previousAssistantAnswer?: string,
-): Promise<string | null> => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
-
-  const resultsJson = JSON.stringify(queryResults, null, 2).slice(0, 3000);
-
-  const messages: Array<{ role: string; content: string }> = [
-    { role: "system", content: DATA_ANALYST_SYSTEM_PROMPT },
-  ];
-  if (previousQuestion && previousAssistantAnswer) {
-    messages.push({ role: "user", content: previousQuestion });
-    messages.push({ role: "assistant", content: previousAssistantAnswer });
-  }
-  messages.push({
-    role: "user",
-    content: `Question: ${question}\n\nHere is the relevant data from the site:\n${resultsJson}\n\nAnswer the question conversationally based only on this data.`,
-  });
-
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://boardvotes.io",
-        "X-Title": "BoardVotes.io",
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages,
-        max_completion_tokens: 500,
-        temperature: 0.4,
-      }),
-    });
-
-    if (!response.ok) return null;
-
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    return payload.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return null;
+const fetchDataForIntent = async (intent: DataQueryIntent): Promise<FetchedData | null> => {
+  switch (intent.type) {
+    case "member_vote_stats": {
+      const data = await getMemberVoteStats(intent.memberName);
+      return data ? { queryResults: data, citations: [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }] } : null;
+    }
+    case "member_category_breakdown": {
+      const data = await getMemberCategoryBreakdown(intent.memberName);
+      return data.length > 0 ? { queryResults: data, citations: [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }] } : null;
+    }
+    case "member_leaderboard": {
+      const data = await getMemberStats();
+      return data.length > 0 ? { queryResults: { metric: intent.metric, members: data }, citations: [{ label: "Members", path: "/members" }] } : null;
+    }
+    case "recent_meetings": {
+      const data = await getRecentMeetingSummaries(intent.limit);
+      return data.length > 0 ? { queryResults: data, citations: [{ label: "Meetings", path: "/meetings" }, { label: "Votes", path: "/votes" }] } : null;
+    }
+    case "recent_votes": {
+      const data = await getRecentVoteSummaries(intent.limit);
+      return data.length > 0 ? { queryResults: data, citations: [{ label: "Votes", path: "/votes" }, { label: "Meetings", path: "/meetings" }] } : null;
+    }
+    case "recent_non_unanimous": {
+      const data = await getRecentNonUnanimousVotes(intent.limit);
+      return { queryResults: data, citations: [{ label: "Votes", path: "/votes" }] };
+    }
+    case "category_overview": {
+      const data = await getCategoryStats();
+      return data.length > 0 ? { queryResults: data, citations: [{ label: "Votes", path: "/votes" }] } : null;
+    }
+    case "category_count": {
+      const data = await getCategoryCount(intent.category);
+      return data ? { queryResults: data, citations: [{ label: "Votes", path: "/votes" }] } : null;
+    }
+    case "alignment_highlights": {
+      const data = await getPairwiseAlignment();
+      return data.length > 0 ? { queryResults: { direction: intent.direction, pairs: data }, citations: [{ label: "Voting Alignment", path: "/alliances" }] } : null;
+    }
+    case "vote_search": {
+      const data = await searchVoteItemsForChat(intent.searchTerm, intent.limit);
+      return { queryResults: { searchTerm: intent.searchTerm, results: data }, citations: [{ label: "Votes", path: "/votes" }] };
+    }
+    case "property_transactions": {
+      const data = await getPropertyTransactions(intent.actionType);
+      return { queryResults: data, citations: [{ label: "Votes", path: "/votes" }] };
+    }
+    case "personnel_actions": {
+      const data = await getPersonnelActions(intent.actionType);
+      return { queryResults: data, citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }] };
+    }
+    case "faq":
+      return null;
   }
 };
 
-// ---------------------------------------------------------------------------
-// Data query dispatcher
-// ---------------------------------------------------------------------------
-
-type DataAnswerResult = {
-  answer: string;
-  citations: ChatCitation[];
-};
+// Deterministic fallback formatters — used when no API key is available
 
 const voteSummaryLabel = (vote: ChatVoteSummary) => {
   const title = vote.displayText !== "Needs review" ? vote.displayText : vote.itemTitle;
@@ -771,313 +555,98 @@ const voteSummaryLabel = (vote: ChatVoteSummary) => {
 };
 
 const formatVoteSummaryList = (votes: ChatVoteSummary[], maxItems = 3) =>
-  votes
-    .slice(0, maxItems)
-    .map((vote) => {
-      const split = vote.noOrAbstainVoters.length > 0
-        ? ` Split voters recorded: ${vote.noOrAbstainVoters.join(", ")}.`
-        : "";
-      const snippet = vote.matchedSnippet ? ` Match: ${vote.matchedSnippet}` : "";
-      return `${voteSummaryLabel(vote)} (${vote.category}).${split}${snippet}`;
-    })
-    .join(" ");
+  votes.slice(0, maxItems).map((vote) => {
+    const split = vote.noOrAbstainVoters.length > 0 ? ` Split voters: ${vote.noOrAbstainVoters.join(", ")}.` : "";
+    return `${voteSummaryLabel(vote)} (${vote.category}).${split}`;
+  }).join(" ");
 
 const formatMeetingSummary = (meeting: ChatMeetingSummary) => {
-  const topCategories = meeting.categories
-    .slice(0, 3)
-    .map((entry) => `${entry.category} (${entry.count})`)
-    .join(", ");
+  const topCategories = meeting.categories.slice(0, 3).map((e) => `${e.category} (${e.count})`).join(", ");
+  const splitText = meeting.nonUnanimousCount > 0 ? `${meeting.nonUnanimousCount} were non-unanimous` : "none marked non-unanimous";
   const notable = formatVoteSummaryList(meeting.notableVotes, 2);
-  const splitText = meeting.nonUnanimousCount > 0
-    ? `${meeting.nonUnanimousCount} were non-unanimous`
-    : "none were marked non-unanimous";
-  return `The latest meeting with extracted vote items in BoardVotes.io data is ${meeting.meetingTitle} on ${meeting.meetingDate}. It has ${formatCount(meeting.voteItemCount, "vote item")}; ${splitText}. Top topics were ${topCategories || "not categorized yet"}.${notable ? ` Notable recorded items: ${notable}` : ""}`;
+  return `${meeting.meetingTitle} on ${meeting.meetingDate}: ${formatCount(meeting.voteItemCount, "vote item")}; ${splitText}. Top topics: ${topCategories || "not categorized"}.${notable ? ` Notable items: ${notable}` : ""}`;
 };
 
-const formatPersonnelActions = (rows: Awaited<ReturnType<typeof getPersonnelActions>>) => {
-  if (rows.length === 0) return "I found no matching personnel actions in the extracted BoardVotes.io data.";
-  const actionCounts = new Map<string, number>();
-  const schoolCounts = new Map<string, number>();
-  for (const row of rows) {
-    actionCounts.set(row.actionType, (actionCounts.get(row.actionType) ?? 0) + 1);
-    if (row.school) schoolCounts.set(row.school, (schoolCounts.get(row.school) ?? 0) + 1);
-  }
-  const topActions = Array.from(actionCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([action, count]) => `${action} (${count})`)
-    .join(", ");
-  const topSchools = Array.from(schoolCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([school, count]) => `${school} (${count})`)
-    .join(", ");
-  const examples = rows
-    .slice(0, 3)
-    .map((row) => `${row.meetingDate}: ${row.personName}, ${row.actionType}${row.position ? `, ${row.position}` : ""}`)
-    .join("; ");
-  return `I found ${formatCount(rows.length, "personnel action")} in extracted BoardVotes.io data. The most common action types are ${topActions || "not categorized"}, and the most frequent schools/departments are ${topSchools || "not specified"}. Recent examples: ${examples}.`;
-};
-
-const formatPropertyTransactions = (rows: Awaited<ReturnType<typeof getPropertyTransactions>>) => {
-  if (rows.length === 0) return "I found no matching property transactions in the extracted BoardVotes.io data.";
-  const actionCounts = new Map<string, number>();
-  for (const row of rows) actionCounts.set(row.actionType, (actionCounts.get(row.actionType) ?? 0) + 1);
-  const topActions = Array.from(actionCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([action, count]) => `${action} (${count})`)
-    .join(", ");
-  const examples = rows
-    .slice(0, 3)
-    .map((row) => `${row.meetingDate}: ${row.actionType}${row.location ? ` at ${row.location}` : ""}${row.party ? ` with ${row.party}` : ""}`)
-    .join("; ");
-  return `I found ${formatCount(rows.length, "property-related action")} in extracted BoardVotes.io data. The action mix is ${topActions || "not categorized"}. Recent examples: ${examples}.`;
-};
-
-const buildDeterministicDataAnswer = async (intent: DataQueryIntent): Promise<DataAnswerResult | null> => {
+const buildDeterministicFallback = async (intent: DataQueryIntent): Promise<string | null> => {
   switch (intent.type) {
     case "member_vote_stats": {
-      const stats = await getMemberVoteStats(intent.memberName);
-      if (!stats || stats.total === 0) return null;
-      return {
-        answer: `${stats.name} has ${formatCount(stats.total, "recorded vote")} in BoardVotes.io data: ${stats.yes} yes, ${stats.no} no, ${stats.abstain} abstain, ${stats.recused} recused, and ${stats.absent} absent. The dissent rate is ${formatPercent(stats.dissentRate)} based on extracted vote records, so treat it as a record review signal rather than a statement of motive.`,
-        citations: [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }],
-      };
+      const s = await getMemberVoteStats(intent.memberName);
+      if (!s || s.total === 0) return null;
+      return `${s.name}: ${formatCount(s.total, "recorded vote")} — ${s.yes} yes, ${s.no} no, ${s.abstain} abstain, ${s.recused} recused, ${s.absent} absent. Dissent rate: ${formatPercent(s.dissentRate)}.`;
     }
     case "member_category_breakdown": {
       const rows = await getMemberCategoryBreakdown(intent.memberName);
       if (rows.length === 0) return null;
-      const total = rows.reduce((sum, row) => sum + row.total, 0);
-      const topRows = rows.slice(0, 4).map((row) => `${row.category}: ${row.total} total, ${row.no} no, ${row.abstain} abstain`);
-      return {
-        answer: `${intent.memberName}'s extracted votes span ${formatCount(rows.length, "category", "categories")} and ${formatCount(total, "recorded vote")}. Top categories: ${topRows.join("; ")}. This is based on categorized extracted records, so low-confidence source items may still need review.`,
-        citations: [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }],
-      };
+      const top = rows.slice(0, 4).map((r) => `${r.category}: ${r.total} votes, ${r.no} no, ${r.abstain} abstain`).join("; ");
+      return `${intent.memberName}'s top vote categories: ${top}.`;
     }
     case "member_leaderboard": {
       const members = await getMemberStats();
       if (members.length === 0) return null;
-      const sorted = [...members].sort((a, b) => {
-        if (intent.metric === "dissent_rate") return b.dissentRate - a.dissentRate;
-        if (intent.metric === "yes_rate") return (b.yesCount / Math.max(b.totalVotes, 1)) - (a.yesCount / Math.max(a.totalVotes, 1));
-        return b.totalVotes - a.totalVotes;
-      });
+      const sorted = [...members].sort((a, b) =>
+        intent.metric === "dissent_rate" ? b.dissentRate - a.dissentRate
+          : intent.metric === "yes_rate" ? (b.yesCount / Math.max(b.totalVotes, 1)) - (a.yesCount / Math.max(a.totalVotes, 1))
+          : b.totalVotes - a.totalVotes,
+      );
       const top = sorted[0];
       if (!top) return null;
-      const runnersUp = sorted
-        .slice(1, 4)
-        .map((member) => {
-          if (intent.metric === "dissent_rate") return `${member.name} (${formatPercent(member.dissentRate)})`;
-          if (intent.metric === "yes_rate") return `${member.name} (${formatPercent(member.yesCount / Math.max(member.totalVotes, 1))})`;
-          return `${member.name} (${member.totalVotes})`;
-        })
-        .join(", ");
-      const metricText = intent.metric === "dissent_rate"
-        ? `highest dissent rate at ${formatPercent(top.dissentRate)} (${top.dissentCount} dissenting records out of ${top.totalVotes})`
+      return intent.metric === "dissent_rate"
+        ? `Highest dissent rate: ${top.name} at ${formatPercent(top.dissentRate)} (${top.dissentCount}/${top.totalVotes} votes).`
         : intent.metric === "yes_rate"
-          ? `highest yes rate at ${formatPercent(top.yesCount / Math.max(top.totalVotes, 1))} (${top.yesCount} yes votes out of ${top.totalVotes})`
-          : `most recorded votes with ${top.totalVotes}`;
-      return {
-        answer: `${top.name} has the ${metricText} in the extracted BoardVotes.io member stats. Other high entries: ${runnersUp || "none available"}. These are extracted vote-record patterns, not an explanation of why members voted that way.`,
-        citations: [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }],
-      };
+          ? `Highest yes rate: ${top.name} at ${formatPercent(top.yesCount / Math.max(top.totalVotes, 1))}.`
+          : `Most recorded votes: ${top.name} with ${top.totalVotes}.`;
     }
     case "recent_meetings": {
       const meetings = await getRecentMeetingSummaries(intent.limit);
-      if (meetings.length === 0) return null;
-      return {
-        answer: meetings.map(formatMeetingSummary).join(" "),
-        citations: [{ label: "Meetings", path: "/meetings" }, { label: "Votes", path: "/votes" }],
-      };
+      return meetings.length > 0 ? meetings.map(formatMeetingSummary).join(" ") : null;
     }
     case "recent_votes": {
       const votes = await getRecentVoteSummaries(intent.limit);
-      if (votes.length === 0) return null;
-      return {
-        answer: `The latest ${formatCount(votes.length, "vote item")} in BoardVotes.io data include: ${formatVoteSummaryList(votes, 5)} Extracted records can be incomplete, so open the vote details for source status and individual records.`,
-        citations: [{ label: "Votes", path: "/votes" }, { label: "Meetings", path: "/meetings" }],
-      };
+      return votes.length > 0 ? `Recent vote items: ${formatVoteSummaryList(votes, 5)}` : null;
     }
     case "recent_non_unanimous": {
       const votes = await getRecentNonUnanimousVotes(intent.limit);
-      if (votes.length === 0) return {
-        answer: "I found no recent non-unanimous vote items in the extracted BoardVotes.io data.",
-        citations: [{ label: "Votes", path: "/votes" }],
-      };
-      const examples = votes
-        .slice(0, 5)
-        .map((vote) => {
-          const dissenters = vote.noVoters.length > 0 ? ` No/abstain recorded: ${vote.noVoters.join(", ")}.` : "";
-          return `${vote.meetingDate}: ${vote.itemTitle} (${vote.category}).${dissenters}`;
-        })
-        .join(" ");
-      return {
-        answer: `I found ${formatCount(votes.length, "recent non-unanimous item")} in the extracted data sample. ${examples}`,
-        citations: [{ label: "Votes", path: "/votes" }],
-      };
+      if (votes.length === 0) return "No recent non-unanimous votes found in the extracted data.";
+      return `${formatCount(votes.length, "recent non-unanimous item")}: ${votes.slice(0, 5).map((v) => `${v.meetingDate}: ${v.itemTitle}`).join("; ")}.`;
     }
     case "category_overview": {
       const rows = await getCategoryStats();
       if (rows.length === 0) return null;
-      const total = rows.reduce((sum, row) => sum + row.totalVotes, 0);
-      const topRows = rows.slice(0, 5).map((row) => `${row.category} (${row.totalVotes})`);
-      return {
-        answer: `BoardVotes.io has ${formatCount(total, "categorized vote item")} across ${formatCount(rows.length, "topic category", "topic categories")}. The biggest categories are ${topRows.join(", ")}. Use this as a map of where board activity clusters, then drill into Votes by category for the underlying records.`,
-        citations: [{ label: "Votes", path: "/votes" }],
-      };
+      return `Top vote categories: ${rows.slice(0, 5).map((r) => `${r.category} (${r.totalVotes})`).join(", ")}.`;
     }
     case "category_count": {
       const row = await getCategoryCount(intent.category);
-      if (!row) return null;
-      return {
-        answer: `${row.category} has ${formatCount(row.total, "vote item")} in BoardVotes.io's extracted data, including ${formatCount(row.nonUnanimous, "non-unanimous item")}. That count comes from text categorization of vote titles, motions, summaries, and excerpts.`,
-        citations: [{ label: "Votes", path: "/votes" }],
-      };
+      return row ? `${row.category}: ${formatCount(row.total, "vote item")}, including ${formatCount(row.nonUnanimous, "non-unanimous item")}.` : null;
     }
     case "alignment_highlights": {
-      const pairs = await getPairwiseAlignment();
-      const sorted = pairs
-        .filter((pair) => pair.overlap > 0)
-        .sort((a, b) =>
-          intent.direction === "most_aligned"
-            ? b.alignmentRate - a.alignmentRate || b.overlap - a.overlap
-            : b.splitRate - a.splitRate || b.overlap - a.overlap,
-        );
+      const pairs = (await getPairwiseAlignment()).filter((p) => p.overlap > 0);
+      const sorted = pairs.sort((a, b) =>
+        intent.direction === "most_aligned" ? b.alignmentRate - a.alignmentRate : b.splitRate - a.splitRate,
+      );
       const top = sorted.slice(0, 3);
-      if (top.length === 0) return null;
-      const label = intent.direction === "most_aligned" ? "most similar voting patterns" : "most split voting patterns";
-      const details = top
-        .map((pair) =>
-          `${pair.memberAName} and ${pair.memberBName}: ${formatPercent(intent.direction === "most_aligned" ? pair.alignmentRate : pair.splitRate)} across ${formatCount(pair.overlap, "shared vote")}`,
-        )
-        .join("; ");
-      return {
-        answer: `The ${label} in BoardVotes.io's extracted records are: ${details}. Alignment is a pattern across recorded votes, not evidence of coordination or motive.`,
-        citations: [{ label: "Voting Alignment", path: "/alliances" }],
-      };
+      return top.length > 0
+        ? `${intent.direction === "most_aligned" ? "Most aligned" : "Most split"}: ${top.map((p) => `${p.memberAName} & ${p.memberBName} (${formatPercent(intent.direction === "most_aligned" ? p.alignmentRate : p.splitRate)}, ${p.overlap} shared votes)`).join("; ")}.`
+        : null;
     }
     case "vote_search": {
       const votes = await searchVoteItemsForChat(intent.searchTerm, intent.limit);
-      if (votes.length === 0) return {
-        answer: `I found no vote items matching "${intent.searchTerm}" in the extracted BoardVotes.io data. Try a broader term on the Votes page, such as a topic, school name, vendor, or action word.`,
-        citations: [{ label: "Votes", path: "/votes" }],
-      };
-      return {
-        answer: `I found ${formatCount(votes.length, "vote item")} matching "${intent.searchTerm}" in BoardVotes.io data. ${formatVoteSummaryList(votes, 5)}`,
-        citations: [{ label: "Votes", path: "/votes" }],
-      };
+      return votes.length > 0
+        ? `${formatCount(votes.length, "match")} for "${intent.searchTerm}": ${formatVoteSummaryList(votes, 5)}`
+        : `No matches for "${intent.searchTerm}" in the extracted data.`;
     }
     case "property_transactions": {
       const rows = await getPropertyTransactions(intent.actionType);
-      return {
-        answer: formatPropertyTransactions(rows),
-        citations: [{ label: "Property", path: "/property" }, { label: "Votes", path: "/votes" }],
-      };
+      if (rows.length === 0) return "No matching property transactions found.";
+      return `${formatCount(rows.length, "property action")}: ${rows.slice(0, 3).map((r) => `${r.meetingDate}: ${r.actionType}${r.location ? ` at ${r.location}` : ""}${r.party ? ` with ${r.party}` : ""}`).join("; ")}.`;
     }
     case "personnel_actions": {
       const rows = await getPersonnelActions(intent.actionType);
-      return {
-        answer: formatPersonnelActions(rows),
-        citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }],
-      };
+      if (rows.length === 0) return "No matching personnel actions found.";
+      return `${formatCount(rows.length, "personnel action")}: ${rows.slice(0, 3).map((r) => `${r.meetingDate}: ${r.personName}, ${r.actionType}${r.position ? `, ${r.position}` : ""}`).join("; ")}.`;
     }
     case "faq":
       return null;
   }
-};
-
-const answerDataQuestion = async (
-  question: string,
-  intent: DataQueryIntent,
-  previousQuestion?: string,
-  previousAssistantAnswer?: string,
-): Promise<DataAnswerResult | null> => {
-  if (intent.type === "faq") return null;
-
-  // Always try to get raw data and pass to LLM if model is available
-  const apiKey = process.env.OPENROUTER_API_KEY;
-
-  if (apiKey) {
-    // Fetch data and let the LLM form a natural answer
-    let queryResults: unknown = null;
-    let citations: ChatCitation[] = [{ label: "Votes", path: "/votes" }];
-
-    switch (intent.type) {
-      case "member_vote_stats": {
-        queryResults = await getMemberVoteStats(intent.memberName);
-        citations = [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "member_category_breakdown": {
-        queryResults = await getMemberCategoryBreakdown(intent.memberName);
-        citations = [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "member_leaderboard": {
-        queryResults = await getMemberStats();
-        citations = [{ label: "Members", path: "/members" }, { label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "recent_meetings": {
-        queryResults = await getRecentMeetingSummaries(intent.limit);
-        citations = [{ label: "Meetings", path: "/meetings" }, { label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "recent_votes": {
-        queryResults = await getRecentVoteSummaries(intent.limit);
-        citations = [{ label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "recent_non_unanimous": {
-        queryResults = await getRecentNonUnanimousVotes(intent.limit);
-        citations = [{ label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "category_overview": {
-        queryResults = await getCategoryStats();
-        citations = [{ label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "category_count": {
-        queryResults = await getCategoryCount(intent.category);
-        citations = [{ label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "alignment_highlights": {
-        queryResults = await getPairwiseAlignment();
-        citations = [{ label: "Voting Alignment", path: "/alliances" }];
-        break;
-      }
-      case "vote_search": {
-        queryResults = await searchVoteItemsForChat(intent.searchTerm, intent.limit);
-        citations = [{ label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "property_transactions": {
-        queryResults = await getPropertyTransactions(intent.actionType);
-        citations = [{ label: "Property", path: "/property" }, { label: "Votes", path: "/votes" }];
-        break;
-      }
-      case "personnel_actions": {
-        queryResults = await getPersonnelActions(intent.actionType);
-        citations = [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }];
-        break;
-      }
-    }
-
-    const rawAnswer = await generateDataAnswer(question, queryResults, previousQuestion, previousAssistantAnswer);
-    if (rawAnswer) {
-      const answer = sanitizeChatAnswer(rawAnswer);
-      if (answer !== FALLBACK_ANSWER) return { answer, citations };
-    }
-  }
-
-  // No API key — fall back to deterministic formatter
-  const deterministicAnswer = await buildDeterministicDataAnswer(intent);
-  if (deterministicAnswer) return deterministicAnswer;
-
-  return null;
 };
 
 // ---------------------------------------------------------------------------
@@ -1091,90 +660,74 @@ export const answerBoardVotesQuestion = async ({
   previousAssistantAnswer = "",
   useModel = false,
 }: AnswerInput): Promise<ChatResponse> => {
-  const trimmedQuestion = question.trim();
-  if (!trimmedQuestion) {
-    return baseResponse(FALLBACK_ANSWER, "fallback");
+  const trimmed = question.trim();
+
+  if (!trimmed) {
+    return { answer: FALLBACK_ANSWER, citations: [], suggestions, scope: "fallback", modelUsed: "approved-faq" };
+  }
+  if (trimmed.length > MAX_QUESTION_LENGTH) {
+    return { answer: "Please ask a shorter question.", citations: [], suggestions, scope: "refused", modelUsed: "approved-faq" };
   }
 
-  if (trimmedQuestion.length > MAX_QUESTION_LENGTH) {
-    return baseResponse("Please ask a shorter question about BoardVotes.io.", "refused");
+  // 1. Hard refusals — never hit the LLM
+  const refused = checkHardRefusal(trimmed);
+  if (refused) return refused;
+
+  // 2. Classify intent locally
+  let intent = classifyIntentLocally(trimmed);
+
+  // 3. If local classifier says faq, try LLM classifier
+  if (intent.type === "faq" && useModel) {
+    intent = await classifyIntent(trimmed);
   }
 
-  // 1. Deterministic FAQ check (always runs first, no LLM cost)
-  const deterministic = faqAnswer(trimmedQuestion, context, previousQuestion, previousAssistantAnswer);
-  if (deterministic) {
-    if (useModel && deterministic.scope === "answered") {
-      const modelAnswer = await callOpenRouter(trimmedQuestion, deterministic.answer, context);
-      if (modelAnswer) {
-        const answer = sanitizeChatAnswer(modelAnswer);
-        if (answer !== FALLBACK_ANSWER) {
-          return {
-            ...deterministic,
-            answer,
-            modelUsed: "gpt-4o-mini",
-          };
-        }
+  // 4. Fetch data for the intent (if data-driven)
+  let fetched: FetchedData | null = null;
+  if (intent.type !== "faq") {
+    fetched = await fetchDataForIntent(intent);
+  }
+
+  // 5. Generate natural conversational answer via LLM
+  if (useModel) {
+    const rawAnswer = await generateChatAnswer(
+      trimmed,
+      fetched?.queryResults ?? null,
+      context,
+      previousQuestion || undefined,
+      previousAssistantAnswer || undefined,
+    );
+    if (rawAnswer) {
+      const answer = sanitizeChatAnswer(rawAnswer);
+      if (answer !== FALLBACK_ANSWER) {
+        return {
+          answer,
+          citations: fetched?.citations ?? [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }],
+          suggestions,
+          scope: "answered",
+          modelUsed: "gpt-4o-mini",
+        };
       }
     }
-    return deterministic;
   }
 
-  // 2. Local data router catches common analytical questions without model dependence.
-  const localIntent = classifyIntentLocally(trimmedQuestion);
-  if (localIntent.type !== "faq") {
-    const dataResult = await answerDataQuestion(trimmedQuestion, localIntent, previousQuestion, previousAssistantAnswer);
-    if (dataResult) {
+  // 6. Deterministic fallback (no API key or LLM failed)
+  if (intent.type !== "faq") {
+    const deterministicAnswer = await buildDeterministicFallback(intent);
+    if (deterministicAnswer) {
       return {
-        answer: dataResult.answer,
-        citations: dataResult.citations,
+        answer: deterministicAnswer,
+        citations: fetched?.citations ?? [{ label: "Votes", path: "/votes" }],
         suggestions,
         scope: "answered",
-        modelUsed: process.env.OPENROUTER_API_KEY ? "gpt-4o-mini" : "site-data",
+        modelUsed: "site-data",
       };
     }
   }
 
-  // 3. If model is available, classify intent and attempt a data query or freeform answer
-  if (useModel) {
-    const intent = await classifyIntent(trimmedQuestion);
-
-    if (intent.type !== "faq") {
-      const dataResult = await answerDataQuestion(trimmedQuestion, intent, previousQuestion, previousAssistantAnswer);
-      if (dataResult) {
-        return {
-          answer: dataResult.answer,
-          citations: dataResult.citations,
-          suggestions,
-          scope: "answered",
-          modelUsed: "gpt-4o-mini",
-        };
-      }
-    }
-
-    // Intent was faq or data query returned nothing — try freeform from site context
-    const freeformAnswer = await callOpenRouterFreeform(trimmedQuestion, context);
-    if (freeformAnswer) {
-      const answer = sanitizeChatAnswer(freeformAnswer);
-      if (answer !== FALLBACK_ANSWER) {
-        return {
-          answer,
-          citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }],
-          suggestions,
-          scope: "answered",
-          modelUsed: "gpt-4o-mini",
-        };
-      }
-    }
-  }
-
-  // 4. Hard fallback
+  // 7. Hard fallback
   return {
-    answer: "I could not pin that down from BoardVotes.io data yet. Try asking for a board member, topic, latest meeting, recent split votes, property actions, personnel actions, or a keyword to search across vote items.",
-    citations: [
-      { label: "Votes", path: "/votes" },
-      { label: "Members", path: "/members" },
-      { label: "Meetings", path: "/meetings" },
-    ],
+    answer: "I couldn't find that in BoardVotes.io data. Try asking about a member, a topic, recent meetings, split votes, property actions, or search for a keyword.",
+    citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }, { label: "Meetings", path: "/meetings" }],
     suggestions,
     scope: "fallback",
     modelUsed: useModel && !process.env.OPENROUTER_API_KEY ? "setup-required" : "approved-faq",
