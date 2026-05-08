@@ -136,8 +136,20 @@ const MotionRow = ({ item }: { item: MemberMotionItem }) => {
           <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
             {item.category || "Needs review"}
           </Badge>
-          <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
-            {item.verificationStatus === "verified" ? "Verified" : "Needs review"}
+          <Badge
+            tone={
+              item.verificationStatus === "verified"
+                ? "emerald"
+                : item.verificationStatus === "unverified"
+                  ? "slate"
+                  : "amber"
+            }
+          >
+            {item.verificationStatus === "verified"
+              ? "Verified"
+              : item.verificationStatus === "unverified"
+                ? "Agenda sourced"
+                : "Pending review"}
           </Badge>
           {item.isNonUnanimous && <Badge tone="amber">Non-unanimous</Badge>}
         </div>
@@ -522,8 +534,20 @@ export const MemberDetail = () => {
                     <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
                       {item.category || "Needs review"}
                     </Badge>
-                    <Badge tone={item.verificationStatus === "verified" ? "emerald" : "amber"}>
-                      {item.verificationStatus === "verified" ? "Verified" : "Needs review"}
+                    <Badge
+                      tone={
+                        item.verificationStatus === "verified"
+                          ? "emerald"
+                          : item.verificationStatus === "unverified"
+                            ? "slate"
+                            : "amber"
+                      }
+                    >
+                      {item.verificationStatus === "verified"
+                        ? "Verified"
+                        : item.verificationStatus === "unverified"
+                          ? "Agenda sourced"
+                          : "Pending review"}
                     </Badge>
                     <Badge tone={item.sourceAvailability === "available" ? "emerald" : "amber"}>
                       {item.sourceAvailability === "available" ? "Source linked" : "Source unavailable"}

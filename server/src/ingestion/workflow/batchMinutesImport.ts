@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, or } from "drizzle-orm";
+import { and, count, eq, inArray, or, sql } from "drizzle-orm";
 import { db, schema } from "../../db";
 import { logger } from "../../logging/logger";
 import { buildPersistedMinutesVoteOutput } from "../../services/minutesVoteService";
@@ -179,31 +179,38 @@ const buildMeetingTargets = async (
   options: BatchMinutesImportOptions,
 ): Promise<MeetingTarget[]> => {
   const limit = options.limit ?? defaultLimit;
+
+  // When specific simbliIds are requested, fetch them regardless of ingestion status so we
+  // can re-run minutes import on completed meetings that still have unverified vote items.
   const meetings = await db.query.meetings.findMany({
     where:
       options.simbliIds && options.simbliIds.length
-        ? and(
-            or(eq(schema.meetings.ingestionStatus, "failed"), eq(schema.meetings.ingestionStatus, "partial")),
-            inArray(schema.meetings.simbliId, options.simbliIds),
-          )
+        ? inArray(schema.meetings.simbliId, options.simbliIds)
         : or(eq(schema.meetings.ingestionStatus, "failed"), eq(schema.meetings.ingestionStatus, "partial")),
     with: {
       voteItems: {
         columns: {
           id: true,
+          verificationStatus: true,
         },
       },
     },
     orderBy: (meeting, { asc }) => [asc(meeting.date)],
   });
 
-  const zeroVoteMeetings = meetings.filter((meeting) => meeting.voteItems.length === 0);
+  // Eligible: no vote items yet, or has at least one unverified item that minutes can upgrade.
+  const eligibleMeetings = meetings.filter(
+    (meeting) =>
+      meeting.voteItems.length === 0 ||
+      meeting.voteItems.some((vi) => vi.verificationStatus === "unverified"),
+  );
+
   const orderedMeetings =
     options.simbliIds && options.simbliIds.length
       ? options.simbliIds
-          .map((simbliId) => zeroVoteMeetings.find((meeting) => meeting.simbliId === simbliId))
+          .map((simbliId) => eligibleMeetings.find((meeting) => meeting.simbliId === simbliId))
           .filter((meeting): meeting is typeof meetings[number] => Boolean(meeting))
-      : zeroVoteMeetings.slice(0, limit);
+      : eligibleMeetings.slice(0, limit);
 
   return orderedMeetings.map((meeting) => ({
     meetingId: meeting.id,
@@ -298,6 +305,21 @@ export const runBatchMinutesImport = async (
         },
         voteItems,
       });
+
+      // Promote any agenda-sourced items that couldn't be matched by the minutes import.
+      // They've now been through the pipeline; "unverified" → "needs_review" is more accurate.
+      await db
+        .update(schema.voteItems)
+        .set({
+          verificationStatus: "needs_review",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.voteItems.meetingId, success.meeting.meetingId),
+            sql`${schema.voteItems.verificationStatus} = 'unverified'`,
+          ),
+        );
 
       meetingsCompletedInBatch += 1;
       attemptedMeetings.push({
