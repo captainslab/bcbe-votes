@@ -43,7 +43,11 @@ export const Landing = () => {
             <a href="#how-it-works" onClick={scrollTo("how-it-works")} className="landing-nav-hide-mobile">
               How It Works
             </a>
-            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/dashboard" className="landing-nav-hide-mobile">
+              Dashboard
+            </Link>
+            <Link to="/boards">Fund a Board</Link>
+            <Link to="/request">Add a Board</Link>
             <Link to="/votes" className="landing-nav-cta">
               View Votes
             </Link>

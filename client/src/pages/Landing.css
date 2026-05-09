@@ -37,10 +37,11 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 2rem;
-    height: 64px;
+    min-height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem;
 }
 
 .landing-nav-logo {
@@ -58,6 +59,8 @@
 .landing-nav-links {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.25rem;
 }
 
@@ -86,6 +89,21 @@
 }
 
 @media (max-width: 640px) {
+    .landing-nav-inner {
+        align-items: flex-start;
+        padding: 0.75rem 1rem;
+    }
+
+    .landing-nav-links {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+    }
+
+    .landing-nav-links a {
+        font-size: 0.8125rem;
+        padding: 0.35rem 0.55rem;
+    }
+
     .landing-nav-links .landing-nav-hide-mobile {
         display: none;
     }
