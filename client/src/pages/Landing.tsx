@@ -46,7 +46,6 @@ export const Landing = () => {
             <Link to="/dashboard" className="landing-nav-hide-mobile">
               Dashboard
             </Link>
-            <Link to="/boards">Fund a Board</Link>
             <Link to="/request">Add a Board</Link>
             <Link to="/votes" className="landing-nav-cta">
               View Votes
