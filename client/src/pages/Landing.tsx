@@ -305,6 +305,30 @@ export const Landing = () => {
         </div>
       </section>
 
+      {/* Expand Section */}
+      <section id="expand" className="landing-section">
+        <div className="container">
+          <div className="section-header fade-in">
+            <h2 className="section-title">Expanding to Boards Everywhere</h2>
+            <p className="section-description">
+              BoardVotes works for any board or governing body — school boards, HOAs, city councils, water districts, and more. Request yours or list your board to get early access.
+            </p>
+          </div>
+          <div className="expand-grid">
+            <div className="expand-card fade-in">
+              <h3>I'm a resident or member</h3>
+              <p>Want transparency tools for your local board or governing body? Request it and we'll notify you when it goes live.</p>
+              <Link to="/request" className="btn btn-primary">Request your board</Link>
+            </div>
+            <div className="expand-card fade-in">
+              <h3>I run a board</h3>
+              <p>Bring transparency and public engagement to your organization. List your board to get early access and work with our team directly.</p>
+              <Link to="/request" className="btn btn-secondary">Get early access</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="cta">
         <div className="container">
@@ -336,6 +360,9 @@ export const Landing = () => {
               </li>
               <li>
                 <Link to="/members">Board Members</Link>
+              </li>
+              <li>
+                <Link to="/boards">Fund a Board</Link>
               </li>
             </ul>
           </div>

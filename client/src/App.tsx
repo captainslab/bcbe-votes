@@ -10,6 +10,10 @@ import { Meetings } from "./pages/Meetings";
 import { MeetingDetail } from "./pages/MeetingDetail";
 import { Alliances } from "./pages/Alliances";
 import { Admin } from "./pages/Admin";
+import { Contact } from "./pages/Contact";
+import { Request } from "./pages/Request";
+import { Boards } from "./pages/Boards";
+import { BoardDetail } from "./pages/BoardDetail";
 import { BoardVotesChat } from "./components/BoardVotesChat";
 
 function App() {
@@ -27,6 +31,10 @@ function App() {
           <Route path="/meetings/:id" element={<MeetingDetail />} />
           <Route path="/alliances" element={<Alliances />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/request" element={<Request />} />
+          <Route path="/boards" element={<Boards />} />
+          <Route path="/boards/:slug" element={<BoardDetail />} />
         </Route>
       </Routes>
       <BoardVotesChat />

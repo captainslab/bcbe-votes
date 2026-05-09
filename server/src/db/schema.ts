@@ -150,6 +150,58 @@ export const importLogs = pgTable("import_logs", {
   errorSummary: text("error_summary"),
 });
 
+export const districtRequests = pgTable(
+  "district_requests",
+  {
+    id: serial("id").primaryKey(),
+    boardName: text("board_name").notNull(),
+    state: text("state").notNull(),
+    email: text("email").notNull(),
+    type: text("type").notNull(), // "resident" | "operator"
+    name: text("name"),
+    role: text("role"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    uniqueEmailBoard: uniqueIndex("district_request_email_board_unique").on(table.email, table.boardName),
+  }),
+);
+
+export const boardSubmissions = pgTable("board_submissions", {
+  id: serial("id").primaryKey(),
+  boardName: text("board_name").notNull(),
+  state: text("state").notNull(),
+  submitterName: text("submitter_name").notNull(),
+  submitterEmail: text("submitter_email").notNull(),
+  slug: text("slug").notNull().unique(),
+  goalAmount: integer("goal_amount").default(500).notNull(),
+  pledgedAmount: integer("pledged_amount").default(25).notNull(), // starts at 25 from submission fee
+  status: text("status").default("active").notNull(), // active | funded | onboarding | live
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const boardPledges = pgTable(
+  "board_pledges",
+  {
+    id: serial("id").primaryKey(),
+    boardSubmissionId: integer("board_submission_id")
+      .references(() => boardSubmissions.id, { onDelete: "cascade" })
+      .notNull(),
+    pledgerName: text("pledger_name").notNull(),
+    pledgerEmail: text("pledger_email").notNull(),
+    amount: integer("amount").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    uniquePledge: uniqueIndex("board_pledge_email_board_unique").on(
+      table.pledgerEmail,
+      table.boardSubmissionId,
+    ),
+  }),
+);
+
 export const boardMemberRelations = relations(boardMembers, ({ many }) => ({
   voteRecords: many(voteRecords),
   motionMade: many(voteItems, { relationName: "motion_made_by_member_id" }),

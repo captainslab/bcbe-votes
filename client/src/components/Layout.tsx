@@ -55,6 +55,9 @@ export const Layout = ({ children }: LayoutProps) => {
             <Link to="/votes" className="hover:text-white transition">Votes</Link>
             <Link to="/members" className="hover:text-white transition">Members</Link>
             <Link to="/meetings" className="hover:text-white transition">Meetings</Link>
+            <Link to="/boards" className="hover:text-white transition">Fund a Board</Link>
+            <a href="mailto:help@boardvotes.io" className="hover:text-white transition">help@boardvotes.io</a>
+            <Link to="/contact" className="hover:text-white transition">Contact</Link>
           </nav>
         </div>
       </footer>

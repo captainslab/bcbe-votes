@@ -97,3 +97,77 @@ export const useMemberAlignment = (id?: string | number) =>
       return res.data;
     },
   });
+
+export const useDistrictRequestCounts = () =>
+  useQuery({
+    queryKey: ["districtRequestCounts"],
+    queryFn: async () => {
+      const res = await api.get<{ boardName: string; state: string; count: number }[]>("/district-requests/counts");
+      return res.data;
+    },
+  });
+
+export const submitDistrictRequest = async (data: {
+  boardName: string;
+  state: string;
+  email: string;
+  type: "resident" | "operator";
+  name?: string;
+  role?: string;
+}) => {
+  const res = await api.post<{ success: boolean; duplicate?: boolean; id?: number }>("/district-requests", data);
+  return res.data;
+};
+
+export type BoardSubmission = {
+  id: number;
+  boardName: string;
+  state: string;
+  slug: string;
+  goalAmount: number;
+  pledgedAmount: number;
+  status: string;
+  createdAt: string;
+  pledgeCount?: number;
+  pledges?: { pledgerName: string; amount: number; createdAt: string }[];
+};
+
+export const useBoards = () =>
+  useQuery({
+    queryKey: ["boards"],
+    queryFn: async () => {
+      const res = await api.get<BoardSubmission[]>("/boards");
+      return res.data;
+    },
+  });
+
+export const useBoard = (slug?: string) =>
+  useQuery({
+    queryKey: ["board", slug],
+    enabled: Boolean(slug),
+    queryFn: async () => {
+      const res = await api.get<BoardSubmission>(`/boards/${slug}`);
+      return res.data;
+    },
+  });
+
+export const createBoardCheckout = async (data: {
+  boardName: string;
+  state: string;
+  submitterName: string;
+  submitterEmail: string;
+}) => {
+  const res = await api.post<{ url: string }>("/boards/create-checkout", data);
+  return res.data;
+};
+
+export const submitPledge = async (
+  slug: string,
+  data: { pledgerName: string; pledgerEmail: string; amount: number },
+) => {
+  const res = await api.post<{ success: boolean; funded: boolean; duplicate?: boolean }>(
+    `/boards/${slug}/pledge`,
+    data,
+  );
+  return res.data;
+};

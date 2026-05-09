@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
+import { db } from "../db";
+import { districtRequests } from "../db/schema";
 import {
   listMeetings,
   getMeeting,
@@ -271,5 +274,76 @@ router.get(
     }
   },
 );
+
+router.post(
+  "/district-requests",
+  validateRequest(
+    z.object({
+      body: z.object({
+        boardName: z.string().min(1).max(200),
+        state: z.string().min(2).max(50),
+        email: z.string().email(),
+        type: z.enum(["resident", "operator"]),
+        name: z.string().optional(),
+        role: z.string().optional(),
+      }),
+    }),
+  ),
+  async (_req, res, next) => {
+    try {
+      const { body } = res.locals.validatedRequest as {
+        body: {
+          boardName: string;
+          state: string;
+          email: string;
+          type: string;
+          name?: string;
+          role?: string;
+        };
+      };
+      const [row] = await db
+        .insert(districtRequests)
+        .values({
+          boardName: body.boardName,
+          state: body.state,
+          email: body.email,
+          type: body.type,
+          name: body.name ?? null,
+          role: body.role ?? null,
+        })
+        .returning({ id: districtRequests.id });
+      res.json({ success: true, id: row?.id });
+    } catch (err: unknown) {
+      // Unique constraint violation (same email + board): treat as success
+      if (
+        err instanceof Error &&
+        "code" in err &&
+        (err as NodeJS.ErrnoException & { code: string }).code === "23505"
+      ) {
+        res.json({ success: true, duplicate: true });
+        return;
+      }
+      next(err);
+    }
+  },
+);
+
+router.get("/district-requests/counts", async (_req, res, next) => {
+  try {
+    const rows = await db.execute(
+      sql`SELECT board_name, state, COUNT(*)::int AS count
+          FROM district_requests
+          GROUP BY board_name, state
+          ORDER BY count DESC
+          LIMIT 20`,
+    );
+    const result = (rows.rows as { board_name: string; state: string; count: number }[]).map(
+      (r) => ({ boardName: r.board_name, state: r.state, count: r.count }),
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;

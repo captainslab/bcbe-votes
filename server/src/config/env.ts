@@ -29,6 +29,9 @@ const envSchema = z.object({
   ADMIN_BASIC_PASS: z.string().default(""),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   ENABLE_REQUEST_LOGS: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
