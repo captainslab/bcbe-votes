@@ -11,6 +11,8 @@ const navItems = [
   { to: "/members", label: "Members" },
   { to: "/meetings", label: "Meetings" },
   { to: "/alliances", label: "Alliances" },
+  { to: "/boards", label: "Fund a Board" },
+  { to: "/request", label: "Add a Board" },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
