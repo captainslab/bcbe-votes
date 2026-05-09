@@ -4,6 +4,7 @@ dist
 .env
 .codex
 deploy-backups/
+.firecrawl/
 client/node_modules
 client/dist
 server/node_modules

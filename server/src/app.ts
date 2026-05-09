@@ -6,6 +6,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error";
 import publicRoutes from "./routes/public";
 import adminRoutes from "./routes/admin";
 import boardsRouter, { webhookHandler } from "./routes/boards";
+import donationsRouter from "./routes/donations";
 import { logger } from "./logging/logger";
 
 export const app = express();
@@ -30,6 +31,7 @@ applySecurity(app);
 
 app.use("/api", publicRoutes);
 app.use("/api/boards", boardsRouter);
+app.use("/api/donations", donationsRouter);
 app.use("/api", adminRoutes);
 
 app.use(notFoundHandler);

@@ -161,6 +161,15 @@ export const createBoardCheckout = async (data: {
   return res.data;
 };
 
+export const createDonationCheckout = async (data: {
+  amount: number;
+  name?: string;
+  email?: string;
+}) => {
+  const res = await api.post<{ url: string }>("/donations/create-checkout", data);
+  return res.data;
+};
+
 export const submitPledge = async (
   slug: string,
   data: { pledgerName: string; pledgerEmail: string; amount: number },
