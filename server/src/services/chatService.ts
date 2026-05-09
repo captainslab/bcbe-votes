@@ -75,8 +75,8 @@ const rateLimitBuckets = new Map<string, RateLimitBucket>();
 const suggestions = [
   "What happened at the latest meeting?",
   "Which member has the highest dissent rate?",
-  "What topics does the board vote on most?",
-  "Find votes about mental health",
+  "How do I support BoardVotes.io?",
+  "How do I add a board?",
 ];
 
 const blockedTitlePrefixes = ["M" + "r", "M" + "rs", "M" + "s", "M" + "iss", "D" + "r"];
@@ -225,7 +225,7 @@ What you know about the site:
 - Tracks Baldwin County Board of Education meeting and vote records extracted from public Simbli pages.
 - Coverage: extracted records from 2020 through 2026; varies by meeting.
 - Live stats: ${context.totalMeetings} meetings, ${context.totalVotes} vote items, ${context.totalVoteRecords} extracted vote records.${context.topCategory ? ` Most common category by vote count: ${context.topCategory}${context.topCategoryVotes ? ` (${context.topCategoryVotes} items)` : ""}.` : ""}
-- Pages: Dashboard, Votes (filterable by category, member, outcome, date), Meetings, Members (stats and dissent rates), Voting Alignment (pairwise vote similarity).
+- Pages: Dashboard, Votes (filterable by category, member, outcome, date), Meetings, Members (stats and dissent rates), Voting Alignment (pairwise vote similarity), Boards, Add a Board, Support.
 - Vote-topic categories: Budget & Finance, Personnel, Contracts & Procurement, Facilities & Property, Policy & Governance, Curriculum & Academics, Student Services, Safety & Operations, Legal & Compliance, Technology, Transportation, Athletics & Extracurricular, Grants & Federal Programs, Routine Administration, Other/Needs Review.
 - "Verified" = strong source evidence for the displayed vote info. "Needs Review" = not enough confidence — check the source.
 - "Non-unanimous" = at least one recorded vote differed (no vote, abstention, recusal, or absence).
@@ -266,6 +266,38 @@ const checkHardRefusal = (question: string): ChatResponse | null => {
       citations: [],
       suggestions,
       scope: "refused",
+      modelUsed: "approved-faq",
+    };
+  }
+
+  return null;
+};
+
+const checkApprovedFaq = (question: string): ChatResponse | null => {
+  const q = normalizeQuestion(question);
+
+  if (
+    /\b(how do i|where do i|can i|want to)\b.*\b(support|tip|donat(?:e|ion)s?)\b/.test(q) ||
+    /\b(support|tip|donat(?:e|ion)s?)\b.*\b(boardvotes|site|project)\b/.test(q)
+  ) {
+    return {
+      answer: "Use the Support page for a one-time Stripe tip. It helps cover hosting, maintenance, and careful review of public records.",
+      citations: [{ label: "Support", path: "/support" }],
+      suggestions,
+      scope: "answered",
+      modelUsed: "approved-faq",
+    };
+  }
+
+  if (
+    /\b(how do i|where do i|can i|want to)\b.*\b(add a board|request a board|board request)\b/.test(q) ||
+    /\b(add a board|request a board|board request)\b/.test(q)
+  ) {
+    return {
+      answer: "Use the Add a Board page if you want BoardVotes.io to cover a board that isn't listed yet.",
+      citations: [{ label: "Add a Board", path: "/request" }, { label: "Boards", path: "/boards" }],
+      suggestions,
+      scope: "answered",
       modelUsed: "approved-faq",
     };
   }
@@ -675,6 +707,9 @@ export const answerBoardVotesQuestion = async ({
   // 1. Hard refusals — never hit the LLM
   const refused = checkHardRefusal(trimmed);
   if (refused) return refused;
+
+  const approvedFaq = checkApprovedFaq(trimmed);
+  if (approvedFaq) return approvedFaq;
 
   // 2. Classify intent locally
   let intent = classifyIntentLocally(trimmed);

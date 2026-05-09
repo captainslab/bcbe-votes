@@ -25,8 +25,8 @@ type ChatMessage = {
 const starterQuestions = [
   "What happened at the latest meeting?",
   "Which member has the highest dissent rate?",
-  "What topics does the board vote on most?",
-  "Find votes about mental health",
+  "How do I support BoardVotes.io?",
+  "How do I add a board?",
 ];
 
 const safeFallback = "I don’t know from BoardVotes.io data.";
