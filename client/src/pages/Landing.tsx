@@ -47,7 +47,7 @@ export const Landing = () => {
               Dashboard
             </Link>
             <Link to="/request">Add a Board</Link>
-            <Link to="/donate">Support</Link>
+            <Link to="/support">Support</Link>
             <Link to="/votes" className="landing-nav-cta">
               View Votes
             </Link>
@@ -369,7 +369,7 @@ export const Landing = () => {
                 <Link to="/boards">Fund a Board</Link>
               </li>
               <li>
-                <Link to="/donate">Support</Link>
+                <Link to="/support">Support</Link>
               </li>
             </ul>
           </div>

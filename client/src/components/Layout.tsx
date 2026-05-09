@@ -12,7 +12,7 @@ const navItems = [
   { to: "/meetings", label: "Meetings" },
   { to: "/alliances", label: "Alliances" },
   { to: "/request", label: "Add a Board" },
-  { to: "/donate", label: "Support" },
+  { to: "/support", label: "Support" },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
@@ -58,7 +58,7 @@ export const Layout = ({ children }: LayoutProps) => {
             <Link to="/members" className="hover:text-white transition">Members</Link>
             <Link to="/meetings" className="hover:text-white transition">Meetings</Link>
             <Link to="/boards" className="hover:text-white transition">Fund a Board</Link>
-            <Link to="/donate" className="hover:text-white transition">Support</Link>
+            <Link to="/support" className="hover:text-white transition">Support</Link>
             <a href="mailto:help@boardvotes.io" className="hover:text-white transition">help@boardvotes.io</a>
             <Link to="/contact" className="hover:text-white transition">Contact</Link>
           </nav>

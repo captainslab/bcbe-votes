@@ -34,6 +34,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/request" element={<Request />} />
+          <Route path="/support" element={<Donate />} />
           <Route path="/donate" element={<Donate />} />
           <Route path="/boards" element={<Boards />} />
           <Route path="/boards/:slug" element={<BoardDetail />} />
