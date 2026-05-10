@@ -7,8 +7,8 @@ type LayoutProps = {
 
 export const navItems = [
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/votes", label: "Votes" },
   { to: "/members", label: "Members" },
+  { to: "/votes", label: "Votes" },
   { to: "/meetings", label: "Meetings" },
   { to: "/alliances", label: "Alliances" },
   { to: "/request", label: "Add a Board" },
