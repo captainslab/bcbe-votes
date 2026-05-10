@@ -1,18 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useDistrictRequestCounts, submitDistrictRequest, createBoardCheckout } from "../api/hooks";
+import { useDistrictRequestCounts, createBoardCheckout } from "../api/hooks";
 
-type ResidentForm = { boardName: string; state: string; submitterName: string; email: string; };
-
-type OperatorForm = {
+type ResidentForm = {
   boardName: string;
   state: string;
-  name: string;
+  submitterName: string;
   email: string;
-  role: string;
 };
-
-type OperatorSuccess = { email: string };
 
 const inputClass = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
 const labelClass = "block text-sm font-medium text-slate-700 mb-1";
@@ -41,13 +36,14 @@ const faqItems = [
 ] as const;
 
 export const Request = () => {
-  const [residentForm, setResidentForm] = useState<ResidentForm>({ boardName: "", state: "", submitterName: "", email: "" });
-  const [operatorForm, setOperatorForm] = useState<OperatorForm>({ boardName: "", state: "", name: "", email: "", role: "" });
-  const [operatorSuccess, setOperatorSuccess] = useState<OperatorSuccess | null>(null);
+  const [residentForm, setResidentForm] = useState<ResidentForm>({
+    boardName: "",
+    state: "",
+    submitterName: "",
+    email: "",
+  });
   const [residentLoading, setResidentLoading] = useState(false);
-  const [operatorLoading, setOperatorLoading] = useState(false);
   const [residentError, setResidentError] = useState<string | null>(null);
-  const [operatorError, setOperatorError] = useState<string | null>(null);
 
   const { data: counts, isLoading: countsLoading } = useDistrictRequestCounts();
 
@@ -69,33 +65,21 @@ export const Request = () => {
     }
   };
 
-  const handleOperatorSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOperatorLoading(true);
-    setOperatorError(null);
-    try {
-      const result = await submitDistrictRequest({ ...operatorForm, type: "operator" });
-      if (result.success) {
-        setOperatorSuccess({ email: operatorForm.email });
-      }
-    } catch {
-      setOperatorError("Something went wrong. Please try again.");
-    } finally {
-      setOperatorLoading(false);
-    }
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pb-28 sm:pb-8">
-      <div>
+    <div className="max-w-4xl mx-auto space-y-8 pb-24 sm:pb-8">
+      <header>
         <h1 className="text-2xl font-bold text-slate-900">Bring BoardVotes to Your Organization</h1>
         <p className="mt-2 text-slate-500 text-sm">
           BoardVotes tracks any board or governing body — school boards, HOAs, city councils, water districts, library boards, and more. Request your organization or list your board to work with us directly.
         </p>
         <p className="mt-2 text-sm text-slate-500">
-          Want the details first? <Link to="/faq" className="font-medium text-indigo-700 hover:text-indigo-800">Read the FAQ</Link>.
+          Want the details first?{' '}
+          <Link to="/faq" className="font-medium text-indigo-700 hover:text-indigo-800">
+            Read the FAQ
+          </Link>
+          .
         </p>
-      </div>
+      </header>
 
       <section className="rounded-xl border border-slate-200 bg-white px-6 py-5">
         <h2 className="text-lg font-semibold text-slate-900">How it works</h2>
@@ -110,156 +94,75 @@ export const Request = () => {
         </p>
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-900">Request your board</h2>
-            <p className="mt-1 text-sm text-slate-500">The $25 submission helps verify demand and prevent spam requests. Others can pledge toward the $500 setup goal.</p>
-            <p className="mt-2 text-sm text-slate-500">When $500 is reached, we begin reviewing public records, source availability, meeting history, and board setup.</p>
-          </div>
-
-          <form onSubmit={handleResidentSubmit} className="px-6 py-5 flex-1 flex flex-col space-y-4">
-              <div>
-                <label className={labelClass}>Board / body name</label>
-                <input
-                  type="text"
-                  required
-                  value={residentForm.boardName}
-                  onChange={(e) => setResidentForm((f) => ({ ...f, boardName: e.target.value }))}
-                  placeholder="e.g. Riverside HOA, Jefferson County Water Board"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>State</label>
-                <input
-                  type="text"
-                  required
-                  value={residentForm.state}
-                  onChange={(e) => setResidentForm((f) => ({ ...f, state: e.target.value }))}
-                  placeholder="e.g. AL"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Your name</label>
-                <input
-                  type="text"
-                  required
-                  value={residentForm.submitterName}
-                  onChange={(e) => setResidentForm((f) => ({ ...f, submitterName: e.target.value }))}
-                  placeholder="Full name"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Your email</label>
-                <input
-                  type="email"
-                  required
-                  value={residentForm.email}
-                  onChange={(e) => setResidentForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="you@example.com"
-                  className={inputClass}
-                />
-              </div>
-              {residentError && <p className="text-xs text-red-600">{residentError}</p>}
-              <p className="text-xs text-slate-500">After payment, your board request page can be shared with others.</p>
-              <div className="mt-auto pt-2">
-                <button
-                  type="submit"
-                  disabled={residentLoading}
-                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition"
-                >
-                  {residentLoading ? "Redirecting to payment…" : "Submit for $25"}
-                </button>
-              </div>
-            </form>
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+        <div className="px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">Request your board</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            The $25 submission helps verify demand and prevent spam requests. Others can pledge toward the $500 setup goal.
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            When $500 is reached, we begin reviewing public records, source availability, meeting history, and board setup.
+          </p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-900">List your board</h2>
-            <p className="mt-1 text-sm text-slate-500">You administer or work for a board or governing body and want early access.</p>
+        <form onSubmit={handleResidentSubmit} className="px-6 py-5 flex-1 flex flex-col space-y-4">
+          <div>
+            <label className={labelClass}>Board / body name</label>
+            <input
+              type="text"
+              required
+              value={residentForm.boardName}
+              onChange={(e) => setResidentForm((f) => ({ ...f, boardName: e.target.value }))}
+              placeholder="e.g. Riverside HOA, Jefferson County Water Board"
+              className={inputClass}
+            />
           </div>
-
-          {operatorSuccess ? (
-            <div className="px-6 py-8 flex-1 flex items-center">
-              <div className="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-sm text-green-800">
-                Got it — we'll be in touch at {operatorSuccess.email} within 48 hours.
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleOperatorSubmit} className="px-6 py-5 flex-1 flex flex-col space-y-4">
-              <div>
-                <label className={labelClass}>Board / body name</label>
-                <input
-                  type="text"
-                  required
-                  value={operatorForm.boardName}
-                  onChange={(e) => setOperatorForm((f) => ({ ...f, boardName: e.target.value }))}
-                  placeholder="e.g. Riverside HOA, Jefferson County Water Board"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>State</label>
-                <input
-                  type="text"
-                  required
-                  value={operatorForm.state}
-                  onChange={(e) => setOperatorForm((f) => ({ ...f, state: e.target.value }))}
-                  placeholder="e.g. AL"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Your name</label>
-                <input
-                  type="text"
-                  required
-                  value={operatorForm.name}
-                  onChange={(e) => setOperatorForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="Full name"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Your email</label>
-                <input
-                  type="email"
-                  required
-                  value={operatorForm.email}
-                  onChange={(e) => setOperatorForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="you@organization.org"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Your role</label>
-                <input
-                  type="text"
-                  required
-                  value={operatorForm.role}
-                  onChange={(e) => setOperatorForm((f) => ({ ...f, role: e.target.value }))}
-                  placeholder="e.g. HOA President, Board Administrator, Executive Director"
-                  className={inputClass}
-                />
-              </div>
-              {operatorError && <p className="text-xs text-red-600">{operatorError}</p>}
-              <div className="mt-auto pt-2">
-                <button
-                  type="submit"
-                  disabled={operatorLoading}
-                  className="w-full rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50 transition"
-                >
-                  {operatorLoading ? "Submitting…" : "Get early access"}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+          <div>
+            <label className={labelClass}>State</label>
+            <input
+              type="text"
+              required
+              value={residentForm.state}
+              onChange={(e) => setResidentForm((f) => ({ ...f, state: e.target.value }))}
+              placeholder="e.g. AL"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Your name</label>
+            <input
+              type="text"
+              required
+              value={residentForm.submitterName}
+              onChange={(e) => setResidentForm((f) => ({ ...f, submitterName: e.target.value }))}
+              placeholder="Full name"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Your email</label>
+            <input
+              type="email"
+              required
+              value={residentForm.email}
+              onChange={(e) => setResidentForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="you@example.com"
+              className={inputClass}
+            />
+          </div>
+          {residentError && <p className="text-xs text-red-600">{residentError}</p>}
+          <p className="text-xs text-slate-500">After payment, your board request page can be shared with others.</p>
+          <div className="mt-auto pt-2">
+            <button
+              type="submit"
+              disabled={residentLoading}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+            >
+              {residentLoading ? "Redirecting to payment…" : "Submit for $25"}
+            </button>
+          </div>
+        </form>
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white px-6 py-5">
         <h2 className="text-lg font-semibold text-slate-900">FAQ</h2>
@@ -273,7 +176,7 @@ export const Request = () => {
         </div>
       </section>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">Most requested boards</h2>
         </div>
@@ -291,17 +194,21 @@ export const Request = () => {
               {counts.map((item, i) => (
                 <li key={`${item.boardName}-${item.state}`} className="flex items-center gap-2 text-sm text-slate-700">
                   <span className="w-6 text-right font-semibold text-slate-400">{i + 1}.</span>
-                  <span>{item.boardName} — {item.state} — {item.count} {item.count === 1 ? "request" : "requests"}</span>
+                  <span>
+                    {item.boardName} — {item.state} — {item.count} {item.count === 1 ? "request" : "requests"}
+                  </span>
                 </li>
               ))}
             </ol>
           )}
         </div>
-      </div>
+      </section>
 
       <p className="text-xs text-slate-400">
-        BoardVotes.io is an independent project. Your email will only be used to notify you about your requested board or governing body.{" "}
-        <Link to="/contact" className="underline hover:text-slate-600">Questions? Contact us.</Link>
+        BoardVotes.io is an independent project. Your email will only be used to notify you about your requested board or governing body.{' '}
+        <Link to="/contact" className="underline hover:text-slate-600">
+          Questions? Contact us.
+        </Link>
       </p>
     </div>
   );
