@@ -16,6 +16,7 @@ import { Boards } from "./pages/Boards";
 import { BoardDetail } from "./pages/BoardDetail";
 import { Donate } from "./pages/Donate";
 import { BoardVotesChat } from "./components/BoardVotesChat";
+import { Faq } from "./pages/Faq";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/request" element={<Request />} />
+          <Route path="/faq" element={<Faq />} />
           <Route path="/support" element={<Donate />} />
           <Route path="/donate" element={<Donate />} />
           <Route path="/boards" element={<Boards />} />

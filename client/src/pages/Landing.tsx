@@ -47,6 +47,7 @@ export const Landing = () => {
               Dashboard
             </Link>
             <Link to="/request">Add a Board</Link>
+            <Link to="/faq">FAQ</Link>
             <Link to="/support">Support</Link>
             <Link to="/votes" className="landing-nav-cta">
               View Votes

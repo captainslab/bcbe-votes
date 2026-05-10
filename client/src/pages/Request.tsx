@@ -92,6 +92,9 @@ export const Request = () => {
         <p className="mt-2 text-slate-500 text-sm">
           BoardVotes tracks any board or governing body — school boards, HOAs, city councils, water districts, library boards, and more. Request your organization or list your board to work with us directly.
         </p>
+        <p className="mt-2 text-sm text-slate-500">
+          Want the details first? <Link to="/faq" className="font-medium text-indigo-700 hover:text-indigo-800">Read the FAQ</Link>.
+        </p>
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white px-6 py-5">

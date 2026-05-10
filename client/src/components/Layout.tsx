@@ -12,6 +12,7 @@ const navItems = [
   { to: "/meetings", label: "Meetings" },
   { to: "/alliances", label: "Alliances" },
   { to: "/request", label: "Add a Board" },
+  { to: "/faq", label: "FAQ" },
   { to: "/support", label: "Support" },
 ];
 
