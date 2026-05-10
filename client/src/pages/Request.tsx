@@ -14,6 +14,32 @@ type OperatorForm = {
 
 type OperatorSuccess = { email: string };
 
+const inputClass = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+
+const faqItems = [
+  {
+    question: "What does the $25 cover?",
+    answer: "It creates a public funding page for the requested board and helps filter serious requests from spam.",
+  },
+  {
+    question: "What happens when a board reaches $500?",
+    answer: "BoardVotes.io begins source review and onboarding. That includes checking public records, meeting history, available minutes, agendas, and vote documentation.",
+  },
+  {
+    question: "What if the public records are incomplete?",
+    answer: "Some boards do not publish enough usable information to support full vote tracking. If that happens, the board page may show limited coverage, source gaps, or a needs-review status.",
+  },
+  {
+    question: "Can an organization pay directly instead of crowdfunding?",
+    answer: "Yes. Organizations that want direct onboarding can contact BoardVotes.io to discuss setup options.",
+  },
+  {
+    question: "Can HOAs or private boards use this?",
+    answer: "Yes, but private or member-only bodies may require a different access model. Public crowdfunding is best for public boards and governing bodies.",
+  },
+] as const;
+
 export const Request = () => {
   const [residentForm, setResidentForm] = useState<ResidentForm>({ boardName: "", state: "", submitterName: "", email: "" });
   const [operatorForm, setOperatorForm] = useState<OperatorForm>({ boardName: "", state: "", name: "", email: "", role: "" });
@@ -59,11 +85,8 @@ export const Request = () => {
     }
   };
 
-  const inputClass = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
-  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
-
   return (
-    <div className="max-w-4xl mx-auto space-y-10">
+    <div className="max-w-4xl mx-auto space-y-10 pb-28 sm:pb-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Bring BoardVotes to Your Organization</h1>
         <p className="mt-2 text-slate-500 text-sm">
@@ -71,11 +94,25 @@ export const Request = () => {
         </p>
       </div>
 
+      <section className="rounded-xl border border-slate-200 bg-white px-6 py-5">
+        <h2 className="text-lg font-semibold text-slate-900">How it works</h2>
+        <ol className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+          <li className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">1. Submit your board</li>
+          <li className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">2. Share the funding page</li>
+          <li className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">3. Community pledges toward the setup goal</li>
+          <li className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">4. We review sources and begin onboarding once funded</li>
+        </ol>
+        <p className="mt-4 text-sm text-slate-500">
+          Funding starts the onboarding review. If public records are usable, we build the board page and begin publishing tracked records. Some boards may have incomplete, inconsistent, or unavailable source material.
+        </p>
+      </section>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-100">
             <h2 className="text-lg font-semibold text-slate-900">Request your board</h2>
-            <p className="mt-1 text-sm text-slate-500">Pay $25 to create a public funding page for your board. Others can pledge — when $500 is reached, onboarding begins.</p>
+            <p className="mt-1 text-sm text-slate-500">The $25 submission helps verify demand and prevent spam requests. Others can pledge toward the $500 setup goal.</p>
+            <p className="mt-2 text-sm text-slate-500">When $500 is reached, we begin reviewing public records, source availability, meeting history, and board setup.</p>
           </div>
 
           <form onSubmit={handleResidentSubmit} className="px-6 py-5 flex-1 flex flex-col space-y-4">
@@ -123,9 +160,8 @@ export const Request = () => {
                   className={inputClass}
                 />
               </div>
-              {residentError && (
-                <p className="text-xs text-red-600">{residentError}</p>
-              )}
+              {residentError && <p className="text-xs text-red-600">{residentError}</p>}
+              <p className="text-xs text-slate-500">After payment, your board request page can be shared with others.</p>
               <div className="mt-auto pt-2">
                 <button
                   type="submit"
@@ -207,9 +243,7 @@ export const Request = () => {
                   className={inputClass}
                 />
               </div>
-              {operatorError && (
-                <p className="text-xs text-red-600">{operatorError}</p>
-              )}
+              {operatorError && <p className="text-xs text-red-600">{operatorError}</p>}
               <div className="mt-auto pt-2">
                 <button
                   type="submit"
@@ -223,6 +257,18 @@ export const Request = () => {
           )}
         </div>
       </div>
+
+      <section className="rounded-xl border border-slate-200 bg-white px-6 py-5">
+        <h2 className="text-lg font-semibold text-slate-900">FAQ</h2>
+        <div className="mt-4 space-y-4 text-sm text-slate-600">
+          {faqItems.map((item) => (
+            <div key={item.question} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="font-semibold text-slate-900">{item.question}</p>
+              <p className="mt-1">{item.answer}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100">
