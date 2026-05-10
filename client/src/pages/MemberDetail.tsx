@@ -462,6 +462,101 @@ export const MemberDetail = () => {
         </div>
       )}
 
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">No and abstained votes</h2>
+        <p className="text-sm text-slate-500">Only extracted vote records with a recorded No or Abstain are shown.</p>
+        <div className="mt-4 space-y-4">
+          {noVoteItems.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+              No recorded no votes in the currently extracted dataset.
+            </div>
+          ) : (
+            noVoteItems.map((item) => {
+              const title = resolveTitle(item.itemTitle, item.motionText);
+              // Show description only once: prefer summaryText, fall back to motionText if different
+              const description = !isPlaceholder(item.summaryText) ? item.summaryText : null;
+              const showMotion =
+                !isPlaceholder(item.motionText) &&
+                item.motionText !== item.summaryText &&
+                item.motionText !== item.itemTitle;
+              const outcome = isPlaceholder(item.overallOutcome) ? "—" : item.overallOutcome!;
+
+              return (
+                <div key={item.voteItemId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-sm text-slate-500">
+                        {formatDate(item.meetingDate)} · {item.meetingType || "—"}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-900 leading-snug">
+                        {title ?? "—"}
+                      </p>
+                      <p className="text-sm text-slate-700">
+                        Voted <span className="font-semibold">{item.memberVote}</span>
+                        {outcome !== "—" && <> · Outcome: {outcome}</>}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
+                        {item.category || "—"}
+                      </Badge>
+                      <Badge
+                        tone={
+                          item.verificationStatus === "verified"
+                            ? "emerald"
+                            : item.verificationStatus === "unverified"
+                              ? "slate"
+                              : "amber"
+                        }
+                      >
+                        {item.verificationStatus === "verified"
+                          ? "Verified"
+                          : item.verificationStatus === "unverified"
+                            ? "Agenda sourced"
+                            : "Pending review"}
+                      </Badge>
+                      <Badge tone={item.sourceAvailability === "available" ? "emerald" : "amber"}>
+                        {item.sourceAvailability === "available" ? "Source linked" : "Source unavailable"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <CategoryEntityDetail
+                    category={item.category}
+                    personnelEntities={item.personnelEntities}
+                    propertyEntities={item.propertyEntities}
+                  />
+                  {description && (
+                    <p className="mt-3 text-sm text-slate-700 leading-relaxed">{description}</p>
+                  )}
+                  {showMotion && (
+                    <p className="mt-2 text-sm text-slate-600 italic">{item.motionText}</p>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                    {item.sourceUrl ? (
+                      <a
+                        href={item.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline text-slate-600"
+                      >
+                        View official record
+                      </a>
+                    ) : (
+                      <span>Source unavailable</span>
+                    )}
+                    <Link to={`/votes/${item.voteItemId}`} className="font-semibold text-slate-700 underline">
+                      View vote detail
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       {((data.motions?.made.length ?? 0) > 0 || (data.motions?.seconded.length ?? 0) > 0) && (() => {
         const made = data.motions!.made;
         const seconded = data.motions!.seconded;
@@ -565,101 +660,6 @@ export const MemberDetail = () => {
           </div>
         );
       })()}
-
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">No and abstained votes</h2>
-        <p className="text-sm text-slate-500">Only extracted vote records with a recorded No or Abstain are shown.</p>
-        <div className="mt-4 space-y-4">
-          {noVoteItems.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-              No recorded no votes in the currently extracted dataset.
-            </div>
-          ) : (
-            noVoteItems.map((item) => {
-              const title = resolveTitle(item.itemTitle, item.motionText);
-              // Show description only once: prefer summaryText, fall back to motionText if different
-              const description = !isPlaceholder(item.summaryText) ? item.summaryText : null;
-              const showMotion =
-                !isPlaceholder(item.motionText) &&
-                item.motionText !== item.summaryText &&
-                item.motionText !== item.itemTitle;
-              const outcome = isPlaceholder(item.overallOutcome) ? "—" : item.overallOutcome!;
-
-              return (
-                <div key={item.voteItemId} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-sm text-slate-500">
-                        {formatDate(item.meetingDate)} · {item.meetingType || "—"}
-                      </p>
-                      <p className="text-lg font-semibold text-slate-900 leading-snug">
-                        {title ?? "—"}
-                      </p>
-                      <p className="text-sm text-slate-700">
-                        Voted <span className="font-semibold">{item.memberVote}</span>
-                        {outcome !== "—" && <> · Outcome: {outcome}</>}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 shrink-0">
-                      <Badge tone={item.category === "Other / Needs Review" ? "amber" : "blue"}>
-                        {item.category || "—"}
-                      </Badge>
-                      <Badge
-                        tone={
-                          item.verificationStatus === "verified"
-                            ? "emerald"
-                            : item.verificationStatus === "unverified"
-                              ? "slate"
-                              : "amber"
-                        }
-                      >
-                        {item.verificationStatus === "verified"
-                          ? "Verified"
-                          : item.verificationStatus === "unverified"
-                            ? "Agenda sourced"
-                            : "Pending review"}
-                      </Badge>
-                      <Badge tone={item.sourceAvailability === "available" ? "emerald" : "amber"}>
-                        {item.sourceAvailability === "available" ? "Source linked" : "Source unavailable"}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <CategoryEntityDetail
-                    category={item.category}
-                    personnelEntities={item.personnelEntities}
-                    propertyEntities={item.propertyEntities}
-                  />
-                  {description && (
-                    <p className="mt-3 text-sm text-slate-700 leading-relaxed">{description}</p>
-                  )}
-                  {showMotion && (
-                    <p className="mt-2 text-sm text-slate-600 italic">{item.motionText}</p>
-                  )}
-
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
-                    {item.sourceUrl ? (
-                      <a
-                        href={item.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline text-slate-600"
-                      >
-                        View official record
-                      </a>
-                    ) : (
-                      <span>Source unavailable</span>
-                    )}
-                    <Link to={`/votes/${item.voteItemId}`} className="font-semibold text-slate-700 underline">
-                      View vote detail
-                    </Link>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
 
       <PairwiseSection memberId={memberId} alignment={alignment} members={membersQuery} />
     </div>
