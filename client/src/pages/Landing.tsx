@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import { navItems } from "../components/Layout";
 import "./Landing.css";
 
 export const Landing = () => {
@@ -37,21 +38,23 @@ export const Landing = () => {
             BoardVotes<span>.io</span>
           </Link>
           <div className="landing-nav-links">
-            <a href="#features" onClick={scrollTo("features")} className="landing-nav-hide-mobile">
-              Features
-            </a>
-            <a href="#how-it-works" onClick={scrollTo("how-it-works")} className="landing-nav-hide-mobile">
-              How It Works
-            </a>
-            <Link to="/dashboard" className="landing-nav-hide-mobile">
-              Dashboard
-            </Link>
-            <Link to="/request">Add a Board</Link>
-            <Link to="/faq">FAQ</Link>
-            <Link to="/support">Support</Link>
-            <Link to="/votes" className="landing-nav-cta">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) =>
+                  ["landing-nav-item", isActive ? "landing-nav-item-active" : ""]
+                    .filter(Boolean)
+                    .join(" ")
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+            <NavLink to="/votes" className="landing-nav-button landing-nav-cta">
               View Votes
-            </Link>
+            </NavLink>
           </div>
         </div>
       </nav>

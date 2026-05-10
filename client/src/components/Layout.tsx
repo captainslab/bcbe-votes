@@ -5,7 +5,7 @@ type LayoutProps = {
   children?: ReactNode;
 };
 
-const navItems = [
+export const navItems = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/votes", label: "Votes" },
   { to: "/members", label: "Members" },
