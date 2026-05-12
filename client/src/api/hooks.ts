@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { Board, CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
+import type { Board, CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, TranscriptData, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
 
 export const useHubBoards = () =>
   useQuery({
@@ -36,6 +36,28 @@ export const useMeeting = (id?: string | number) =>
     queryFn: async () => {
       const res = await api.get<Meeting & { voteItems: VoteItem[] }>(`/meetings/${id}`);
       return res.data;
+    },
+  });
+
+export const useTranscript = (id?: string | number) =>
+  useQuery({
+    queryKey: ["transcript", id],
+    enabled: Boolean(id),
+    queryFn: async () => {
+      try {
+        const res = await api.get<TranscriptData>(`/meetings/${id}/transcript`);
+        return res.data;
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === "object" &&
+          "response" in err &&
+          (err as { response?: { status?: number } }).response?.status === 404
+        ) {
+          return null;
+        }
+        throw err;
+      }
     },
   });
 

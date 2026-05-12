@@ -107,7 +107,7 @@ def find_meeting_id(conn, date_str):
     return None
 
 
-def transcribe_and_store(index, video_id, title, date_str, audio_path, dry_run=False):
+def transcribe_and_store(index, video_id, title, date_str, audio_path, dry_run=False, model=None):
     report_path     = RESEARCH_DIR / f"{index}_{video_id}_report.json"
     transcript_path = RESEARCH_DIR / f"{index}_{video_id}.txt"
 
@@ -127,9 +127,10 @@ def transcribe_and_store(index, video_id, title, date_str, audio_path, dry_run=F
         return "dry_run"
 
     # ── Transcribe ──────────────────────────────────────────────────────────────
-    from faster_whisper import WhisperModel
-    print(f"  Loading model ({MODEL_NAME})...")
-    model = WhisperModel(MODEL_NAME, device="cpu", compute_type="int8")
+    if model is None:
+        from faster_whisper import WhisperModel
+        print(f"  Loading model ({MODEL_NAME})...")
+        model = WhisperModel(MODEL_NAME, device="cpu", compute_type="int8")
     print(f"  Transcribing...")
     segments_iter, info = model.transcribe(
         str(audio_path), beam_size=5, language="en",
@@ -289,6 +290,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run",  action="store_true")
     parser.add_argument("--start",    type=int, default=1)
+    parser.add_argument("--end",      type=int, default=9999)
     parser.add_argument("--only-id",  default=None)
     args = parser.parse_args()
 
@@ -310,13 +312,21 @@ def main():
     voice_vote_total = 0
     motion_total = 0
 
+    # Load model once for the whole worker — avoids per-file reload overhead
+    whisper_model = None
+    if not args.dry_run and not args.only_id:
+        from faster_whisper import WhisperModel
+        print(f"  Loading model ({MODEL_NAME}) once for this worker...")
+        whisper_model = WhisperModel(MODEL_NAME, device="cpu", compute_type="int8")
+        print()
+
     for row in rows:
         idx      = row["playlist_index"].strip()
         vid      = row["id"].strip()
         title    = row["title"].strip()
         dur_sec  = int(row.get("duration_seconds", 0) or 0)
 
-        if int(idx) < args.start:
+        if int(idx) < args.start or int(idx) > args.end:
             continue
         if args.only_id and vid != args.only_id:
             continue
@@ -329,7 +339,7 @@ def main():
 
         try:
             result = transcribe_and_store(idx, vid, title, date_str, audio_path,
-                                          dry_run=args.dry_run)
+                                          dry_run=args.dry_run, model=whisper_model)
             counts[result] = counts.get(result, 0) + 1
 
             # tally from report if done

@@ -1,10 +1,12 @@
 import { Link, useParams } from "react-router-dom";
-import { useMeeting } from "../api/hooks";
+import { useMeeting, useTranscript } from "../api/hooks";
 import { Badge } from "../components/Badge";
+import { ExecSessionPanel } from "../components/ExecSessionPanel";
 
 export const MeetingDetail = () => {
   const { id } = useParams();
   const { data, isLoading, error } = useMeeting(id);
+  const { data: transcript } = useTranscript(data?.id);
 
   if (isLoading) return <p>Loading meeting…</p>;
   if (error) return <p className="text-red-600">Failed to load meeting.</p>;
@@ -19,12 +21,24 @@ export const MeetingDetail = () => {
           <p className="text-sm text-slate-600">{new Date(data.date).toLocaleDateString()}</p>
           <h1 className="text-3xl font-semibold text-slate-900">{data.title}</h1>
           <p className="text-sm text-slate-600">Type: {data.type}</p>
+          {/* Small transcript signal badges */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {transcript?.prayerDetected && (
+              <Badge tone="slate">🙏 Prayer detected in opening</Badge>
+            )}
+            {transcript?.voiceVotes && transcript.voiceVotes.length > 0 && (
+              <Badge tone="amber">
+                🎙 {transcript.voiceVotes.length} voice vote
+                {transcript.voiceVotes.length !== 1 ? "s" : ""} detected
+              </Badge>
+            )}
+          </div>
           {data.sourceUrl && (
             <a
               href={data.sourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-sm font-semibold text-slate-800 underline"
+              className="mt-2 inline-block text-sm font-semibold text-slate-800 underline"
             >
               Source link
             </a>
@@ -34,6 +48,9 @@ export const MeetingDetail = () => {
           Back to meetings
         </Link>
       </div>
+
+      {/* Executive Session Panel — highest priority, shown above votes */}
+      <ExecSessionPanel transcript={transcript} />
 
       <div className="space-y-4">
         {voteItemCount === 0 ? (

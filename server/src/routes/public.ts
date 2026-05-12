@@ -23,6 +23,7 @@ import {
   getSummaryStats,
 } from "../services/analyticsService";
 import { getVendors, getVendorBySlug } from "../services/vendorService";
+import { getTranscriptForMeeting } from "../services/transcriptService";
 import { validateRequest } from "../middleware/validateRequest";
 import { HttpError } from "../utils/httpError";
 import {
@@ -140,6 +141,25 @@ router.get(
       const meeting = await getMeeting(params.id);
       if (!meeting) throw new HttpError(404, "Meeting not found");
       res.json(meeting);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+router.get(
+  "/meetings/:id/transcript",
+  validateRequest(
+    z.object({
+      params: z.object({ id: z.coerce.number() }),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { params } = res.locals.validatedRequest as { params: { id: number } };
+      const transcript = await getTranscriptForMeeting(params.id);
+      if (!transcript) throw new HttpError(404, "Transcript not found");
+      res.json(transcript);
     } catch (err) {
       next(err);
     }

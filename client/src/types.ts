@@ -268,6 +268,20 @@ export type Board = {
   description: string | null;
 };
 
+export type TranscriptData = {
+  videoId: string;
+  videoTitle: string;
+  meetingDate: string | null;
+  wordCount: number | null;
+  durationSeconds: number | null;
+  prayerDetected: boolean;
+  execSessionDetected: boolean;
+  execSessionContext: Array<{ time: string; context: string; reasons: string[] }> | null;
+  voiceVotes: Array<{ time: string; trigger: string; context: string }> | null;
+  motionsDetected: Array<{ time: string; kind: string; context: string }> | null;
+  updatedAt: string;
+};
+
 export type SummaryStats = {
   totalMeetings: number;
   totalVotes: number;
