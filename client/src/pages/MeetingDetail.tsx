@@ -22,17 +22,14 @@ export const MeetingDetail = () => {
           <h1 className="text-3xl font-semibold text-slate-900">{data.title}</h1>
           <p className="text-sm text-slate-600">Type: {data.type}</p>
           {/* Small transcript signal badges */}
-          <div className="mt-2 flex flex-wrap gap-2">
-            {transcript?.prayerDetected && (
-              <Badge tone="slate">🙏 Prayer detected in opening</Badge>
-            )}
-            {transcript?.voiceVotes && transcript.voiceVotes.length > 0 && (
+          {transcript?.voiceVotes && transcript.voiceVotes.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
               <Badge tone="amber">
                 🎙 {transcript.voiceVotes.length} voice vote
                 {transcript.voiceVotes.length !== 1 ? "s" : ""} detected
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
           {data.sourceUrl && (
             <a
               href={data.sourceUrl}

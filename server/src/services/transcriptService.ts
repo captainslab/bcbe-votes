@@ -7,7 +7,6 @@ export type TranscriptSummary = {
   meetingDate: string | null;
   wordCount: number | null;
   durationSeconds: number | null;
-  prayerDetected: boolean;
   execSessionDetected: boolean;
   execSessionContext: Array<{ time: string; context: string; reasons: string[] }> | null;
   voiceVotes: Array<{ time: string; trigger: string; context: string }> | null;
@@ -21,7 +20,6 @@ type RawTranscriptRow = {
   meeting_date: Date | string | null;
   word_count: number | null;
   duration_seconds: number | null;
-  prayer_detected: boolean;
   exec_session_detected: boolean;
   exec_session_context: unknown;
   voice_votes: unknown;
@@ -40,7 +38,6 @@ export const getTranscriptForMeeting = async (
         meeting_date,
         word_count,
         duration_seconds,
-        prayer_detected,
         exec_session_detected,
         exec_session_context,
         voice_votes,
@@ -72,7 +69,6 @@ export const getTranscriptForMeeting = async (
     meetingDate: toDateString(row.meeting_date),
     wordCount: row.word_count ?? null,
     durationSeconds: row.duration_seconds ?? null,
-    prayerDetected: Boolean(row.prayer_detected),
     execSessionDetected: Boolean(row.exec_session_detected),
     execSessionContext: Array.isArray(row.exec_session_context)
       ? (row.exec_session_context as Array<{ time: string; context: string; reasons: string[] }>)

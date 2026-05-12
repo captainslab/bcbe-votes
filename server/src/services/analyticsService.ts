@@ -152,6 +152,26 @@ export const getSummaryStats = async () => {
         AND ${schema.meetings.date} >= NOW() - INTERVAL '1 year'`,
     );
 
+  const transcriptStatsRow = await db.execute(
+    sql`
+      SELECT
+        COUNT(*) FILTER (WHERE exec_session_detected = true)::int AS exec_session_meetings,
+        COUNT(DISTINCT meeting_id) FILTER (
+          WHERE exec_session_detected = true
+            AND meeting_date >= NOW() - INTERVAL '1 year'
+        )::int AS exec_session_past_year,
+        COALESCE(SUM(jsonb_array_length(voice_votes)) FILTER (WHERE voice_votes IS NOT NULL AND jsonb_array_length(voice_votes) > 0), 0)::int AS total_voice_votes,
+        COALESCE(SUM(jsonb_array_length(motions_detected)) FILTER (WHERE motions_detected IS NOT NULL AND jsonb_array_length(motions_detected) > 0), 0)::int AS total_motions
+      FROM meeting_transcripts
+    `,
+  );
+  const tRow = transcriptStatsRow.rows[0] as {
+    exec_session_meetings: number;
+    exec_session_past_year: number;
+    total_voice_votes: number;
+    total_motions: number;
+  } | undefined;
+
   const memberVoteRows = await db
     .select({
       memberId: schema.voteRecords.boardMemberId,
@@ -219,8 +239,87 @@ export const getSummaryStats = async () => {
     nonUnanimousCount: Number(nonUnanimousCount?.count ?? 0),
     needsReviewCount: Number(needsReviewCount?.count ?? 0),
     executiveSessionCount: Number(execSessionCount?.count ?? 0),
+    transcriptExecSessionCount: Number(tRow?.exec_session_past_year ?? 0),
+    totalVoiceVotesTriggers: Number(tRow?.total_voice_votes ?? 0),
+    totalMotionsDetected: Number(tRow?.total_motions ?? 0),
     dissentLeaderboard,
     yesLeaderboard,
+  };
+};
+
+export type ExecSessionMeetingSummary = {
+  meetingId: number | null;
+  date: string | null;
+  videoTitle: string;
+  blockCount: number;
+  reasons: string[];
+};
+
+export type ExecSessionSummaryResult = {
+  totalDetected: number;
+  pastYearCount: number;
+  latestMeeting: ExecSessionMeetingSummary | null;
+  meetings: ExecSessionMeetingSummary[];
+};
+
+export const getExecSessionSummary = async (): Promise<ExecSessionSummaryResult> => {
+  const rows = await db.execute(
+    sql`
+      SELECT
+        mt.meeting_id,
+        mt.video_title,
+        mt.meeting_date,
+        mt.exec_session_context
+      FROM meeting_transcripts mt
+      WHERE mt.exec_session_detected = true
+      ORDER BY mt.meeting_date DESC NULLS LAST
+    `,
+  );
+
+  type RawExecRow = {
+    meeting_id: number | null;
+    video_title: string;
+    meeting_date: Date | string | null;
+    exec_session_context: unknown;
+  };
+
+  const allRows = rows.rows as RawExecRow[];
+
+  const toDateStr = (value: Date | string | null): string | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    return String(value).slice(0, 10);
+  };
+
+  const now = new Date();
+  const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+
+  const meetings: ExecSessionMeetingSummary[] = allRows.map((row) => {
+    const ctx = Array.isArray(row.exec_session_context)
+      ? (row.exec_session_context as Array<{ reasons?: string[] }>)
+      : [];
+    const reasons = ctx
+      .flatMap((b) => b.reasons ?? [])
+      .filter((r, i, arr) => arr.indexOf(r) === i);
+    return {
+      meetingId: row.meeting_id ?? null,
+      date: toDateStr(row.meeting_date),
+      videoTitle: row.video_title,
+      blockCount: ctx.length,
+      reasons,
+    };
+  });
+
+  const pastYearMeetings = meetings.filter((m) => {
+    if (!m.date) return false;
+    return new Date(m.date) >= oneYearAgo;
+  });
+
+  return {
+    totalDetected: meetings.length,
+    pastYearCount: pastYearMeetings.length,
+    latestMeeting: meetings[0] ?? null,
+    meetings,
   };
 };
 

@@ -274,7 +274,6 @@ export type TranscriptData = {
   meetingDate: string | null;
   wordCount: number | null;
   durationSeconds: number | null;
-  prayerDetected: boolean;
   execSessionDetected: boolean;
   execSessionContext: Array<{ time: string; context: string; reasons: string[] }> | null;
   voiceVotes: Array<{ time: string; trigger: string; context: string }> | null;
@@ -289,6 +288,9 @@ export type SummaryStats = {
   nonUnanimousCount: number;
   needsReviewCount?: number;
   executiveSessionCount?: number;
+  transcriptExecSessionCount?: number;
+  totalVoiceVotesTriggers?: number;
+  totalMotionsDetected?: number;
   dissentLeaderboard: {
     memberId: number;
     name: string;
@@ -303,4 +305,19 @@ export type SummaryStats = {
     yesCount: number;
     totalVotes: number;
   }[];
+};
+
+export type ExecSessionMeetingSummary = {
+  meetingId: number | null;
+  date: string | null;
+  videoTitle: string;
+  blockCount: number;
+  reasons: string[];
+};
+
+export type ExecSessionSummaryData = {
+  totalDetected: number;
+  pastYearCount: number;
+  latestMeeting: ExecSessionMeetingSummary | null;
+  meetings: ExecSessionMeetingSummary[];
 };

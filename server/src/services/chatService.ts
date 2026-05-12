@@ -14,6 +14,7 @@ import {
   getRecentVoteSummaries,
   searchVoteItemsForChat,
 } from "./dataService";
+import { getTranscriptForMeeting } from "./transcriptService";
 
 export type ChatContext = {
   totalMeetings: number;
@@ -221,6 +222,8 @@ Hard rules — always enforced:
 - Never reveal database schemas, server internals, API keys, or admin details.
 - Never invent vote counts, names, dates, or outcomes not in the provided data.
 - Never use honorific prefixes listed in blockedTitlePrefixes.
+- Prayer content is not published on BoardVotes.io. If asked about prayers, invocations, religious tone, spiritual analysis, "darker prayers", or any variation — respond only with: "Prayer analysis is not published on BoardVotes.io. I can help with public meeting actions, votes, executive sessions, motions, and source-linked records."
+- Never quote, summarize, or analyze prayer text from any source.
 
 What you know about the site:
 - BoardVotes.io is an independent public site — not an official government site.
@@ -359,6 +362,7 @@ const generateChatAnswer = async (
   context: ChatContext,
   previousQuestion?: string,
   previousAssistantAnswer?: string,
+  transcriptContext?: string | null,
 ): Promise<string | null> => {
   const messages: Array<{ role: string; content: string }> = [
     { role: "system", content: buildChatSystemPrompt(context) },
@@ -369,9 +373,10 @@ const generateChatAnswer = async (
     messages.push({ role: "assistant", content: previousAssistantAnswer });
   }
 
+  const transcriptSection = transcriptContext ? `\n\n${transcriptContext}` : "";
   const userContent = queryResults
-    ? `Here is relevant data from the site:\n${JSON.stringify(queryResults, null, 2).slice(0, 3000)}\n\nQuestion: ${question}`
-    : question;
+    ? `Here is relevant data from the site:\n${JSON.stringify(queryResults, null, 2).slice(0, 3000)}${transcriptSection}\n\nQuestion: ${question}`
+    : `${question}${transcriptSection}`;
 
   messages.push({ role: "user", content: userContent });
   return postToOpenRouter(messages, 500);
@@ -543,6 +548,44 @@ const classifyIntent = async (question: string): Promise<DataQueryIntent> => {
     // fall through
   }
   return { type: "faq" };
+};
+
+// ---------------------------------------------------------------------------
+// Transcript context — safe summary for chat injection (no prayer data)
+// ---------------------------------------------------------------------------
+
+export const getTranscriptContextForChat = async (meetingId: number, meetingTitle?: string, meetingDate?: string): Promise<string | null> => {
+  try {
+    const transcript = await getTranscriptForMeeting(meetingId);
+    if (!transcript) return null;
+
+    const execCount = transcript.execSessionContext?.length ?? (transcript.execSessionDetected ? 1 : 0);
+    const reasons = transcript.execSessionContext
+      ?.flatMap((b) => b.reasons ?? [])
+      .filter((r, i, arr) => arr.indexOf(r) === i)
+      .slice(0, 4)
+      .join(", ");
+    const voiceVoteCount = transcript.voiceVotes?.length ?? 0;
+    const motionCount = transcript.motionsDetected?.length ?? 0;
+
+    const label = meetingTitle
+      ? `${meetingTitle}${meetingDate ? ` (${meetingDate})` : ""}`
+      : meetingDate ?? `Meeting #${meetingId}`;
+
+    const lines: string[] = [`Transcript context for ${label}:`];
+    if (execCount > 0) {
+      lines.push(`- Executive sessions detected: ${execCount}${reasons ? ` (reasons: ${reasons})` : ""}`);
+    } else {
+      lines.push(`- No executive sessions detected in transcript`);
+    }
+    lines.push(`- Voice vote triggers: ${voiceVoteCount} detected`);
+    lines.push(`- Motions detected: ${motionCount}`);
+    lines.push(`- Source: YouTube video ${transcript.videoId}`);
+
+    return lines.join("\n");
+  } catch {
+    return null;
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -760,6 +803,22 @@ export const answerBoardVotesQuestion = async ({
   }
 
   // 5. Generate natural conversational answer via LLM
+  // For meeting-specific intents, enrich with safe transcript context
+  let transcriptContext: string | null = null;
+  if (useModel && fetched?.queryResults) {
+    if (intent.type === "recent_meetings") {
+      const meetings = fetched.queryResults as ChatMeetingSummary[];
+      const first = meetings[0];
+      if (first?.meetingId) {
+        transcriptContext = await getTranscriptContextForChat(
+          first.meetingId,
+          first.meetingTitle,
+          first.meetingDate ?? undefined,
+        );
+      }
+    }
+  }
+
   if (useModel && intent.type !== "executive_session") {
     const rawAnswer = await generateChatAnswer(
       trimmed,
@@ -767,6 +826,7 @@ export const answerBoardVotesQuestion = async ({
       context,
       previousQuestion || undefined,
       previousAssistantAnswer || undefined,
+      transcriptContext,
     );
     if (rawAnswer) {
       const answer = sanitizeChatAnswer(rawAnswer);

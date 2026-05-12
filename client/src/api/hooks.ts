@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { Board, CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, TranscriptData, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
+import type { Board, CategoryStat, ExecSessionSummaryData, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, TranscriptData, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
 
 export const useHubBoards = () =>
   useQuery({
@@ -18,6 +18,16 @@ export const useSummary = () =>
       const res = await api.get<{ summary: SummaryStats; recentVotes: VoteItem[]; categoryStats: CategoryStat[] }>("/stats");
       return res.data;
     },
+  });
+
+export const useExecSessionSummary = () =>
+  useQuery({
+    queryKey: ["exec-sessions-summary"],
+    queryFn: async () => {
+      const res = await api.get<ExecSessionSummaryData>("/exec-sessions/summary");
+      return res.data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
 export const useMeetings = () =>

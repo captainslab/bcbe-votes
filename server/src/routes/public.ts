@@ -15,6 +15,7 @@ import {
 } from "../services/dataService";
 import {
   getCategoryStats,
+  getExecSessionSummary,
   getMemberAlignment,
   getMemberCategoryStats,
   getMemberStats,
@@ -412,6 +413,15 @@ router.get("/district-requests/counts", async (_req, res, next) => {
       (r) => ({ boardName: r.board_name, state: r.state, count: r.count }),
     );
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/exec-sessions/summary", async (_req, res, next) => {
+  try {
+    const summary = await getExecSessionSummary();
+    res.json(summary);
   } catch (err) {
     next(err);
   }

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useSummary } from "../api/hooks";
+import { useExecSessionSummary, useSummary } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
 import type { CategoryStat, VoteItem } from "../types";
@@ -115,6 +115,7 @@ const getVoteSummary = (vote: VoteItem): string | null => {
 
 export const Dashboard = () => {
   const { data, isLoading, error } = useSummary();
+  const { data: execSummary } = useExecSessionSummary();
 
   if (isLoading) return <p>Loading dashboard...</p>;
   if (error) return <p className="text-red-600">Failed to load dashboard.</p>;
@@ -192,23 +193,46 @@ export const Dashboard = () => {
         />
       </div>
 
-      {/* Executive session callout */}
-      {summary.executiveSessionCount != null && summary.executiveSessionCount > 0 && (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-amber-900">
-              {summary.executiveSessionCount} executive session{summary.executiveSessionCount !== 1 ? "s" : ""} in the past 12 months
-            </p>
-            <p className="mt-0.5 text-xs text-amber-700">
-              These votes were passed by voice — no individual roll call was recorded.{" "}
-              <span className="font-medium">Voice vote records coming soon via YouTube meeting transcripts.</span>
-            </p>
-          </div>
-          <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-800">
-            Voice votes coming soon
-          </span>
-        </section>
-      )}
+      {/* Executive session callout — transcript-backed */}
+      {(() => {
+        const transcriptCount = summary.transcriptExecSessionCount ?? 0;
+        const fallbackCount = summary.executiveSessionCount ?? 0;
+        const displayCount = transcriptCount > 0 ? transcriptCount : fallbackCount;
+        const voiceTriggers = summary.totalVoiceVotesTriggers ?? 0;
+        const motionCount = summary.totalMotionsDetected ?? 0;
+        const latestDate = execSummary?.latestMeeting?.date
+          ? new Date(execSummary.latestMeeting.date).toLocaleDateString()
+          : null;
+        if (displayCount === 0 && voiceTriggers === 0 && motionCount === 0) return null;
+        return (
+          <section className="rounded-xl border border-slate-200 bg-white px-5 py-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 shadow-sm">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                Executive Sessions
+              </p>
+              {displayCount > 0 && (
+                <p className="mt-0.5 text-sm text-slate-700">
+                  {displayCount} executive session{displayCount !== 1 ? "s" : ""} detected in the past 12 months
+                  {latestDate ? ` — most recent ${latestDate}` : ""}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                Detected from meeting video transcripts.{" "}
+                {voiceTriggers > 0 && `${voiceTriggers} voice vote trigger${voiceTriggers !== 1 ? "s" : ""}`}
+                {voiceTriggers > 0 && motionCount > 0 && " and "}
+                {motionCount > 0 && `${motionCount} motion${motionCount !== 1 ? "s" : ""}`}
+                {(voiceTriggers > 0 || motionCount > 0) && " detected across available recordings."}
+              </p>
+              <Link to="/meetings" className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:underline">
+                Review meetings
+              </Link>
+            </div>
+            <span className="shrink-0 inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
+              Transcript-backed data available
+            </span>
+          </section>
+        );
+      })()}
 
       {categoryStats.length > 0 && (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
