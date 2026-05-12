@@ -4,6 +4,7 @@ import {
   type ChatVoteSummary,
   canonicalBoardMembers,
   getCategoryCount,
+  getExecutiveSessionSummaries,
   getMemberCategoryBreakdown,
   getMemberVoteStats,
   getPersonnelActions,
@@ -63,6 +64,7 @@ type DataQueryIntent =
   | { type: "vote_search"; searchTerm: string; limit: number }
   | { type: "property_transactions"; actionType?: string }
   | { type: "personnel_actions"; actionType?: string }
+  | { type: "executive_session"; reasonFilter?: string }
   | { type: "faq" };
 
 const FALLBACK_ANSWER = "I don't have that in the BoardVotes.io data.";
@@ -218,7 +220,7 @@ Hard rules — always enforced:
 - Never give political endorsements, voter advice, or candidate recommendations.
 - Never reveal database schemas, server internals, API keys, or admin details.
 - Never invent vote counts, names, dates, or outcomes not in the provided data.
-- Never use honorific prefixes (Mr., Mrs., Ms., Dr.).
+- Never use honorific prefixes listed in blockedTitlePrefixes.
 
 What you know about the site:
 - BoardVotes.io is an independent public site — not an official government site.
@@ -239,6 +241,16 @@ What you know about the site:
 
 const checkHardRefusal = (question: string): ChatResponse | null => {
   const q = normalizeQuestion(question);
+
+  if (/\b(prayers?|invocations?|pray(?:ing|ed)?|sermons?|chaplains?)\b/.test(q)) {
+    return {
+      answer: "Prayer and invocation material is not available in the public BoardVotes.io assistant.",
+      citations: [],
+      suggestions,
+      scope: "refused",
+      modelUsed: "approved-faq",
+    };
+  }
 
   if (/\b(who should i vote for|who to vote for|endorse|recommend.*candidate|voter advice|political advice)\b/.test(q)) {
     return {
@@ -373,6 +385,13 @@ const classifyIntentLocally = (question: string): DataQueryIntent => {
   const q = normalizeQuestion(question);
   const limit = getRequestedLimit(q, 8);
 
+  if (/\b(executive sessions?|closed sessions?)\b/.test(q)) {
+    const reasonFilter = /\breal estate\b/.test(q) ? "real estate"
+      : /\blitigation\b/.test(q) ? "litigation"
+        : undefined;
+    return { type: "executive_session", ...(reasonFilter ? { reasonFilter } : {}) };
+  }
+
   if (/\b(latest|recent|last|newest|most recent)\b.*\bmeetings?\b/.test(q) || /\bwhat happened\b.*\bmeetings?\b/.test(q)) {
     return { type: "recent_meetings", limit: getRequestedLimit(q, 1) };
   }
@@ -449,6 +468,7 @@ Intents:
 - vote_search: question asking to find or search vote items by keyword/topic
 - property_transactions: question about property purchases, sales, leases, or real estate actions
 - personnel_actions: question about hiring, retirements, appointments, resignations
+- executive_session: question about executive sessions, closed sessions, or stated executive-session reasons
 - faq: anything else (site navigation, definitions, general questions)
 
 Board members: ${canonicalBoardMembers.join(", ")}
@@ -515,6 +535,10 @@ const classifyIntent = async (question: string): Promise<DataQueryIntent> => {
     if (t === "vote_search" && parsed.searchTerm) return { type: "vote_search", searchTerm: parsed.searchTerm, limit: parsed.limit ?? 8 };
     if (t === "property_transactions") return { type: "property_transactions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
     if (t === "personnel_actions") return { type: "personnel_actions", ...(parsed.actionType ? { actionType: parsed.actionType } : {}) };
+    if (t === "executive_session") {
+      const reasonFilter = parsed.searchTerm === "real estate" || parsed.searchTerm === "litigation" ? parsed.searchTerm : undefined;
+      return { type: "executive_session", ...(reasonFilter ? { reasonFilter } : {}) };
+    }
   } catch {
     // fall through
   }
@@ -576,6 +600,10 @@ const fetchDataForIntent = async (intent: DataQueryIntent): Promise<FetchedData 
     case "personnel_actions": {
       const data = await getPersonnelActions(intent.actionType);
       return { queryResults: data, citations: [{ label: "Votes", path: "/votes" }, { label: "Members", path: "/members" }] };
+    }
+    case "executive_session": {
+      const data = await getExecutiveSessionSummaries(intent.reasonFilter);
+      return { queryResults: data, citations: [{ label: "Votes", path: "/votes" }, { label: "Meetings", path: "/meetings" }] };
     }
     case "faq":
       return null;
@@ -679,6 +707,12 @@ const buildDeterministicFallback = async (intent: DataQueryIntent): Promise<stri
       if (rows.length === 0) return "No matching personnel actions found.";
       return `${formatCount(rows.length, "personnel action")}: ${rows.slice(0, 3).map((r) => `${r.meetingDate}: ${r.personName}, ${r.actionType}${r.position ? `, ${r.position}` : ""}`).join("; ")}.`;
     }
+    case "executive_session": {
+      const rows = await getExecutiveSessionSummaries(intent.reasonFilter);
+      if (rows.length === 0) return "No matching executive sessions found in the extracted data.";
+      const shown = rows.slice(0, 5).map((r) => `${r.meetingDate}: ${r.reason}`).join("; ");
+      return `${formatCount(rows.length, "executive session")} found: ${shown}. See the Votes or Meetings pages for the source-linked records.`;
+    }
     case "faq":
       return null;
   }
@@ -726,7 +760,7 @@ export const answerBoardVotesQuestion = async ({
   }
 
   // 5. Generate natural conversational answer via LLM
-  if (useModel) {
+  if (useModel && intent.type !== "executive_session") {
     const rawAnswer = await generateChatAnswer(
       trimmed,
       fetched?.queryResults ?? null,

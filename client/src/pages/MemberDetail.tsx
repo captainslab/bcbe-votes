@@ -422,14 +422,19 @@ export const MemberDetail = () => {
       </div>
 
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <StatCard label="Total votes" value={stats.totalVotes} />
-          <StatCard label="Yes rate" value={`${((stats.yesCount / totalVotes) * 100).toFixed(1)}%`} />
-          <StatCard label="No / dissent count" value={stats.noCount} />
-          <StatCard
-            label="Majority alignment"
-            value={`${(stats.majorityAlignmentRate * 100).toFixed(1)}%`}
-          />
+        <div className="space-y-2">
+          <div className="grid gap-4 md:grid-cols-4">
+            <StatCard label="Total votes" value={stats.totalVotes} />
+            <StatCard label="Yes rate" value={`${((stats.yesCount / totalVotes) * 100).toFixed(1)}%`} />
+            <StatCard label="No / dissent count" value={stats.noCount} />
+            <StatCard
+              label="Majority alignment"
+              value={`${(stats.majorityAlignmentRate * 100).toFixed(1)}%`}
+            />
+          </div>
+          <p className="text-xs text-slate-500">
+            Yes % calculated from substantive votes (Yes/No/Abstain), excluding absences.
+          </p>
         </div>
       )}
 

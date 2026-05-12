@@ -62,8 +62,15 @@ function BoardCard({ board }: { board: Board }) {
   );
 
   if (isLive) {
+    // Link to subdomain only if we're already on a subdomain (it's wired up),
+    // otherwise fall back to the dashboard on the current origin
+    const onSubdomain = /^[^.]+\.boardvotes\.io$/.test(window.location.hostname);
+    const href = onSubdomain
+      ? `https://${board.slug}.boardvotes.io`
+      : `/dashboard`;
+    const isExternal = onSubdomain;
     return (
-      <a href={`https://${board.slug}.boardvotes.io`} rel="noopener noreferrer">
+      <a href={href} {...(isExternal ? { rel: "noopener noreferrer" } : {})}>
         {inner}
       </a>
     );
@@ -197,9 +204,15 @@ export const Landing = () => {
             — all linked to official public sources.
           </p>
           <div className="hero-buttons">
-            <Link to="/meetings" className="btn btn-primary">
-              Explore Meetings
-            </Link>
+            {hubMode ? (
+              <a href="https://bcbe.boardvotes.io" className="btn btn-primary">
+                Baldwin County School Board →
+              </a>
+            ) : (
+              <Link to="/meetings" className="btn btn-primary">
+                Explore Meetings
+              </Link>
+            )}
             <a href="#how-it-works" onClick={scrollTo("how-it-works")} className="btn btn-secondary">
               Learn How It Works
             </a>

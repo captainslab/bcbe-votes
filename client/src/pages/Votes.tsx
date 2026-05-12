@@ -162,6 +162,8 @@ export const Votes = () => {
   const [selectedVerification, setSelectedVerification] = useState("all");
   const [selectedOutcome, setSelectedOutcome] = useState("all");
   const [selectedMember, setSelectedMember] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("all");
   const [unanimityFilter, setUnanimityFilter] = useState<UnanimityFilter>("non-unanimous");
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false);
   const [hideNeedsReview, setHideNeedsReview] = useState(true);
@@ -209,6 +211,15 @@ export const Votes = () => {
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [sortedVotes]);
 
+  const yearOptions = useMemo(() => {
+    const values = new Set<string>();
+    sortedVotes.forEach((vote) => {
+      const d = vote.meeting?.date;
+      if (d) values.add(new Date(d).getFullYear().toString());
+    });
+    return Array.from(values).sort((a, b) => b.localeCompare(a));
+  }, [sortedVotes]);
+
   const filteredVotes = useMemo(() => {
     const query = normalizeText(searchText).toLowerCase();
 
@@ -247,6 +258,13 @@ export const Votes = () => {
         if (!hasMember) return false;
       }
 
+      if (selectedYear !== "all" || selectedMonth !== "all") {
+        const d = vote.meeting?.date ? new Date(vote.meeting.date) : null;
+        if (!d) return false;
+        if (selectedYear !== "all" && d.getFullYear().toString() !== selectedYear) return false;
+        if (selectedMonth !== "all" && (d.getMonth() + 1).toString() !== selectedMonth) return false;
+      }
+
       if (unanimityFilter === "non-unanimous" && !vote.isNonUnanimous) return false;
       if (unanimityFilter === "unanimous" && vote.isNonUnanimous) return false;
 
@@ -258,6 +276,8 @@ export const Votes = () => {
   }, [
     sortedVotes,
     searchText,
+    selectedYear,
+    selectedMonth,
     selectedCategory,
     selectedVerification,
     selectedOutcome,
@@ -354,6 +374,34 @@ export const Votes = () => {
                 <option key={member} value={member}>
                   {member}
                 </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Year
+            <select
+              value={selectedYear}
+              onChange={(e) => { setSelectedYear(e.target.value); setSelectedMonth("all"); }}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+            >
+              <option value="all">All years</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Month
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
+            >
+              <option value="all">All months</option>
+              {["January","February","March","April","May","June","July","August","September","October","November","December"].map((name, i) => (
+                <option key={i + 1} value={(i + 1).toString()}>{name}</option>
               ))}
             </select>
           </label>

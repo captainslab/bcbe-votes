@@ -44,6 +44,7 @@ const enrichVoteItem = <T extends {
   summaryText?: string | null;
   sourceExcerpt?: string | null;
   result?: string | null;
+  executiveSessionReason?: string | null;
   meeting?: { sourceUrl?: string | null } | null;
   voteRecords?: Array<{ boardMember?: { name?: string | null } | null }> | null;
 }>(voteItem: T) => {
@@ -69,6 +70,7 @@ const enrichVoteItem = <T extends {
     sourceUrl: sourceInfo.sourceUrl,
     sourceAvailability: sourceInfo.sourceAvailability,
     sourceLabel: sourceInfo.sourceLabel,
+    executiveSessionReason: voteItem.executiveSessionReason ?? null,
   };
 };
 
@@ -206,7 +208,13 @@ export const getMemberNoVoteItems = async (memberId: number) => {
         },
       },
     },
-    orderBy: (vote, { desc }) => [desc(vote.createdAt)],
+  });
+
+  voteItems.sort((a, b) => {
+    const dateA = a.meeting?.date ? new Date(a.meeting.date).getTime() : 0;
+    const dateB = b.meeting?.date ? new Date(b.meeting.date).getTime() : 0;
+    if (dateB !== dateA) return dateB - dateA;
+    return b.id - a.id;
   });
 
   return buildMemberNoVoteItems(
@@ -250,13 +258,11 @@ export const getMemberMotions = async (memberId: number) => {
   const made = await db.query.voteItems.findMany({
     where: eq(schema.voteItems.motionMadeByMemberId, memberId),
     with: { meeting: true },
-    orderBy: (item, { desc }) => [desc(item.createdAt)],
   });
 
   const seconded = await db.query.voteItems.findMany({
     where: eq(schema.voteItems.motionSecondedByMemberId, memberId),
     with: { meeting: true },
-    orderBy: (item, { desc }) => [desc(item.createdAt)],
   });
 
   const toShape = (item: typeof made[number], role: "made" | "seconded") => {
@@ -289,8 +295,8 @@ export const getMemberMotions = async (memberId: number) => {
   };
 
   return {
-    made: made.map((item) => toShape(item, "made")),
-    seconded: seconded.map((item) => toShape(item, "seconded")),
+    made: sortVoteItemsByMeetingDateDesc(made).map((item) => toShape(item, "made")),
+    seconded: sortVoteItemsByMeetingDateDesc(seconded).map((item) => toShape(item, "seconded")),
   };
 };
 
@@ -325,6 +331,17 @@ export type ChatVoteSummary = {
   tally: Record<string, number>;
   noOrAbstainVoters: string[];
   matchedSnippet?: string;
+  executiveSessionReason?: string | null;
+};
+
+export type ChatExecutiveSessionSummary = {
+  voteItemId: number;
+  itemTitle: string;
+  meetingDate: string;
+  meetingTitle: string;
+  reason: string;
+  motionMadeBy: string | null;
+  motionSecondedBy: string | null;
 };
 
 export type ChatMeetingSummary = {
@@ -391,6 +408,7 @@ const toChatVoteSummary = (voteItem: {
   motionText?: string | null;
   summaryText?: string | null;
   sourceExcerpt?: string | null;
+  executiveSessionReason?: string | null;
   isNonUnanimous: boolean;
   voteTally: Record<string, number>;
   meeting?: { date?: Date | null; title?: string | null; type?: string | null } | null;
@@ -420,8 +438,17 @@ const toChatVoteSummary = (voteItem: {
     tally: voteItem.voteTally ?? {},
     noOrAbstainVoters,
     ...(voteItem.matchedSnippet ? { matchedSnippet: voteItem.matchedSnippet } : {}),
+    ...(voteItem.executiveSessionReason ? { executiveSessionReason: sanitizePublicVoteDisplayText(voteItem.executiveSessionReason) } : {}),
   };
 };
+
+const sortVoteItemsByMeetingDateDesc = <T extends { meeting?: { date?: Date | null } | null; id?: number }>(items: T[]) =>
+  items.sort((a, b) => {
+    const dateA = a.meeting?.date ? new Date(a.meeting.date).getTime() : 0;
+    const dateB = b.meeting?.date ? new Date(b.meeting.date).getTime() : 0;
+    if (dateB !== dateA) return dateB - dateA;
+    return (b.id ?? 0) - (a.id ?? 0);
+  });
 
 export const getRecentMeetingSummaries = async (limit = 1): Promise<ChatMeetingSummary[]> => {
   const meetings = await db.query.meetings.findMany({
@@ -477,8 +504,6 @@ export const getRecentMeetingSummaries = async (limit = 1): Promise<ChatMeetingS
 
 export const getRecentVoteSummaries = async (limit = 8): Promise<ChatVoteSummary[]> => {
   const votes = await db.query.voteItems.findMany({
-    limit,
-    orderBy: (vote, { desc }) => [desc(vote.createdAt)],
     with: {
       meeting: true,
       voteRecords: {
@@ -489,7 +514,7 @@ export const getRecentVoteSummaries = async (limit = 8): Promise<ChatVoteSummary
     },
   });
 
-  return votes.map((vote) => toChatVoteSummary(vote));
+  return sortVoteItemsByMeetingDateDesc(votes).slice(0, limit).map((vote) => toChatVoteSummary(vote));
 };
 
 export const searchVoteItemsForChat = async (searchTerm: string, limit = 8): Promise<ChatVoteSummary[]> => {
@@ -504,9 +529,8 @@ export const searchVoteItemsForChat = async (searchTerm: string, limit = 8): Pro
       ilike(schema.voteItems.summaryText, pattern),
       ilike(schema.voteItems.sourceExcerpt, pattern),
       ilike(schema.voteItems.contentText, pattern),
+      ilike(schema.voteItems.executiveSessionReason, pattern),
     ),
-    limit: Math.min(Math.max(limit * 3, limit), 50),
-    orderBy: (vote, { desc }) => [desc(vote.createdAt)],
     with: {
       meeting: true,
       voteRecords: {
@@ -517,11 +541,7 @@ export const searchVoteItemsForChat = async (searchTerm: string, limit = 8): Pro
     },
   });
 
-  votes.sort((a, b) => {
-    const dateA = a.meeting?.date ? new Date(a.meeting.date).getTime() : 0;
-    const dateB = b.meeting?.date ? new Date(b.meeting.date).getTime() : 0;
-    return dateB - dateA;
-  });
+  sortVoteItemsByMeetingDateDesc(votes);
 
   return votes.slice(0, limit).map((vote) => {
     const matchedSnippet = buildMatchedSnippet(vote, normalized);
@@ -682,11 +702,9 @@ export const getRecentNonUnanimousVotes = async (limit = 10): Promise<NonUnanimo
         with: { boardMember: { columns: { name: true } } },
       },
     },
-    orderBy: (item, { desc: orderDesc }) => [orderDesc(item.createdAt)],
-    limit,
   });
 
-  return items.map((item) => {
+  return sortVoteItemsByMeetingDateDesc(items).slice(0, limit).map((item) => {
     const { category } = categorizeVoteItemText({
       itemTitle: item.itemTitle,
       motionText: item.motionText,
@@ -788,12 +806,11 @@ export const getPropertyTransactions = async (actionType?: string): Promise<Prop
       meeting: { columns: { date: true } },
     },
     where: sql`${schema.voteItems.propertyEntities} IS NOT NULL`,
-    orderBy: (item, { desc: orderDesc }) => [orderDesc(item.createdAt)],
   });
 
   const results: PropertyTransactionRow[] = [];
 
-  for (const item of items) {
+  for (const item of sortVoteItemsByMeetingDateDesc(items)) {
     const entities = item.propertyEntities;
     if (!Array.isArray(entities) || entities.length === 0) continue;
 
@@ -840,12 +857,11 @@ export const getPersonnelActions = async (actionType?: string): Promise<Personne
       meeting: { columns: { date: true } },
     },
     where: sql`${schema.voteItems.personnelEntities} IS NOT NULL`,
-    orderBy: (item, { desc: orderDesc }) => [orderDesc(item.createdAt)],
   });
 
   const results: PersonnelActionRow[] = [];
 
-  for (const item of items) {
+  for (const item of sortVoteItemsByMeetingDateDesc(items)) {
     const entities = item.personnelEntities;
     if (!Array.isArray(entities) || entities.length === 0) continue;
 
@@ -866,6 +882,31 @@ export const getPersonnelActions = async (actionType?: string): Promise<Personne
   }
 
   return results;
+};
+
+export const getExecutiveSessionSummaries = async (reasonFilter?: string): Promise<ChatExecutiveSessionSummary[]> => {
+  const normalizedFilter = normalizeWhitespace(reasonFilter ?? "").toLowerCase();
+  const items = await db.query.voteItems.findMany({
+    where: sql`${schema.voteItems.executiveSessionReason} IS NOT NULL AND ${schema.voteItems.executiveSessionReason} <> ''`,
+    with: {
+      meeting: { columns: { date: true, title: true } },
+    },
+  });
+
+  return sortVoteItemsByMeetingDateDesc(items)
+    .filter((item) => {
+      if (!normalizedFilter) return true;
+      return (item.executiveSessionReason ?? "").toLowerCase().includes(normalizedFilter);
+    })
+    .map((item) => ({
+      voteItemId: item.id,
+      itemTitle: sanitizePublicVoteDisplayText(item.itemTitle),
+      meetingDate: item.meeting?.date ? item.meeting.date.toISOString().slice(0, 10) : "",
+      meetingTitle: item.meeting?.title ?? "Needs review",
+      reason: sanitizePublicVoteDisplayText(item.executiveSessionReason),
+      motionMadeBy: getNeutralPublicPersonName(item.motionMadeBy ?? null),
+      motionSecondedBy: getNeutralPublicPersonName(item.motionSecondedBy ?? null),
+    }));
 };
 
 // Re-export canonicalBoardMembers so chatService can use it without touching boardVotes directly

@@ -19,7 +19,7 @@ const faqItems = [
   },
   {
     question: "What happens when a board reaches $500?",
-    answer: "BoardVotes.io begins source review and onboarding. That includes checking public records, meeting history, available minutes, agendas, and vote documentation.",
+    answer: "BoardVotes.io begins source review and onboarding. That includes checking public records, meeting history, available minutes, agendas, and vote documentation. $500 is our starting goal — actual setup cost may vary depending on the board, and each request is reviewed case by case.",
   },
   {
     question: "What if the public records are incomplete?",
@@ -98,10 +98,10 @@ export const Request = () => {
         <div className="px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">Request your board</h2>
           <p className="mt-1 text-sm text-slate-500">
-            The $25 submission helps verify demand and prevent spam requests. Others can pledge toward the $500 setup goal.
+            The $25 submission helps verify demand and prevent spam requests. Others can pledge toward the $500 starting goal.
           </p>
           <p className="mt-2 text-sm text-slate-500">
-            When $500 is reached, we begin reviewing public records, source availability, meeting history, and board setup.
+            When $500 is reached, we begin reviewing public records, source availability, meeting history, and board setup. Each request is evaluated case by case — $500 is a starting point and actual costs may vary.
           </p>
         </div>
 

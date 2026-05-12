@@ -90,7 +90,14 @@ export const Members = () => {
                     className="flex items-center gap-3 font-semibold text-slate-900 hover:underline"
                   >
                     <MemberAvatar name={member.name} size="sm" />
-                    {member.name}
+                    <span className="flex flex-wrap items-center gap-2">
+                      {member.name}
+                      {!member.isActive && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                          Former member
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-slate-700">{member.totalVotes}</td>

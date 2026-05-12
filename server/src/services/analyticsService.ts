@@ -92,6 +92,7 @@ const enrichVoteItemAudit = <T extends {
   summaryText?: string | null;
   sourceExcerpt?: string | null;
   result?: string | null;
+  executiveSessionReason?: string | null;
   meeting?: { sourceUrl?: string | null } | null;
 }>(vote: T) => {
   const categoryInfo = categorizeVoteItemText({
@@ -116,6 +117,7 @@ const enrichVoteItemAudit = <T extends {
     sourceUrl: sourceInfo.sourceUrl,
     sourceAvailability: sourceInfo.sourceAvailability,
     sourceLabel: sourceInfo.sourceLabel,
+    executiveSessionReason: vote.executiveSessionReason ?? null,
   };
 };
 
@@ -621,12 +623,17 @@ export const getMemberCategoryStats = async (memberId: number) => {
 
 export const getRecentVotes = async (limit = 10) => {
   const votes = await db.query.voteItems.findMany({
-    limit,
-    orderBy: (vote, { desc: orderDesc }) => [orderDesc(vote.createdAt)],
     with: {
       meeting: true,
     },
   });
 
-  return votes.map((vote) => enrichVoteItemAudit(vote));
+  votes.sort((a, b) => {
+    const dateA = a.meeting?.date ? new Date(a.meeting.date).getTime() : 0;
+    const dateB = b.meeting?.date ? new Date(b.meeting.date).getTime() : 0;
+    if (dateB !== dateA) return dateB - dateA;
+    return b.id - a.id;
+  });
+
+  return votes.slice(0, limit).map((vote) => enrichVoteItemAudit(vote));
 };

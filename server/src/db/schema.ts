@@ -119,6 +119,7 @@ export const voteItems = pgTable(
     voteTally: jsonb("vote_tally").$type<Record<string, number>>().default({}).notNull(),
     sourceExcerpt: text("source_excerpt"),
     contentText: text("content_text"),
+    executiveSessionReason: text("executive_session_reason"),
     personnelEntities: jsonb("personnel_entities").$type<PersonnelAction[] | null>(),
     propertyEntities: jsonb("property_entities").$type<PropertyAction[] | null>(),
     verificationStatus: verificationStatusEnum("verification_status")
