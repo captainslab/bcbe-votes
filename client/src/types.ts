@@ -58,6 +58,7 @@ export type VoteItem = {
   voteTally: Record<string, number>;
   sourceExcerpt?: string | null;
   contentText?: string | null;
+  executiveSessionReason?: string | null;
   personnelEntities?: PersonnelAction[] | null;
   propertyEntities?: PropertyAction[] | null;
   summarySource?: string | null;

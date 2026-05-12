@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useBoardContext } from "./context/BoardContext";
 import { Layout } from "./components/Layout";
 import { Landing } from "./pages/Landing";
 import { Dashboard } from "./pages/Dashboard";
@@ -17,12 +18,19 @@ import { BoardDetail } from "./pages/BoardDetail";
 import { Donate } from "./pages/Donate";
 import { BoardVotesChat } from "./components/BoardVotesChat";
 import { Faq } from "./pages/Faq";
+import { Vendors } from "./pages/Vendors";
+import { VendorDetail } from "./pages/VendorDetail";
+
+function BoardRoot() {
+  const { boardSlug } = useBoardContext();
+  return boardSlug ? <Navigate to="/dashboard" replace /> : <Landing />;
+}
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<BoardRoot />} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/votes" element={<Votes />} />
@@ -40,6 +48,8 @@ function App() {
           <Route path="/donate" element={<Donate />} />
           <Route path="/boards" element={<Boards />} />
           <Route path="/boards/:slug" element={<BoardDetail />} />
+          <Route path="/vendors" element={<Vendors />} />
+          <Route path="/vendors/:slug" element={<VendorDetail />} />
         </Route>
       </Routes>
       <BoardVotesChat />
