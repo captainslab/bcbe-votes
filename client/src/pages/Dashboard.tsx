@@ -192,6 +192,24 @@ export const Dashboard = () => {
         />
       </div>
 
+      {/* Executive session callout */}
+      {summary.executiveSessionCount != null && summary.executiveSessionCount > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-900">
+              {summary.executiveSessionCount} executive session{summary.executiveSessionCount !== 1 ? "s" : ""} in the past 12 months
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              These votes were passed by voice — no individual roll call was recorded.{" "}
+              <span className="font-medium">Voice vote records coming soon via YouTube meeting transcripts.</span>
+            </p>
+          </div>
+          <span className="shrink-0 inline-flex items-center rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-800">
+            Voice votes coming soon
+          </span>
+        </section>
+      )}
+
       {categoryStats.length > 0 && (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h2 className="text-lg font-semibold text-slate-900">Vote topics</h2>

@@ -141,6 +141,15 @@ export const getSummaryStats = async () => {
       )`,
     );
 
+  const [execSessionCount] = await db
+    .select({ count: count() })
+    .from(schema.voteItems)
+    .innerJoin(schema.meetings, eq(schema.voteItems.meetingId, schema.meetings.id))
+    .where(
+      sql`${schema.voteItems.itemTitle} ILIKE '%executive session%'
+        AND ${schema.meetings.date} >= NOW() - INTERVAL '1 year'`,
+    );
+
   const memberVoteRows = await db
     .select({
       memberId: schema.voteRecords.boardMemberId,
@@ -207,6 +216,7 @@ export const getSummaryStats = async () => {
     totalVoteRecords: Number(voteRecordsCount?.count ?? 0),
     nonUnanimousCount: Number(nonUnanimousCount?.count ?? 0),
     needsReviewCount: Number(needsReviewCount?.count ?? 0),
+    executiveSessionCount: Number(execSessionCount?.count ?? 0),
     dissentLeaderboard,
     yesLeaderboard,
   };
@@ -229,7 +239,8 @@ export const getMemberStats = async () => {
     .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
     .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
 
-  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name, isActive: schema.boardMembers.isActive }).from(schema.boardMembers);
+  const isActiveById = new Map(members.map((m) => [m.id, m.isActive]));
   const canonicalDirectory = buildCanonicalMemberDirectory(members);
   const stats = new Map<number, MemberStats>();
 
@@ -283,6 +294,7 @@ export const getMemberStats = async () => {
     return {
       memberId: stat.memberId,
       name: stat.name,
+      isActive: isActiveById.get(stat.memberId) ?? true,
       totalVotes: stat.totalVotes,
       yesCount: stat.totals.yes ?? 0,
       noCount: stat.totals.no ?? 0,

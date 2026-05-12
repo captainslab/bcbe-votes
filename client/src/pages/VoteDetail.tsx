@@ -287,11 +287,20 @@ export const VoteDetail = () => {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Member vote records</h2>
         {sortedRecords.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-600">
-            {data.verificationStatus === "verified" && !data.isNonUnanimous
-              ? "Individual votes not recorded in source minutes (unanimous decision)."
-              : "No member vote records available for this item."}
-          </p>
+          <div className="mt-2 space-y-2">
+            {/executive session/i.test(data.itemTitle ?? "") ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                This vote was passed by voice — no individual roll call was recorded in the source minutes.{" "}
+                <span className="font-semibold">Voice vote records coming soon via YouTube meeting transcripts.</span>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600">
+                {data.verificationStatus === "verified" && !data.isNonUnanimous
+                  ? "Individual votes not recorded in source minutes (unanimous decision)."
+                  : "No member vote records available for this item."}
+              </p>
+            )}
+          </div>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {sortedRecords.map((record) => {
