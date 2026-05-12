@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 import { db } from "../db";
-import { districtRequests } from "../db/schema";
+import { boards, districtRequests } from "../db/schema";
 import {
   listMeetings,
   getMeeting,
@@ -22,6 +22,7 @@ import {
   getRecentVotes,
   getSummaryStats,
 } from "../services/analyticsService";
+import { getVendors, getVendorBySlug } from "../services/vendorService";
 import { validateRequest } from "../middleware/validateRequest";
 import { HttpError } from "../utils/httpError";
 import {
@@ -34,6 +35,28 @@ const router = Router();
 
 router.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+router.get("/boards", async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select({
+        id: boards.id,
+        name: boards.name,
+        slug: boards.slug,
+        state: boards.state,
+        status: boards.status,
+        description: boards.description,
+      })
+      .from(boards)
+      .orderBy(
+        sql`CASE WHEN ${boards.status} = 'live' THEN 0 WHEN ${boards.status} = 'onboarding' THEN 1 ELSE 2 END`,
+        asc(boards.name),
+      );
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post(
@@ -323,6 +346,34 @@ router.post(
         res.json({ success: true, duplicate: true });
         return;
       }
+      next(err);
+    }
+  },
+);
+
+router.get("/vendors", async (_req, res, next) => {
+  try {
+    const data = await getVendors();
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get(
+  "/vendors/:slug",
+  validateRequest(
+    z.object({
+      params: z.object({ slug: z.string().min(1).max(200) }),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { params } = res.locals.validatedRequest as { params: { slug: string } };
+      const profile = await getVendorBySlug(params.slug);
+      if (!profile) throw new HttpError(404, "Vendor not found");
+      res.json(profile);
+    } catch (err) {
       next(err);
     }
   },

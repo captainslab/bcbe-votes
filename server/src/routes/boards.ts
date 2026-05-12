@@ -1,11 +1,68 @@
+import fs from "fs";
+import path from "path";
 import { Request, Response, Router } from "express";
 import { z } from "zod";
-import { eq, sql, or } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { db } from "../db";
-import { boardSubmissions, boardPledges } from "../db/schema";
+import { boardSubmissions, boardPledges, organizations } from "../db/schema";
 import { validateRequest } from "../middleware/validateRequest";
 import { HttpError } from "../utils/httpError";
+
+// ---------------------------------------------------------------------------
+// Email / log helpers
+// ---------------------------------------------------------------------------
+const PURCHASE_LOG = path.resolve("/home/jordan/bcbe-votes/logs/purchases.log");
+
+function logPurchase(lines: string[]): void {
+  const entry = `[${new Date().toISOString()}]\n${lines.join("\n")}\n\n`;
+  try {
+    fs.appendFileSync(PURCHASE_LOG, entry, "utf8");
+  } catch (err) {
+    console.error("[boards] Failed to write purchase log:", err);
+  }
+}
+
+// TODO: configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env to send real emails.
+// Until then, emails are written to PURCHASE_LOG as a fallback.
+async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  text: string;
+}): Promise<void> {
+  const smtpHost = process.env.SMTP_HOST;
+  const sendgridKey = process.env.SENDGRID_API_KEY;
+
+  if (smtpHost || sendgridKey) {
+    // nodemailer path — wired when SMTP is configured
+    const nodemailer = await import("nodemailer");
+    const transport = nodemailer.createTransport(
+      smtpHost
+        ? {
+            host: smtpHost,
+            port: Number(process.env.SMTP_PORT ?? 587),
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS,
+            },
+          }
+        : {
+            host: "smtp.sendgrid.net",
+            port: 587,
+            auth: { user: "apikey", pass: sendgridKey },
+          },
+    );
+    await transport.sendMail({
+      from: process.env.SMTP_FROM ?? "noreply@boardvotes.io",
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+    });
+  } else {
+    // Fallback: write to log file
+    logPurchase([`TO: ${opts.to}`, `SUBJECT: ${opts.subject}`, opts.text]);
+  }
+}
 
 // NOTE: The webhook route must be registered with express.raw() BEFORE express.json()
 // in app.ts. See webhookHandler export below and app.ts registration.

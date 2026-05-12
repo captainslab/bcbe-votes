@@ -1,6 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VoteItem } from "../types";
+import type { Board, CategoryStat, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
+
+export const useHubBoards = () =>
+  useQuery({
+    queryKey: ["hub-boards"],
+    queryFn: async () => {
+      const res = await api.get<Board[]>("/boards");
+      return res.data;
+    },
+  });
 
 export const useSummary = () =>
   useQuery({
@@ -169,6 +178,29 @@ export const createDonationCheckout = async (data: {
   const res = await api.post<{ url: string }>("/donations/create-checkout", data);
   return res.data;
 };
+
+export const useVendors = () =>
+  useQuery({
+    queryKey: ["vendors"],
+    queryFn: async () => {
+      const res = await api.get<VendorsResponse>("/vendors");
+      return res.data;
+    },
+    staleTime: 60 * 60 * 1000, // 1 hour — matches server cache
+  });
+
+export const useVendorProfile = (slug: string) =>
+  useQuery({
+    queryKey: ["vendor", slug],
+    enabled: Boolean(slug),
+    queryFn: async () => {
+      const res = await api.get<VendorProfile>(`/vendors/${slug}`);
+      return res.data;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+
+export type { VendorEntry, VendorProfile, VendorsResponse };
 
 export const submitPledge = async (
   slug: string,

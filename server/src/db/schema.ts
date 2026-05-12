@@ -32,6 +32,19 @@ export type PropertyAction = {
   effectiveDate: string | null;
 };
 
+export const boards = pgTable("boards", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  subdomain: text("subdomain").notNull().unique(),
+  state: text("state"),
+  simbliSiteId: text("simbli_site_id"),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  status: text("status").notNull().default("live"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const ingestionStatusEnum = pgEnum("ingestion_status", [
   "pending",
   "in_progress",
@@ -53,9 +66,11 @@ export const boardMembers = pgTable(
   "board_members",
   {
     id: serial("id").primaryKey(),
+    boardId: integer("board_id").references(() => boards.id),
     name: text("name").notNull(),
     district: text("district"),
     aliases: jsonb("aliases").$type<string[]>().default([]).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -66,6 +81,7 @@ export const boardMembers = pgTable(
 
 export const meetings = pgTable("meetings", {
   id: serial("id").primaryKey(),
+  boardId: integer("board_id").references(() => boards.id),
   date: timestamp("date", { withTimezone: true }).notNull(),
   title: text("title").notNull(),
   type: text("type").notNull(),
@@ -167,6 +183,17 @@ export const districtRequests = pgTable(
   }),
 );
 
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  contactName: text("contact_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  bulkOrderId: text("bulk_order_id"),
+  totalPaid: integer("total_paid").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const boardSubmissions = pgTable("board_submissions", {
   id: serial("id").primaryKey(),
   boardName: text("board_name").notNull(),
@@ -178,6 +205,8 @@ export const boardSubmissions = pgTable("board_submissions", {
   pledgedAmount: integer("pledged_amount").default(25).notNull(), // starts at 25 from submission fee
   status: text("status").default("active").notNull(), // active | funded | onboarding | live
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  organizationId: integer("organization_id").references(() => organizations.id),
+  customGoalAmount: integer("custom_goal_amount"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -202,13 +231,26 @@ export const boardPledges = pgTable(
   }),
 );
 
-export const boardMemberRelations = relations(boardMembers, ({ many }) => ({
+export const boardRelations = relations(boards, ({ many }) => ({
+  meetings: many(meetings),
+  boardMembers: many(boardMembers),
+}));
+
+export const boardMemberRelations = relations(boardMembers, ({ one, many }) => ({
+  board: one(boards, {
+    fields: [boardMembers.boardId],
+    references: [boards.id],
+  }),
   voteRecords: many(voteRecords),
   motionMade: many(voteItems, { relationName: "motion_made_by_member_id" }),
   motionSeconded: many(voteItems, { relationName: "motion_seconded_by_member_id" }),
 }));
 
-export const meetingRelations = relations(meetings, ({ many }) => ({
+export const meetingRelations = relations(meetings, ({ one, many }) => ({
+  board: one(boards, {
+    fields: [meetings.boardId],
+    references: [boards.id],
+  }),
   voteItems: many(voteItems),
 }));
 

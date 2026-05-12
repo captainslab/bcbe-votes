@@ -623,3 +623,127 @@
     opacity: 1;
     transform: translateY(0);
 }
+
+/* ── Board Hub Section ─────────────────────────────────────────── */
+.board-hub-section {
+    background: #f8fafc;
+}
+
+.board-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+}
+
+.board-hub-grid-single {
+    grid-template-columns: minmax(280px, 480px);
+    justify-content: center;
+}
+
+/* Card base */
+.board-hub-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border: 1.5px solid #e2e8f0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+a:has(.board-hub-card-live):hover .board-hub-card-live {
+    border-color: #6366f1;
+    box-shadow: 0 4px 16px -4px rgba(99, 102, 241, 0.2);
+    transform: translateY(-2px);
+}
+
+.board-hub-card-muted {
+    opacity: 0.65;
+    cursor: default;
+}
+
+.board-hub-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.board-hub-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.board-hub-card-state {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+}
+
+.board-hub-card-arrow {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: #6366f1;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.board-hub-card-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+}
+
+.board-hub-card-desc {
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* Skeleton placeholders */
+.board-hub-skeleton {
+    height: 130px;
+    border-radius: 1rem;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: hub-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes hub-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* "More boards coming soon" teaser */
+.board-hub-teaser {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.board-hub-teaser a {
+    color: #6366f1;
+    text-decoration: underline;
+}
+
+/* "Request your board" CTA row */
+.board-hub-cta {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+/* Strip anchor underline on board cards */
+a:has(.board-hub-card) {
+    text-decoration: none;
+    display: block;
+}

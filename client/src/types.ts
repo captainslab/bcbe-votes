@@ -76,6 +76,7 @@ export type VoteItem = {
 export type MemberStat = {
   memberId: number;
   name: string;
+  isActive: boolean;
   totalVotes: number;
   yesCount: number;
   noCount: number;
@@ -201,6 +202,69 @@ export type MemberCategoryStat = {
   category: string;
   totalVotes: number;
   noVotes: number;
+};
+
+export type VendorEntry = {
+  name: string;
+  slug: string;
+  categories: string[];
+  count: number;
+  total_spend: number;
+  dollar_amounts: string[];
+  vote_item_ids: number[];
+  last_seen: string | null;
+};
+
+export type VendorContract = {
+  voteItemId: number;
+  date: string;
+  meetingTitle: string;
+  itemTitle: string;
+  dollarAmountStr: string | null;
+  dollarAmount: number;
+  outcome: string;
+  isNonUnanimous: boolean;
+  sourceExcerpt: string | null;
+  sourceUrl: string | null;
+  voteRecords: Array<{ memberName: string; vote: string }>;
+};
+
+export type VendorBoardVote = {
+  memberName: string;
+  yes: number;
+  no: number;
+  abstain: number;
+  total: number;
+};
+
+export type VendorProfile = {
+  name: string;
+  slug: string;
+  aliases: string[];
+  categories: string[];
+  description: string;
+  firstSeen: string;
+  lastSeen: string;
+  totalContracts: number;
+  totalSpend: number;
+  fundingSources: string[];
+  contracts: VendorContract[];
+  boardVoting: VendorBoardVote[];
+};
+
+export type VendorsResponse = {
+  vendors: VendorEntry[];
+  total_procurement_items: number;
+  generated_at: string;
+};
+
+export type Board = {
+  id: number;
+  name: string;
+  slug: string;
+  state: string;
+  status: "live" | "coming_soon" | "onboarding";
+  description: string | null;
 };
 
 export type SummaryStats = {

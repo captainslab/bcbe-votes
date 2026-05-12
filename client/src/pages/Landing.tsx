@@ -1,9 +1,132 @@
 import { useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { navItems } from "../components/Layout";
+import { navItems, hubNavItems } from "../components/navConfig";
+import { useHubBoards } from "../api/hooks";
+import type { Board } from "../types";
 import "./Landing.css";
 
+function isHubDomain(): boolean {
+  const h = window.location.hostname;
+  return h === "boardvotes.io" || h === "www.boardvotes.io" || h === "localhost";
+}
+
+function BoardStatusBadge({ status }: { status: Board["status"] }) {
+  if (status === "live") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+        Live
+      </span>
+    );
+  }
+  if (status === "onboarding") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-400 inline-block" />
+        Onboarding
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
+      <span className="h-1.5 w-1.5 rounded-full bg-slate-400 inline-block" />
+      Coming Soon
+    </span>
+  );
+}
+
+function BoardCard({ board }: { board: Board }) {
+  const isLive = board.status === "live";
+  const cardClass = isLive
+    ? "board-hub-card board-hub-card-live"
+    : "board-hub-card board-hub-card-muted";
+
+  const inner = (
+    <div className={cardClass}>
+      <div className="board-hub-card-header">
+        <div className="board-hub-card-meta">
+          <span className="board-hub-card-state">{board.state}</span>
+          <BoardStatusBadge status={board.status} />
+        </div>
+        {isLive && (
+          <svg className="board-hub-card-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        )}
+      </div>
+      <p className="board-hub-card-name">{board.name}</p>
+      {board.description && (
+        <p className="board-hub-card-desc">{board.description}</p>
+      )}
+    </div>
+  );
+
+  if (isLive) {
+    return (
+      <a href={`https://${board.slug}.boardvotes.io`} rel="noopener noreferrer">
+        {inner}
+      </a>
+    );
+  }
+  return <div>{inner}</div>;
+}
+
+function BoardSelectorSection() {
+  const { data: boards, isLoading } = useHubBoards();
+
+  const liveBoards = boards?.filter((b) => b.status === "live") ?? [];
+  const otherBoards = boards?.filter((b) => b.status !== "live") ?? [];
+  const singleBoard = !isLoading && liveBoards.length === 1 && otherBoards.length === 0;
+
+  return (
+    <section id="boards" className="board-hub-section landing-section">
+      <div className="container">
+        <div className="section-header fade-in">
+          <h2 className="section-title">Available Boards</h2>
+          <p className="section-description">
+            Click a live board to explore its meetings, votes, and member records.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="board-hub-grid fade-in">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="board-hub-skeleton" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className={`board-hub-grid fade-in${singleBoard ? " board-hub-grid-single" : ""}`}>
+              {liveBoards.map((board) => (
+                <BoardCard key={board.id} board={board} />
+              ))}
+              {otherBoards.map((board) => (
+                <BoardCard key={board.id} board={board} />
+              ))}
+            </div>
+
+            {singleBoard && (
+              <p className="board-hub-teaser fade-in">
+                More boards coming soon — <Link to="/request">request yours</Link>.
+              </p>
+            )}
+          </>
+        )}
+
+        <div className="board-hub-cta fade-in">
+          <Link to="/request" className="btn btn-secondary">
+            Request your board
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export const Landing = () => {
+  const hubMode = isHubDomain();
+  const activeNavItems = hubMode ? hubNavItems : navItems;
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -38,7 +161,7 @@ export const Landing = () => {
             BoardVotes<span>.io</span>
           </Link>
           <div className="landing-nav-links">
-            {navItems.map((item) => (
+            {activeNavItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -52,9 +175,11 @@ export const Landing = () => {
                 {item.label}
               </NavLink>
             ))}
-            <NavLink to="/votes" className="landing-nav-button landing-nav-cta">
-              View Votes
-            </NavLink>
+            {!hubMode && (
+              <NavLink to="/votes" className="landing-nav-button landing-nav-cta">
+                View Votes
+              </NavLink>
+            )}
           </div>
         </div>
       </nav>
@@ -81,6 +206,9 @@ export const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* Board Selector Section */}
+      <BoardSelectorSection />
 
       {/* Mission Section */}
       <section className="mission landing-section">
