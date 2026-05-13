@@ -106,7 +106,7 @@ function BlockRow({ block }: { block: ExecSessionBlock }) {
             onClick={() => setOpen((v) => !v)}
             className="text-xs text-indigo-600 hover:underline"
           >
-            {open ? "Hide" : "Transcript"}
+            {open ? "Hide" : "Context"}
           </button>
         ) : (
           <button
@@ -119,7 +119,7 @@ function BlockRow({ block }: { block: ExecSessionBlock }) {
         )}
         {open && (
           <p className="mt-2 max-w-sm text-xs text-slate-600 italic leading-5">
-            &ldquo;{block.context}&rdquo;
+            &ldquo;{block.context.length > 400 ? block.context.slice(0, 400) + "…" : block.context}&rdquo;
           </p>
         )}
       </td>
@@ -167,8 +167,8 @@ function MeetingSection({ row }: { row: ExecSessionDetailRow }) {
               <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="py-2 pl-4 pr-3 font-semibold">Timestamp</th>
                 <th className="py-2 px-3 font-semibold">Reason</th>
-                <th className="py-2 px-3 font-semibold">Moved by</th>
-                <th className="py-2 px-3 font-semibold">Seconded by</th>
+                <th className="py-2 px-3 font-semibold">Motion (detected)</th>
+                <th className="py-2 px-3 font-semibold">Second (detected)</th>
                 <th className="py-2 pl-3 pr-4 font-semibold">Context</th>
               </tr>
             </thead>
@@ -178,6 +178,9 @@ function MeetingSection({ row }: { row: ExecSessionDetailRow }) {
               ))}
             </tbody>
           </table>
+          <p className="px-4 py-2 text-xs text-slate-400 border-t border-slate-100">
+            Names are first-name references extracted from transcript text. Not independently verified.
+          </p>
         </div>
       )}
     </div>
