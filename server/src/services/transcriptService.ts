@@ -14,6 +14,146 @@ export type TranscriptSummary = {
   updatedAt: string;
 };
 
+export type TranscriptSearchMatch = {
+  time: string;
+  context: string;
+  timestampUrl: string;
+};
+
+export type TranscriptSearchResult = {
+  meetingId: number | null;
+  videoId: string;
+  videoTitle: string;
+  date: string | null;
+  totalMatches: number;
+  matches: TranscriptSearchMatch[];
+};
+
+export type TranscriptListItem = {
+  meetingId: number | null;
+  videoId: string;
+  videoTitle: string;
+  date: string | null;
+  wordCount: number | null;
+  durationSeconds: number | null;
+  execSessionDetected: boolean;
+};
+
+function secondsToTs(n: number): string {
+  const h = Math.floor(n / 3600);
+  const m = Math.floor((n % 3600) / 60);
+  const s = Math.floor(n % 60);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+const toDateString = (value: Date | string | null): string | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+};
+
+export const searchTranscripts = async (query: string): Promise<TranscriptSearchResult[]> => {
+  if (!query || query.trim().length < 2) return [];
+
+  type RawSearchRow = {
+    meeting_id: number | null;
+    video_id: string;
+    video_title: string;
+    meeting_date: Date | string | null;
+    timed_segments: unknown;
+  };
+
+  const result = await db.execute(
+    sql`
+      SELECT
+        meeting_id,
+        video_id,
+        video_title,
+        meeting_date,
+        timed_segments
+      FROM meeting_transcripts
+      WHERE to_tsvector('english', transcript_text) @@ plainto_tsquery('english', ${query})
+      ORDER BY meeting_date DESC NULLS LAST
+    `,
+  );
+
+  const queryWords = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length >= 2);
+
+  return (result.rows as RawSearchRow[]).map((row) => {
+    const segments = Array.isArray(row.timed_segments)
+      ? (row.timed_segments as Array<{ t: number; text: string }>)
+      : [];
+
+    const matchingSegments = segments
+      .filter((seg) => {
+        const lower = seg.text.toLowerCase();
+        return queryWords.some((word) => lower.includes(word));
+      })
+      .slice(0, 5);
+
+    const matches: TranscriptSearchMatch[] = matchingSegments.map((seg) => {
+      const secs = Math.floor(seg.t);
+      const timeLabel = secondsToTs(secs);
+      const context = seg.text.length > 200 ? seg.text.slice(0, 200).trimEnd() + "…" : seg.text;
+      const timestampUrl = `https://youtube.com/watch?v=${row.video_id}&t=${secs}`;
+      return { time: timeLabel, context, timestampUrl };
+    });
+
+    return {
+      meetingId: row.meeting_id ?? null,
+      videoId: row.video_id,
+      videoTitle: row.video_title,
+      date: toDateString(row.meeting_date),
+      totalMatches: matchingSegments.length,
+      matches,
+    };
+  });
+};
+
+export const listTranscripts = async (): Promise<TranscriptListItem[]> => {
+  type RawListRow = {
+    meeting_id: number | null;
+    video_id: string;
+    video_title: string;
+    meeting_date: Date | string | null;
+    word_count: number | null;
+    duration_seconds: number | null;
+    exec_session_detected: boolean;
+  };
+
+  const result = await db.execute(
+    sql`
+      SELECT
+        meeting_id,
+        video_id,
+        video_title,
+        meeting_date,
+        word_count,
+        duration_seconds,
+        exec_session_detected
+      FROM meeting_transcripts
+      ORDER BY meeting_date DESC NULLS LAST
+    `,
+  );
+
+  return (result.rows as RawListRow[]).map((row) => ({
+    meetingId: row.meeting_id ?? null,
+    videoId: row.video_id,
+    videoTitle: row.video_title,
+    date: toDateString(row.meeting_date),
+    wordCount: row.word_count ?? null,
+    durationSeconds: row.duration_seconds !== null ? Number(row.duration_seconds) : null,
+    execSessionDetected: Boolean(row.exec_session_detected),
+  }));
+};
+
 type RawTranscriptRow = {
   video_id: string;
   video_title: string;

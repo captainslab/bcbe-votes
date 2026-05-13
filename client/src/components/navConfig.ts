@@ -4,6 +4,7 @@ export const navItems = [
   { to: "/votes", label: "Votes" },
   { to: "/meetings", label: "Meetings" },
   { to: "/exec-sessions", label: "Exec Sessions" },
+  { to: "/transcripts", label: "Transcripts" },
   { to: "/vendors", label: "Vendors" },
   { to: "/alliances", label: "Alliances" },
   { to: "/request", label: "Add a Board" },

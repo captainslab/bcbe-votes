@@ -25,7 +25,7 @@ import {
   getSummaryStats,
 } from "../services/analyticsService";
 import { getVendors, getVendorBySlug } from "../services/vendorService";
-import { getTranscriptForMeeting } from "../services/transcriptService";
+import { getTranscriptForMeeting, searchTranscripts, listTranscripts } from "../services/transcriptService";
 import { validateRequest } from "../middleware/validateRequest";
 import { HttpError } from "../utils/httpError";
 import {
@@ -418,6 +418,35 @@ router.get("/district-requests/counts", async (_req, res, next) => {
     next(err);
   }
 });
+
+router.get("/transcripts", async (_req, res, next) => {
+  try {
+    const list = await listTranscripts();
+    res.json(list);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get(
+  "/transcripts/search",
+  validateRequest(
+    z.object({
+      query: z.object({
+        q: z.string().min(1).max(200),
+      }),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { query } = res.locals.validatedRequest as { query: { q: string } };
+      const results = await searchTranscripts(query.q);
+      res.json(results);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get("/exec-sessions/summary", async (_req, res, next) => {
   try {

@@ -21,6 +21,7 @@ import { Faq } from "./pages/Faq";
 import { Vendors } from "./pages/Vendors";
 import { VendorDetail } from "./pages/VendorDetail";
 import { ExecSessions } from "./pages/ExecSessions";
+import { Transcripts } from "./pages/Transcripts";
 
 function BoardRoot() {
   const { boardSlug } = useBoardContext();
@@ -52,6 +53,7 @@ function App() {
           <Route path="/vendors" element={<Vendors />} />
           <Route path="/vendors/:slug" element={<VendorDetail />} />
           <Route path="/exec-sessions" element={<ExecSessions />} />
+          <Route path="/transcripts" element={<Transcripts />} />
         </Route>
       </Routes>
       <BoardVotesChat />

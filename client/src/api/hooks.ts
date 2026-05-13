@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
-import type { Board, CategoryStat, ExecSessionDetailRow, ExecSessionSummaryData, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, TranscriptData, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
+import type { Board, CategoryStat, ExecSessionDetailRow, ExecSessionSummaryData, Meeting, MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, MemberStat, PairwiseAlignment, SummaryStats, TranscriptData, TranscriptListItem, TranscriptSearchResult, VendorEntry, VendorProfile, VendorsResponse, VoteItem } from "../types";
 
 export const useHubBoards = () =>
   useQuery({
@@ -243,6 +243,28 @@ export const useVendorProfile = (slug: string) =>
   });
 
 export type { VendorEntry, VendorProfile, VendorsResponse };
+
+export const useTranscriptSearch = (query: string) =>
+  useQuery({
+    queryKey: ["transcript-search", query],
+    queryFn: async () => {
+      if (!query || query.trim().length < 2) return [];
+      const res = await api.get<TranscriptSearchResult[]>("/transcripts/search", { params: { q: query } });
+      return res.data;
+    },
+    enabled: query.trim().length >= 2,
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const useTranscriptList = () =>
+  useQuery({
+    queryKey: ["transcript-list"],
+    queryFn: async () => {
+      const res = await api.get<TranscriptListItem[]>("/transcripts");
+      return res.data;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
 
 export const submitPledge = async (
   slug: string,

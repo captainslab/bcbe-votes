@@ -340,3 +340,28 @@ export type ExecSessionSummaryData = {
   latestMeeting: ExecSessionMeetingSummary | null;
   meetings: ExecSessionMeetingSummary[];
 };
+
+export type TranscriptSearchMatch = {
+  time: string;
+  context: string;
+  timestampUrl: string;
+};
+
+export type TranscriptSearchResult = {
+  meetingId: number | null;
+  videoId: string;
+  videoTitle: string;
+  date: string | null;
+  totalMatches: number;
+  matches: TranscriptSearchMatch[];
+};
+
+export type TranscriptListItem = {
+  meetingId: number | null;
+  videoId: string;
+  videoTitle: string;
+  date: string | null;
+  wordCount: number | null;
+  durationSeconds: number | null;
+  execSessionDetected: boolean;
+};
