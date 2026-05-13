@@ -171,6 +171,20 @@ export const Transcripts = () => {
         </Link>
       </div>
 
+      {/* Advisory */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="font-semibold">AI-generated transcripts — not an official record</p>
+        <p className="mt-1 text-xs leading-5">
+          These transcripts were produced by Whisper speech-to-text software from publicly available meeting recordings.
+          They may contain errors, mishearings, or omissions. Do not rely on them as verbatim minutes or legal records.
+          Always verify against the{" "}
+          <a href="https://www.bcbe.org" target="_blank" rel="noreferrer" className="underline hover:text-amber-900">
+            official BCBE board minutes
+          </a>{" "}
+          for accuracy.
+        </p>
+      </div>
+
       {/* Search box */}
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
