@@ -1,6 +1,6 @@
 # VPS deployment
 
-This document describes a sanitized production deployment shape for BCBE Votes. It is intentionally example-only and must not be treated as a source of live secrets, certificates, or host-specific values.
+This document describes a sanitized production deployment shape for BoardVotes.io (repo: bcbe-votes). It is intentionally example-only and must not be treated as a source of live secrets, certificates, or host-specific values.
 
 ## Production shape
 

@@ -1,6 +1,16 @@
-# BCBE Votes
+# BoardVotes.io (bcbe-votes)
 
-Public-facing voter transparency platform for Baldwin County Board of Education. Tracks motions, voting records, alignment, and dissent with full source traceability pulled automatically from Simbli.
+BoardVotes.io is a public-records transparency platform that turns board and governing-body meeting records into searchable votes, members, topics, timestamps, and source-backed summaries.
+
+**Naming note:** This repository began as `bcbe-votes` because the first tracked board was Baldwin County Board of Education (BCBE). The public product is BoardVotes.io, and BCBE is now the first active board/dataset rather than the full product scope. Do not rename the repo, service, database, or deployment paths — this note is the record of that history.
+
+**Current active board:** Baldwin County Board of Education (BCBE), with records sourced from Simbli.
+
+**Platform scope:** vote records, meetings, members, executive sessions, vendor/procurement tracking, chatbot context, add-a-board funding/onboarding, and expansion to additional public boards and governing bodies.
+
+BoardVotes.io is an independent public-records project and is not affiliated with Baldwin County Board of Education or any government body.
+
+BoardVotes.io currently tracks Baldwin County Board of Education records and is being built to support additional public boards and governing bodies.
 
 ## Product direction
 

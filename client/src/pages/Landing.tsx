@@ -201,7 +201,7 @@ export const Landing = () => {
           <h1>Transparency Is the First Step Toward Accountability</h1>
           <p className="hero-subtitle">
             Search Baldwin County Board of Education meetings, motions, agendas, and voting records
-            — all linked to official public sources.
+            — all linked to public source records.
           </p>
           <div className="hero-buttons">
             {hubMode ? (
@@ -230,10 +230,7 @@ export const Landing = () => {
             <div className="mission-text fade-in">
               <h2>Making School Board Decisions Accessible to All Citizens</h2>
               <p>
-                BoardVotes.io is an independent transparency platform dedicated to providing Baldwin
-                County residents with easy access to complete, accurate records of Board of Education
-                meetings and votes. Every decision that affects our schools should be open and
-                understandable to the community it serves.
+                BoardVotes.io is an independent public-records platform. It currently tracks Baldwin County Board of Education (BCBE) meetings and votes and is being built to support additional public boards and governing bodies. Every decision that affects your community should be searchable, source-linked, and understandable without digging through portals, PDFs, and attachments.
               </p>
             </div>
             <div className="mission-stats fade-in">
@@ -265,7 +262,7 @@ export const Landing = () => {
             <h2 className="section-title">Transparency You Can Trust</h2>
             <p className="section-description">
               Every piece of data on BoardVotes.io is traceable directly back to official Baldwin
-              County records.
+              County Board of Education public records.
             </p>
           </div>
           <div className="features-grid">
@@ -375,8 +372,10 @@ export const Landing = () => {
             <h3>Where Our Data Comes From</h3>
             <p>
               All meeting records, agendas, and voting data on BoardVotes.io are sourced directly
-              from official Baldwin County Board of Education public records. We don't interpret or
-              editorialize—we present the facts as they are recorded.
+              from Baldwin County Board of Education public records. BoardVotes.io is an independent
+              project and is not affiliated with or endorsed by Baldwin County Board of Education or
+              any government body. Records are presented as extracted from public sources — not
+              interpreted or editorialized.
             </p>
             <p>
               Every vote record includes a direct link to the original source document, allowing you
@@ -395,6 +394,7 @@ export const Landing = () => {
             <h2 className="section-title">Who Benefits From Transparency</h2>
             <p className="section-description">
               BoardVotes.io serves everyone with a stake in Baldwin County schools.
+              BoardVotes.io is independent and is not affiliated with Baldwin County Board of Education or any government body.
             </p>
           </div>
           <div className="community-grid">
@@ -482,7 +482,7 @@ export const Landing = () => {
       <section className="cta">
         <div className="container">
           <h2>Your Schools. Your Voice. Your Right to Know.</h2>
-          <p>Baldwin County residents deserve full access to the decisions that shape our schools.</p>
+          <p>Public records belong to everyone. BoardVotes.io makes them searchable, source-linked, and understandable.</p>
           <Link to="/meetings" className="btn btn-primary">
             Browse Meetings Now
           </Link>
@@ -496,6 +496,7 @@ export const Landing = () => {
             <h4>BoardVotes.io</h4>
             <p style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.875rem" }}>
               Independent transparency platform for Baldwin County Board of Education
+              — an independent public-records project, not affiliated with BCBE or any government body. BoardVotes.io currently tracks Baldwin County Board of Education and is expanding to additional public boards.
             </p>
           </div>
           <div className="footer-section">
