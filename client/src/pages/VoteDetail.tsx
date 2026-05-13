@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useVote } from "../api/hooks";
+import { useVote, useTranscript } from "../api/hooks";
 import { Badge } from "../components/Badge";
 import type { PersonnelAction, PropertyAction } from "../types";
 
@@ -79,6 +79,7 @@ const isNeedsReview = (
 export const VoteDetail = () => {
   const { id } = useParams();
   const { data, isLoading, error } = useVote(id);
+  const { data: transcript } = useTranscript(data?.meetingId);
 
   const sortedRecords = useMemo(() => {
     const records = (data?.voteRecords ?? []).slice();
@@ -296,8 +297,12 @@ export const VoteDetail = () => {
           <div className="mt-2 space-y-2">
             {/executive session/i.test(data.itemTitle ?? "") ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                This vote was passed by voice — no individual roll call was recorded in the source minutes.{" "}
-                <span className="font-semibold">Voice vote records coming soon via YouTube meeting transcripts.</span>
+                These votes were passed by voice — no individual roll call was recorded.
+                {transcript?.voiceVotes && transcript.voiceVotes.length > 0 && (
+                  <span className="ml-1">
+                    {transcript.voiceVotes.length} voice vote trigger{transcript.voiceVotes.length !== 1 ? "s" : ""} detected in the meeting transcript.
+                  </span>
+                )}
               </div>
             ) : (
               <p className="text-sm text-slate-600">
