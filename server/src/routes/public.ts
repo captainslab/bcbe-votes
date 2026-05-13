@@ -15,6 +15,7 @@ import {
 } from "../services/dataService";
 import {
   getCategoryStats,
+  getExecSessionDetail,
   getExecSessionSummary,
   getMemberAlignment,
   getMemberCategoryStats,
@@ -422,6 +423,15 @@ router.get("/exec-sessions/summary", async (_req, res, next) => {
   try {
     const summary = await getExecSessionSummary();
     res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/exec-sessions/detail", async (_req, res, next) => {
+  try {
+    const detail = await getExecSessionDetail();
+    res.json(detail);
   } catch (err) {
     next(err);
   }

@@ -307,6 +307,25 @@ export type SummaryStats = {
   }[];
 };
 
+export type ExecSessionBlock = {
+  time: string;
+  context: string;
+  reasons: string[];
+  movedBy: string | null;
+  secondedBy: string | null;
+  timestampUrl: string | null;
+};
+
+export type ExecSessionDetailRow = {
+  meetingId: number | null;
+  videoId: string;
+  videoTitle: string;
+  date: string | null;
+  voiceVoteCount: number;
+  motionCount: number;
+  blocks: ExecSessionBlock[];
+};
+
 export type ExecSessionMeetingSummary = {
   meetingId: number | null;
   date: string | null;

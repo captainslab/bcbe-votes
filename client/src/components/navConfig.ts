@@ -3,6 +3,7 @@ export const navItems = [
   { to: "/members", label: "Members" },
   { to: "/votes", label: "Votes" },
   { to: "/meetings", label: "Meetings" },
+  { to: "/exec-sessions", label: "Exec Sessions" },
   { to: "/vendors", label: "Vendors" },
   { to: "/alliances", label: "Alliances" },
   { to: "/request", label: "Add a Board" },

@@ -223,8 +223,8 @@ export const Dashboard = () => {
                 {motionCount > 0 && `${motionCount} motion${motionCount !== 1 ? "s" : ""}`}
                 {(voiceTriggers > 0 || motionCount > 0) && " detected across available recordings."}
               </p>
-              <Link to="/meetings" className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:underline">
-                Review meetings
+              <Link to="/exec-sessions" className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:underline">
+                View all executive sessions
               </Link>
             </div>
             <span className="shrink-0 inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">

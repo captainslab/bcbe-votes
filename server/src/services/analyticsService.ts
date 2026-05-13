@@ -323,6 +323,120 @@ export const getExecSessionSummary = async (): Promise<ExecSessionSummaryResult>
   };
 };
 
+function tsToSeconds(time: string): number | null {
+  const parts = time.split(":").map(Number);
+  if (parts.some((p) => isNaN(p))) return null;
+  if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+  if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
+  return null;
+}
+
+const FILLER_WORDS = new Set(["a", "an", "on", "so", "in", "it", "is", "by", "to", "the", "and", "or"]);
+function isName(word: string | undefined): boolean {
+  return !!word && word.length >= 3 && !FILLER_WORDS.has(word.toLowerCase());
+}
+
+function parseMotionActors(context: string): { movedBy: string | null; secondedBy: string | null } {
+  const motionAndSecond = /motion by (\w+)[,\s]+(?:and\s+)?second(?:ed)? by (\w+)/i.exec(context);
+  if (motionAndSecond && isName(motionAndSecond[1]) && isName(motionAndSecond[2])) {
+    return { movedBy: motionAndSecond[1] ?? null, secondedBy: motionAndSecond[2] ?? null };
+  }
+  const motionBy = /(?:motion|move)\s+by\s+(\w+)/i.exec(context);
+  const secondedBy = /second(?:ed)?\s+by\s+(\w+)/i.exec(context);
+  const xSeconds = /\b([A-Z]\w{2,})\s+seconds\b/.exec(context);
+  return {
+    movedBy: isName(motionBy?.[1]) ? (motionBy![1] ?? null) : null,
+    secondedBy: isName(secondedBy?.[1])
+      ? (secondedBy![1] ?? null)
+      : isName(xSeconds?.[1])
+        ? (xSeconds![1] ?? null)
+        : null,
+  };
+}
+
+export type ExecSessionBlock = {
+  time: string;
+  context: string;
+  reasons: string[];
+  movedBy: string | null;
+  secondedBy: string | null;
+  timestampUrl: string | null;
+};
+
+export type ExecSessionDetailRow = {
+  meetingId: number | null;
+  videoId: string;
+  videoTitle: string;
+  date: string | null;
+  voiceVoteCount: number;
+  motionCount: number;
+  blocks: ExecSessionBlock[];
+};
+
+export const getExecSessionDetail = async (): Promise<ExecSessionDetailRow[]> => {
+  const rows = await db.execute(
+    sql`
+      SELECT
+        mt.meeting_id,
+        mt.video_id,
+        mt.video_title,
+        mt.meeting_date,
+        mt.exec_session_context,
+        jsonb_array_length(COALESCE(mt.voice_votes, '[]'::jsonb)) AS voice_vote_count,
+        jsonb_array_length(COALESCE(mt.motions_detected, '[]'::jsonb)) AS motion_count
+      FROM meeting_transcripts mt
+      WHERE mt.exec_session_detected = true
+      ORDER BY mt.meeting_date DESC NULLS LAST
+    `,
+  );
+
+  type RawRow = {
+    meeting_id: number | null;
+    video_id: string;
+    video_title: string;
+    meeting_date: Date | string | null;
+    exec_session_context: unknown;
+    voice_vote_count: number;
+    motion_count: number;
+  };
+
+  const toDateStr = (value: Date | string | null): string | null => {
+    if (!value) return null;
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    return String(value).slice(0, 10);
+  };
+
+  return (rows.rows as RawRow[]).map((row) => {
+    const ctx = Array.isArray(row.exec_session_context)
+      ? (row.exec_session_context as Array<{ time: string; context: string; reasons?: string[] }>)
+      : [];
+    const blocks: ExecSessionBlock[] = ctx.map((b) => {
+      const actors = parseMotionActors(b.context ?? "");
+      const secs = tsToSeconds(b.time ?? "");
+      return {
+        time: b.time ?? "",
+        context: b.context ?? "",
+        reasons: b.reasons ?? [],
+        movedBy: actors.movedBy,
+        secondedBy: actors.secondedBy,
+        timestampUrl:
+          row.video_id && secs !== null
+            ? `https://youtube.com/watch?v=${row.video_id}&t=${secs}`
+            : null,
+      };
+    });
+    return {
+      meetingId: row.meeting_id ?? null,
+      videoId: row.video_id,
+      videoTitle: row.video_title,
+      date: toDateStr(row.meeting_date),
+      voiceVoteCount: Number(row.voice_vote_count ?? 0),
+      motionCount: Number(row.motion_count ?? 0),
+      blocks,
+    };
+  });
+};
+
 export const getMemberStats = async () => {
   const memberVoteRows = await db
     .select({
