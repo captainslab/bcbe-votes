@@ -45,6 +45,9 @@ CORRECTIONS = [
     (r"\bRonda\b",             "Rondi",          "Ronda → Rondi"),
     # Andrew → Andrea (not Andrews / Andrew's)
     (r"\bAndrew\b(?!s|')",     "Andrea",         "Andrew → Andrea"),
+    # Public commenter names
+    (r"\bCuspecki\b",          "Scapecchi",      "Cuspecki → Scapecchi"),
+    (r"\bCupecki\b",           "Scapecchi",      "Cupecki → Scapecchi"),
     # Capitalization fixes
     (r"\bmr\. Tyler\b",        "Mr. Tyler",      "mr. Tyler → Mr. Tyler"),
     (r"\bms\. Tyler\b",        "Ms. Tyler",      "ms. Tyler → Ms. Tyler"),
