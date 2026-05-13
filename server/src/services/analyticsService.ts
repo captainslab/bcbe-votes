@@ -373,22 +373,54 @@ export type ExecSessionDetailRow = {
   blocks: ExecSessionBlock[];
 };
 
+// Known Whisper transcription variants → canonical first name
+const TRANSCRIPT_ALIASES: Record<string, string> = {
+  rhonda: "rondi",
+  ronda: "rondi",
+  rhonie: "rondi",
+  andrew: "andrea",
+};
+
+function buildMemberLookup(members: { name: string }[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const m of members) {
+    const first = m.name.split(" ")[0]?.toLowerCase();
+    if (first) map.set(first, m.name);
+  }
+  // Add alias entries pointing to canonical full names
+  for (const [alias, canonical] of Object.entries(TRANSCRIPT_ALIASES)) {
+    const full = map.get(canonical);
+    if (full) map.set(alias, full);
+  }
+  return map;
+}
+
+function resolveFullName(firstName: string | null, lookup: Map<string, string>): string | null {
+  if (!firstName) return null;
+  return lookup.get(firstName.toLowerCase()) ?? firstName;
+}
+
 export const getExecSessionDetail = async (): Promise<ExecSessionDetailRow[]> => {
-  const rows = await db.execute(
-    sql`
-      SELECT
-        mt.meeting_id,
-        mt.video_id,
-        mt.video_title,
-        mt.meeting_date,
-        mt.exec_session_context,
-        jsonb_array_length(COALESCE(mt.voice_votes, '[]'::jsonb)) AS voice_vote_count,
-        jsonb_array_length(COALESCE(mt.motions_detected, '[]'::jsonb)) AS motion_count
-      FROM meeting_transcripts mt
-      WHERE mt.exec_session_detected = true
-      ORDER BY mt.meeting_date DESC NULLS LAST
-    `,
-  );
+  const [transcriptRows, memberRows] = await Promise.all([
+    db.execute(
+      sql`
+        SELECT
+          mt.meeting_id,
+          mt.video_id,
+          mt.video_title,
+          mt.meeting_date,
+          mt.exec_session_context,
+          jsonb_array_length(COALESCE(mt.voice_votes, '[]'::jsonb)) AS voice_vote_count,
+          jsonb_array_length(COALESCE(mt.motions_detected, '[]'::jsonb)) AS motion_count
+        FROM meeting_transcripts mt
+        WHERE mt.exec_session_detected = true
+        ORDER BY mt.meeting_date DESC NULLS LAST
+      `,
+    ),
+    db.select({ name: schema.boardMembers.name }).from(schema.boardMembers),
+  ]);
+
+  const memberLookup = buildMemberLookup(memberRows);
 
   type RawRow = {
     meeting_id: number | null;
@@ -406,7 +438,7 @@ export const getExecSessionDetail = async (): Promise<ExecSessionDetailRow[]> =>
     return String(value).slice(0, 10);
   };
 
-  return (rows.rows as RawRow[]).map((row) => {
+  return (transcriptRows.rows as RawRow[]).map((row) => {
     const ctx = Array.isArray(row.exec_session_context)
       ? (row.exec_session_context as Array<{ time: string; context: string; reasons?: string[] }>)
       : [];
@@ -417,8 +449,8 @@ export const getExecSessionDetail = async (): Promise<ExecSessionDetailRow[]> =>
         time: b.time ?? "",
         context: b.context ?? "",
         reasons: b.reasons ?? [],
-        movedBy: actors.movedBy,
-        secondedBy: actors.secondedBy,
+        movedBy: resolveFullName(actors.movedBy, memberLookup),
+        secondedBy: resolveFullName(actors.secondedBy, memberLookup),
         timestampUrl:
           row.video_id && secs !== null
             ? `https://youtube.com/watch?v=${row.video_id}&t=${secs}`
