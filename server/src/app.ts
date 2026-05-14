@@ -8,6 +8,8 @@ import adminRoutes from "./routes/admin";
 import boardsRouter, { webhookHandler } from "./routes/boards";
 import donationsRouter from "./routes/donations";
 import { logger } from "./logging/logger";
+import { chatRouter } from "./routes/chat";
+import { boardCompatRouter, dashboardCompatRouter } from "./routes/compat";
 
 export const app = express();
 
@@ -28,6 +30,13 @@ if (config.enableRequestLogs) {
 }
 
 applySecurity(app);
+
+// Public compatibility routes restored after cleanup.
+// Must mount before broad API routes so slug/dashboard/chat paths do not get swallowed.
+app.use("/api/chat", chatRouter);
+app.use("/api/chatbot", chatRouter);
+app.use("/api/dashboard", dashboardCompatRouter);
+app.use("/api/boards/bcbe", boardCompatRouter);
 
 app.use("/api", publicRoutes);
 app.use("/api/boards", boardsRouter);

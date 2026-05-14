@@ -4,10 +4,23 @@ import rateLimit from "express-rate-limit";
 import { Express } from "express";
 import { config } from "../config/env";
 
-const configuredCorsOrigins = config.corsOrigin
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const productionCorsOrigins = [
+  "https://bcbe.boardvotes.io",
+  "https://boardvotes.io",
+  "https://www.boardvotes.io",
+];
+
+const configuredCorsOrigins = Array.from(
+  new Set(
+    [
+      ...config.corsOrigin
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+      ...productionCorsOrigins,
+    ],
+  ),
+);
 
 const isAllowedDevOrigin = (origin: string) => {
   if (config.env !== "development") return false;
