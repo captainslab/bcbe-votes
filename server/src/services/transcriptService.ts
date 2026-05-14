@@ -39,6 +39,30 @@ export type TranscriptListItem = {
   execSessionDetected: boolean;
 };
 
+export type TranscriptMentionCountQuery = {
+  keyword: string;
+  startDate?: string | null;
+  endDate?: string | null;
+};
+
+export type TranscriptMentionMeeting = {
+  meetingId: number | null;
+  videoId: string;
+  title: string;
+  date: string | null;
+  mentionCount: number;
+};
+
+export type TranscriptMentionCountResult = {
+  keyword: string;
+  startDate: string;
+  endDate: string;
+  dateRangeLabel: string;
+  totalMentions: number;
+  matchedRecordCount: number;
+  meetings: TranscriptMentionMeeting[];
+};
+
 function secondsToTs(n: number): string {
   const h = Math.floor(n / 3600);
   const m = Math.floor((n % 3600) / 60);
@@ -53,6 +77,90 @@ const toDateString = (value: Date | string | null): string | null => {
   if (!value) return null;
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   return String(value).slice(0, 10);
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const countKeywordMentions = (text: string, keyword: string) => {
+  const term = keyword.trim();
+  if (!term) return 0;
+  const pattern = new RegExp(`(^|[^A-Za-z0-9_])${escapeRegExp(term)}(?=$|[^A-Za-z0-9_])`, "gi");
+  let count = 0;
+  while (pattern.exec(text) !== null) count += 1;
+  return count;
+};
+
+export const countTranscriptMentions = async ({
+  keyword,
+  startDate = "1900-01-01",
+  endDate,
+}: TranscriptMentionCountQuery): Promise<TranscriptMentionCountResult> => {
+  const term = keyword.trim();
+  if (term.length < 2) {
+    return {
+      keyword: term,
+      startDate: startDate ?? "1900-01-01",
+      endDate: endDate ?? new Date().toISOString().slice(0, 10),
+      dateRangeLabel: `${startDate ?? "1900-01-01"} through ${endDate ?? new Date().toISOString().slice(0, 10)}`,
+      totalMentions: 0,
+      matchedRecordCount: 0,
+      meetings: [],
+    };
+  }
+
+  type RawMentionRow = {
+    meeting_id: number | null;
+    video_id: string;
+    video_title: string;
+    meeting_date: Date | string | null;
+    transcript_text: string | null;
+  };
+
+  const endDateResult = await db.execute(
+    sql`SELECT COALESCE(${endDate ?? null}::date, (SELECT COALESCE(MAX(meeting_date), CURRENT_DATE)::date FROM meeting_transcripts)) AS end_date`,
+  );
+  const effectiveEndDate = toDateString((endDateResult.rows[0] as { end_date?: Date | string | null } | undefined)?.end_date ?? null)
+    ?? new Date().toISOString().slice(0, 10);
+
+  const result = await db.execute(
+    sql`
+      SELECT
+        meeting_id,
+        video_id,
+        video_title,
+        meeting_date,
+        transcript_text
+      FROM meeting_transcripts
+      WHERE transcript_text ILIKE ${`%${term}%`}
+        AND meeting_date >= ${startDate}::date
+        AND meeting_date < (${effectiveEndDate}::date + INTERVAL '1 day')
+      ORDER BY meeting_date DESC NULLS LAST
+    `,
+  );
+
+  const rows = result.rows as RawMentionRow[];
+  const meetings = rows
+    .map((row) => ({
+      meetingId: row.meeting_id ?? null,
+      videoId: row.video_id,
+      title: row.video_title,
+      date: toDateString(row.meeting_date),
+      mentionCount: countKeywordMentions(row.transcript_text ?? "", term),
+    }))
+    .filter((row) => row.mentionCount > 0);
+
+  const totalMentions = meetings.reduce((sum, row) => sum + row.mentionCount, 0);
+  const normalizedStart = startDate ?? "1900-01-01";
+
+  return {
+    keyword: term,
+    startDate: normalizedStart,
+    endDate: effectiveEndDate,
+    dateRangeLabel: `${normalizedStart} through ${effectiveEndDate}`,
+    totalMentions,
+    matchedRecordCount: meetings.length,
+    meetings,
+  };
 };
 
 export const searchTranscripts = async (query: string): Promise<TranscriptSearchResult[]> => {

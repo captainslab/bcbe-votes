@@ -14,7 +14,7 @@ import {
   getRecentVoteSummaries,
   searchVoteItemsForChat,
 } from "./dataService";
-import { getTranscriptForMeeting } from "./transcriptService";
+import { countTranscriptMentions, getTranscriptForMeeting, type TranscriptMentionCountResult } from "./transcriptService";
 
 export type ChatContext = {
   totalMeetings: number;
@@ -63,6 +63,7 @@ type DataQueryIntent =
   | { type: "category_count"; category: string }
   | { type: "alignment_highlights"; direction: "most_aligned" | "most_split" }
   | { type: "vote_search"; searchTerm: string; limit: number }
+  | { type: "transcript_mention_count"; keyword: string; startDate?: string | null; endDate?: string | null }
   | { type: "property_transactions"; actionType?: string }
   | { type: "personnel_actions"; actionType?: string }
   | { type: "executive_session"; reasonFilter?: string }
@@ -176,6 +177,66 @@ const categoryAliases: Array<{ category: string; patterns: RegExp[] }> = [
 const findCategoryInQuestion = (q: string) =>
   categoryAliases.find(({ patterns }) => patterns.some((pattern) => pattern.test(q)))?.category;
 
+type TranscriptMentionIntent = { keyword: string; startDate: string | null; endDate: string | null };
+
+const cleanupMentionKeyword = (value: string) => {
+  const cleaned = value
+    .replace(/['"`]/g, "")
+    .replace(/\b(?:in|during|from|between|for|the|a|an|word|name|keyword|transcript|transcripts|meetings?)\b/gi, " ")
+    .replace(/\b(?:mentioned|mentions?|said|spoken|times|often|count|current|year|today|through|to|and)\b/gi, " ")
+    .replace(/\b\d{4}\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.length >= 2 && cleaned.length <= 80 ? cleaned : null;
+};
+
+const parseYearRange = (question: string): { startDate: string | null; endDate: string | null } => {
+  const currentYearMatch = question.match(/\b(20\d{2})\s*(?:-|–|—|to|through|thru)\s*(?:current\s+year|today|now|present)\b/i);
+  if (currentYearMatch?.[1]) return { startDate: `${currentYearMatch[1]}-01-01`, endDate: null };
+
+  const rangeMatch = question.match(/\b(?:from\s+)?(20\d{2})\s*(?:-|–|—|to|through|thru)\s*(20\d{2})\b/i);
+  if (rangeMatch?.[1] && rangeMatch[2]) return { startDate: `${rangeMatch[1]}-01-01`, endDate: `${rangeMatch[2]}-12-31` };
+
+  const yearMatch = question.match(/\b(?:in|during|from|for)\s+(20\d{2})\b/i) ?? question.match(/\b(20\d{2})\b/);
+  if (yearMatch?.[1]) return { startDate: `${yearMatch[1]}-01-01`, endDate: `${yearMatch[1]}-12-31` };
+
+  return { startDate: null, endDate: null };
+};
+
+export const parseTranscriptMentionIntent = (question: string): TranscriptMentionIntent | null => {
+  const q = normalizeQuestion(question);
+  const hasMentionCountSignal =
+    /\b(how many times|how often|mentions? of|mentioned|said|spoken|keyword)\b/.test(q) &&
+    /\b(mentions?|mentioned|said|spoken|times|often|count)\b/.test(q);
+  if (!hasMentionCountSignal) return null;
+
+  const raw = question.trim().replace(/[?.!]+$/g, "");
+  const keywordPatterns = [
+    /\bhow many times was\s+(.+?)\s+(?:mentioned|said|spoken)\b/i,
+    /\bmentions? of\s+(.+?)(?:\s+\b(?:in|during|from|between|for)\b|$)/i,
+    /\bhow often was\s+(.+?)\s+(?:mentioned|said|spoken)\b/i,
+    /\bhow often\s+(?:was|is)?\s*(.+?)\s+(?:mentioned|said|spoken)\b/i,
+    /\b(?:count|number of)\s+(?:mentions? of\s+)?(.+?)(?:\s+\b(?:in|during|from|between|for)\b|$)/i,
+  ];
+
+  for (const pattern of keywordPatterns) {
+    const match = raw.match(pattern);
+    const keyword = cleanupMentionKeyword(match?.[1] ?? "");
+    if (keyword) return { keyword, ...parseYearRange(raw) };
+  }
+
+  return null;
+};
+
+export const formatTranscriptMentionAnswer = (result: Pick<TranscriptMentionCountResult, "keyword" | "dateRangeLabel" | "totalMentions" | "matchedRecordCount" | "meetings">) => {
+  const shownMeetings = result.meetings
+    .slice(0, 5)
+    .map((meeting) => `${meeting.date ?? "unknown date"}: ${meeting.title} (${meeting.mentionCount})`)
+    .join("; ");
+  const suffix = shownMeetings ? ` Matching meetings: ${shownMeetings}.` : " No matching meeting dates were found.";
+  return `${result.totalMentions} mentions of "${result.keyword}" across ${formatCount(result.matchedRecordCount, "transcript record")} searched from ${result.dateRangeLabel}.${suffix}`;
+};
+
 const extractSearchTerm = (question: string) => {
   const cleaned = question.trim().replace(/[?.!]+$/g, "");
   const patterns = [
@@ -222,6 +283,8 @@ Hard rules — always enforced:
 - Never reveal database schemas, server internals, API keys, or admin details.
 - Never invent vote counts, names, dates, or outcomes not in the provided data.
 - Never use honorific prefixes listed in blockedTitlePrefixes.
+- For executive sessions, never say any member "voted to go into executive session" unless the provided data contains an individual roll-call vote. If the record was a voice vote, say the motion appears to have been approved by voice vote and individual yes/no positions were not recorded.
+- If asked whether Jason or another member voted for executive session, use this framing when supported by the data: "Jason is shown as moving or seconding the motion only if transcript-detected. The vote itself appears to have been by voice vote, so individual yes/no positions are not recorded."
 - Prayer content is not published on BoardVotes.io. If asked about prayers, invocations, religious tone, spiritual analysis, "darker prayers", or any variation — respond only with: "Prayer analysis is not published on BoardVotes.io. I can help with public meeting actions, votes, executive sessions, motions, and source-linked records."
 - Never quote, summarize, or analyze prayer text from any source.
 
@@ -389,6 +452,16 @@ const generateChatAnswer = async (
 const classifyIntentLocally = (question: string): DataQueryIntent => {
   const q = normalizeQuestion(question);
   const limit = getRequestedLimit(q, 8);
+
+  const transcriptMentionIntent = parseTranscriptMentionIntent(question);
+  if (transcriptMentionIntent) {
+    return {
+      type: "transcript_mention_count",
+      keyword: transcriptMentionIntent.keyword,
+      ...(transcriptMentionIntent.startDate ? { startDate: transcriptMentionIntent.startDate } : {}),
+      ...(transcriptMentionIntent.endDate ? { endDate: transcriptMentionIntent.endDate } : {}),
+    };
+  }
 
   if (/\b(executive sessions?|closed sessions?)\b/.test(q)) {
     const reasonFilter = /\breal estate\b/.test(q) ? "real estate"
@@ -636,6 +709,14 @@ const fetchDataForIntent = async (intent: DataQueryIntent): Promise<FetchedData 
       const data = await searchVoteItemsForChat(intent.searchTerm, intent.limit);
       return { queryResults: { searchTerm: intent.searchTerm, results: data }, citations: [{ label: "Votes", path: "/votes" }] };
     }
+    case "transcript_mention_count": {
+      const data = await countTranscriptMentions({
+        keyword: intent.keyword,
+        ...(intent.startDate ? { startDate: intent.startDate } : {}),
+        ...(intent.endDate ? { endDate: intent.endDate } : {}),
+      });
+      return { queryResults: data, citations: [{ label: "Transcripts", path: "/transcripts" }, { label: "Meetings", path: "/meetings" }] };
+    }
     case "property_transactions": {
       const data = await getPropertyTransactions(intent.actionType);
       return { queryResults: data, citations: [{ label: "Votes", path: "/votes" }] };
@@ -740,6 +821,14 @@ const buildDeterministicFallback = async (intent: DataQueryIntent): Promise<stri
         ? `${formatCount(votes.length, "match")} for "${intent.searchTerm}": ${formatVoteSummaryList(votes, 5)}`
         : `No matches for "${intent.searchTerm}" in the extracted data.`;
     }
+    case "transcript_mention_count": {
+      const result = await countTranscriptMentions({
+        keyword: intent.keyword,
+        ...(intent.startDate ? { startDate: intent.startDate } : {}),
+        ...(intent.endDate ? { endDate: intent.endDate } : {}),
+      });
+      return formatTranscriptMentionAnswer(result);
+    }
     case "property_transactions": {
       const rows = await getPropertyTransactions(intent.actionType);
       if (rows.length === 0) return "No matching property transactions found.";
@@ -754,7 +843,7 @@ const buildDeterministicFallback = async (intent: DataQueryIntent): Promise<stri
       const rows = await getExecutiveSessionSummaries(intent.reasonFilter);
       if (rows.length === 0) return "No matching executive sessions found in the extracted data.";
       const shown = rows.slice(0, 5).map((r) => `${r.meetingDate}: ${r.reason}`).join("; ");
-      return `${formatCount(rows.length, "executive session")} found: ${shown}. See the Votes or Meetings pages for the source-linked records.`;
+      return `${formatCount(rows.length, "executive session")} found: ${shown}. Most executive-session motions appear to have been handled by voice vote, so individual yes/no positions are usually not recorded.`;
     }
     case "faq":
       return null;
@@ -819,7 +908,7 @@ export const answerBoardVotesQuestion = async ({
     }
   }
 
-  if (useModel && intent.type !== "executive_session") {
+  if (useModel && intent.type !== "executive_session" && intent.type !== "transcript_mention_count") {
     const rawAnswer = await generateChatAnswer(
       trimmed,
       fetched?.queryResults ?? null,

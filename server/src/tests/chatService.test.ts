@@ -5,6 +5,8 @@ import {
   answerBoardVotesQuestion,
   containsTitlePrefix,
   sanitizeChatAnswer,
+  parseTranscriptMentionIntent,
+  formatTranscriptMentionAnswer,
 } from "../services/chatService";
 
 const context = buildChatContext({
@@ -28,6 +30,36 @@ test("sanitizes title-prefix answers to fallback", () => {
   assert.equal(sanitizeChatAnswer(prefixed), "I don't have that in the BoardVotes.io data.");
   assert.equal(sanitizeChatAnswer("   "), "I don't have that in the BoardVotes.io data.");
   assert.equal(sanitizeChatAnswer("Andrea Lindsey voted yes"), "Andrea Lindsey voted yes");
+});
+
+// --- Transcript mention intent ---
+
+test("detects transcript keyword mention-count date range intent", () => {
+  const parsed = parseTranscriptMentionIntent("how many times was Whitney mentioned from 2025-current year");
+  assert.deepEqual(parsed, {
+    keyword: "Whitney",
+    startDate: "2025-01-01",
+    endDate: null,
+  });
+});
+
+test("formats transcript mention-count answers without transcript text", () => {
+  const answer = formatTranscriptMentionAnswer({
+    keyword: "Whitney",
+    dateRangeLabel: "2025-01-01 through 2026-05-14",
+    totalMentions: 7,
+    matchedRecordCount: 2,
+    meetings: [
+      { meetingId: 1, videoId: "abc123", date: "2025-01-09", title: "Board Meeting", mentionCount: 3 },
+      { meetingId: 2, videoId: "def456", date: "2026-02-12", title: "Regular Meeting", mentionCount: 4 },
+    ],
+  });
+
+  assert.match(answer, /7 mentions/i);
+  assert.match(answer, /2 transcript records/i);
+  assert.match(answer, /2025-01-01 through 2026-05-14/i);
+  assert.match(answer, /2025-01-09: Board Meeting \(3\)/i);
+  assert.doesNotMatch(answer, /said|context|transcript excerpt/i);
 });
 
 // --- Hard refusals ---
