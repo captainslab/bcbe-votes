@@ -25,7 +25,7 @@ const checkoutPackages: Array<{
     name: "Request page",
     price: "$25",
     summary: "Create a public funding page and validate community demand.",
-    bullets: ["Public board request page", "Best for citizen-led requests"],
+    bullets: ["Public board request page", "Full service price quoted after source discovery", "Best for citizen-led requests"],
   },
   {
     id: "founder_launch",
@@ -55,7 +55,7 @@ const faqItems = [
   },
   {
     question: "What happens after a community request is submitted?",
-    answer: "BoardVotes.io begins source review and onboarding. That includes checking public records, meeting history, available minutes, agendas, and vote documentation. Each request is reviewed case by case.",
+    answer: "BoardVotes.io runs a source discovery review — checking public records availability, meeting history, minutes, agendas, and vote documentation for that board. A full service price is quoted after discovery, since cost depends on archive depth and data quality. Each request is reviewed individually.",
   },
   {
     question: "What if the public records are incomplete?",
