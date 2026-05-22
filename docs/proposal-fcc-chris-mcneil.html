@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoardVotes — Fairhope City Council Proposal</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:   #0f1f3d;
+      --blue:   #1a56a0;
+      --accent: #2d8cf0;
+      --gold:   #c9922a;
+      --light:  #f4f7fb;
+      --border: #dde4ef;
+      --text:   #1a2340;
+      --muted:  #5a6a85;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #eef2f8;
+      color: var(--text);
+      line-height: 1.6;
+      padding: 40px 20px 80px;
+    }
+
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(15,31,61,0.13);
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--navy);
+      padding: 56px 60px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -60px; right: -60px;
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: rgba(45,140,240,0.08);
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -80px; left: 40%;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: rgba(201,146,42,0.07);
+    }
+    .wordmark {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      color: #fff;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .wordmark span { color: var(--accent); }
+    .tagline {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 40px;
+    }
+    .header-title {
+      font-size: 34px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+    .header-sub {
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      font-weight: 400;
+    }
+    .meta-row {
+      display: flex;
+      gap: 32px;
+      margin-top: 36px;
+      flex-wrap: wrap;
+    }
+    .meta-item { }
+    .meta-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 3px;
+    }
+    .meta-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.85);
+    }
+
+    /* ── BODY ── */
+    .body { padding: 0 60px 60px; }
+
+    /* ── SECTION ── */
+    .section { margin-top: 52px; }
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+    p { color: var(--muted); font-size: 15px; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── FEATURE GRID ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 14px 16px;
+      background: var(--light);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .feature-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      color: var(--accent);
+    }
+    .feature-text {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--navy);
+      line-height: 1.4;
+    }
+
+    /* ── COVERAGE CALLOUT ── */
+    .coverage-bar {
+      background: var(--light);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-top: 16px;
+    }
+    .coverage-bar + .coverage-bar { margin-top: 10px; }
+    .coverage-stat {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .coverage-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .coverage-note {
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 6px;
+    }
+
+    /* ── PRICING CARDS ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .price-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .price-card.featured {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(45,140,240,0.15);
+    }
+    .price-card-header {
+      background: var(--light);
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .price-card.featured .price-card-header {
+      background: var(--navy);
+    }
+    .price-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(201,146,42,0.12);
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    .price-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    .price-card.featured .price-name { color: #fff; }
+    .price-amount {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .price-period {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .price-card.featured .price-period { color: rgba(255,255,255,0.5); }
+    .price-card-body { padding: 18px 24px; }
+    .price-includes {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .price-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 7px;
+      line-height: 1.4;
+    }
+    .price-item::before {
+      content: '✓';
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── ADDONS ── */
+    .addon-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .addon-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .addon-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    .addon-price {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .addon-price span {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+    }
+    .addon-desc {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── SCAN TABLE ── */
+    .scan-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .scan-table thead tr {
+      background: var(--navy);
+      color: #fff;
+    }
+    .scan-table thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .scan-table tbody tr { border-bottom: 1px solid var(--border); }
+    .scan-table tbody tr:nth-child(even) { background: var(--light); }
+    .scan-table td { padding: 11px 16px; color: var(--text); vertical-align: top; }
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .badge-included { background: #e3f0ff; color: var(--blue); }
+    .badge-weekly   { background: #fff4e0; color: #a06800; }
+    .badge-addon    { background: #f0f0f0; color: #555; }
+
+    /* ── TIMELINE ── */
+    .timeline { margin-top: 8px; }
+    .timeline-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .timeline-row:last-child { border-bottom: none; }
+    .timeline-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .timeline-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    .timeline-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: var(--navy);
+      padding: 32px 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      color: #fff;
+    }
+    .footer-brand span { color: var(--accent); }
+    .footer-url {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+    .footer-terms {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      max-width: 400px;
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 640px) {
+      .header, .body, .footer { padding-left: 28px; padding-right: 28px; }
+      .feature-grid, .pricing-grid, .addon-row { grid-template-columns: 1fr; }
+      .footer { flex-direction: column; }
+      .footer-terms { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="wordmark">Board<span>Votes</span></div>
+    <div class="tagline">Civic Intelligence Platform</div>
+    <div class="header-title">Fairhope City Council<br>Intelligence Platform</div>
+    <div class="header-sub">Proposal prepared for Chris McNeil</div>
+    <div class="meta-row">
+      <div class="meta-item">
+        <div class="meta-label">Deployment URL</div>
+        <div class="meta-value">fcc.boardvotes.io</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Prepared</div>
+        <div class="meta-value">May 2026</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Entity</div>
+        <div class="meta-value">Fairhope, Alabama City Council</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- OVERVIEW -->
+    <div class="section">
+      <div class="section-label">Overview</div>
+      <div class="section-title">What BoardVotes Does</div>
+      <p>BoardVotes organizes, searches, and analyzes Fairhope City Council meeting activity using official records, agendas, minutes, press packets, and meeting video — updated automatically on each meeting cycle with no manual effort required.</p>
+      <p>The platform gives residents, journalists, and civic leaders a single place to track every vote, every ordinance, and every council member's record — sourced directly from official city documents.</p>
+    </div>
+
+    <!-- FEATURES -->
+    <div class="section">
+      <div class="section-label">Platform Features</div>
+      <div class="section-title">What's Included</div>
+      <div class="feature-grid">
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <div class="feature-text">Searchable meeting archive back to 2007</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          <div class="feature-text">Vote extraction and tracking — ordinances, resolutions, contested items</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          <div class="feature-text">Council member voting scorecards and patterns</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <div class="feature-text">Ordinance and resolution tracking with sequential numbering</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          <div class="feature-text">Agenda early-alert — new agendas flagged 2–4 days before each meeting</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <div class="feature-text">Video index — 463 council recordings linked to each meeting</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          <div class="feature-text">AI-powered meeting summaries and categorization</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          <div class="feature-text">Source-linked evidence for every extracted item</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <div class="feature-text">Transcript-assisted meeting review</div>
+        </div>
+        <div class="feature-item">
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <div class="feature-text">Zoning and variance decision tracking</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA COVERAGE -->
+    <div class="section">
+      <div class="section-label">Verified Data Coverage</div>
+      <div class="section-title">What's Available Before We Build</div>
+      <p>All coverage figures are verified from official Fairhope City Council sources prior to this proposal — no estimates.</p>
+      <div class="coverage-bar">
+        <div class="coverage-stat">~1,200+ Documents</div>
+        <div class="coverage-desc">City Council agendas, press packets, and minutes — back to January 8, 2007</div>
+      </div>
+      <div class="coverage-bar">
+        <div class="coverage-stat">463 Council Meeting Recordings</div>
+        <div class="coverage-desc">Official YouTube archive — back to October 2016, with auto-generated transcripts confirmed on all tested videos</div>
+      </div>
+      <div class="coverage-bar">
+        <div class="coverage-stat">Named AYE / NAY Votes Confirmed</div>
+        <div class="coverage-desc">Minutes PDFs record individual member votes by name for all ordinance adoptions and contested items</div>
+        <div class="coverage-note">Routine unanimous motions recorded as outcomes only; individual positions not listed for those items</div>
+      </div>
+      <div class="coverage-bar">
+        <div class="coverage-stat">Ordinance No. 1698 · Resolution No. 3961-21</div>
+        <div class="coverage-desc">Sequential ordinance and resolution numbering confirmed — both indexed and searchable</div>
+      </div>
+    </div>
+
+    <!-- PRICING -->
+    <div class="section">
+      <div class="section-label">Investment</div>
+      <div class="section-title">Founder Pricing</div>
+      <div class="pricing-grid">
+
+        <div class="price-card featured">
+          <div class="price-card-header">
+            <div class="price-badge">Most Popular</div>
+            <div class="price-name">Founder Launch</div>
+            <div class="price-amount">$1,500</div>
+            <div class="price-period">one-time · five-year archive</div>
+          </div>
+          <div class="price-card-body">
+            <div class="price-includes">Includes</div>
+            <div class="price-item">Initial deployment and dashboard</div>
+            <div class="price-item">Five most recent years of City Council records</div>
+            <div class="price-item">Vote extraction and member scorecards</div>
+            <div class="price-item">Ordinance and resolution tracking</div>
+            <div class="price-item">AI-powered meeting summaries</div>
+            <div class="price-item">Press packet archive</div>
+            <div class="price-item">Agenda early-alert system</div>
+            <div class="price-item">463 council recordings indexed</div>
+            <div class="price-item">Source-linked evidence</div>
+            <div class="price-item">Cloud data storage</div>
+            <div class="price-item">12 months founder maintenance</div>
+          </div>
+        </div>
+
+        <div class="price-card">
+          <div class="price-card-header">
+            <div class="price-badge" style="background:rgba(201,146,42,0.15);color:var(--gold);">Full Archive</div>
+            <div class="price-name">Founder Launch + Full History</div>
+            <div class="price-amount">$3,000</div>
+            <div class="price-period">one-time · archive back to 2007</div>
+          </div>
+          <div class="price-card-body">
+            <div class="price-includes">Everything in Founder Launch, plus</div>
+            <div class="price-item">Complete historical archive back to January 2007</div>
+            <div class="price-item">19 years of City Council records</div>
+            <div class="price-item">~1,200+ documents fully ingested</div>
+            <div class="price-item">Historical vote and ordinance index</div>
+            <div class="price-item">Longitudinal member voting patterns</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MAINTENANCE NOTE -->
+      <div class="coverage-bar" style="margin-top:16px; border-left-color: var(--gold);">
+        <div style="font-size:13px; font-weight:600; color:var(--navy); margin-bottom:4px;">Founder Maintenance Benefit</div>
+        <div style="font-size:13px; color:var(--muted);">Automated scanning, scraper maintenance, data QA, and source-link review included for the first <strong>12 months</strong> from launch. After month 12, continued platform maintenance is available at <strong>$200/month</strong>.</div>
+      </div>
+    </div>
+
+    <!-- ADD-ONS -->
+    <div class="section">
+      <div class="section-label">Optional Add-Ons</div>
+      <div class="section-title">Expand Your Coverage</div>
+      <div class="addon-row">
+        <div class="addon-card">
+          <div class="addon-name">Weekly Expanded Scan</div>
+          <div class="addon-price">$150<span>/month</span></div>
+          <div class="addon-desc">Work sessions, special meetings, Planning Commission, Board of Adjustments, YouTube video index, auto-caption extraction, and agenda early-alert priority refresh — scanned weekly.</div>
+        </div>
+        <div class="addon-card">
+          <div class="addon-name">Data Ownership Package</div>
+          <div class="addon-price">$100<span>/month</span></div>
+          <div class="addon-desc">Raw PDF archival, audio downloads, Whisper transcripts, JSON/CSV vote exports, and monthly integrity verification. All files transfer to you in open formats if the platform is ever discontinued.</div>
+        </div>
+        <div class="addon-card">
+          <div class="addon-name">Planning & Zoning Expansion</div>
+          <div class="addon-price" style="font-size:15px; padding-top:4px;">Contact for pricing</div>
+          <div class="addon-desc">Full Planning Commission and Board of Adjustments archive — variance decisions, conditional use permits, and zoning case index with per-application decision history.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCAN SCHEDULE -->
+    <div class="section">
+      <div class="section-label">Automation</div>
+      <div class="section-title">How Updates Work</div>
+      <p>All scanning and ingestion is fully automated. No manual steps are required after deployment.</p>
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Cadence</th>
+            <th>What's Captured</th>
+            <th>Tier</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Council agendas</td>
+            <td>Bi-weekly</td>
+            <td>Agenda PDF, meeting date, items list</td>
+            <td><span class="badge badge-included">Included</span></td>
+          </tr>
+          <tr>
+            <td>Press packets</td>
+            <td>Bi-weekly</td>
+            <td>Supporting documents per meeting</td>
+            <td><span class="badge badge-included">Included</span></td>
+          </tr>
+          <tr>
+            <td>Council minutes</td>
+            <td>Bi-weekly</td>
+            <td>Minutes PDF, vote extraction, ordinance index</td>
+            <td><span class="badge badge-included">Included</span></td>
+          </tr>
+          <tr>
+            <td>Work sessions &amp; special meetings</td>
+            <td>Weekly</td>
+            <td>Agendas and minutes</td>
+            <td><span class="badge badge-weekly">Weekly Add-On</span></td>
+          </tr>
+          <tr>
+            <td>YouTube channel</td>
+            <td>Weekly</td>
+            <td>New video detection, title, date, URL</td>
+            <td><span class="badge badge-weekly">Weekly Add-On</span></td>
+          </tr>
+          <tr>
+            <td>Video captions</td>
+            <td>Weekly</td>
+            <td>Auto-caption text, keyword index</td>
+            <td><span class="badge badge-weekly">Weekly Add-On</span></td>
+          </tr>
+          <tr>
+            <td>PDF &amp; audio archive</td>
+            <td>Each scan run</td>
+            <td>Raw files, transcripts, JSON exports</td>
+            <td><span class="badge badge-addon">Data Add-On</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px; font-size:12px;">Agendas are captured within 1–3 days of posting (source posts Thursday/Friday before each Monday meeting). Minutes are captured within one scan cycle of publication — source publishes within 35 days of each meeting.</p>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="section">
+      <div class="section-label">Delivery</div>
+      <div class="section-title">What Happens After You Sign</div>
+      <div class="timeline">
+        <div class="timeline-row">
+          <div class="timeline-num">1</div>
+          <div>
+            <div class="timeline-label">Days 1–2 — Source ingestion setup</div>
+            <div class="timeline-desc">Granicus scraper configured, document pipeline connected to official Fairhope sources.</div>
+          </div>
+        </div>
+        <div class="timeline-row">
+          <div class="timeline-num">2</div>
+          <div>
+            <div class="timeline-label">Days 3–5 — Vote extraction and indexing</div>
+            <div class="timeline-desc">Five-year archive ingested, votes extracted, ordinance index built, member scorecards generated.</div>
+          </div>
+        </div>
+        <div class="timeline-row">
+          <div class="timeline-num">3</div>
+          <div>
+            <div class="timeline-label">Days 5–7 — Dashboard launch</div>
+            <div class="timeline-desc">fcc.boardvotes.io deployed, QA complete, platform live and searchable.</div>
+          </div>
+        </div>
+        <div class="timeline-row">
+          <div class="timeline-num">4</div>
+          <div>
+            <div class="timeline-label">Days 7–30 — Historical backfill (Full Archive tier)</div>
+            <div class="timeline-desc">Remaining years back to 2007 ingested and indexed in the background while the platform is already live.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div>
+      <div class="footer-brand">Board<span>Votes</span></div>
+      <div class="footer-url">fcc.boardvotes.io</div>
+    </div>
+    <div class="footer-terms">
+      Services provided under BoardVotes standard terms. Founder status and pricing apply to the initial deployment entity. In the event of platform discontinuation, all archived data transfers to the client in standard open formats.
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
