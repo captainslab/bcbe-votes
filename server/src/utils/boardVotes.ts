@@ -3,6 +3,7 @@ import { normalizeWhitespace } from "./text";
 import { normalizeVoteValue } from "./votes";
 
 export const canonicalBoardMembers = [
+  // Baldwin County Board of Education
   "Ken Bradley",
   "Andrea Lindsey",
   "Tony Myrick",
@@ -10,6 +11,12 @@ export const canonicalBoardMembers = [
   "Jason P. Woerner",
   "Cecil Christenberry",
   "April Bradley",
+  // Fairhope City Council
+  "Jack Burrell",
+  "Jay Robinson",
+  "Corey Martin",
+  "Jimmy Conyers",
+  "Kevin Boone",
 ] as const;
 
 export type CanonicalBoardMemberName = (typeof canonicalBoardMembers)[number];
@@ -35,6 +42,12 @@ const memberAliasMap: Record<string, CanonicalBoardMemberName> = {
   "jason p. woerner": "Jason P. Woerner",
   "cecil christenberry": "Cecil Christenberry",
   "april bradley": "April Bradley",
+  // Fairhope City Council
+  "jack burrell": "Jack Burrell",
+  "jay robinson": "Jay Robinson",
+  "corey martin": "Corey Martin",
+  "jimmy conyers": "Jimmy Conyers",
+  "kevin boone": "Kevin Boone",
 };
 
 export type VoteItemCategory =

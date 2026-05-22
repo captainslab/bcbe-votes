@@ -295,7 +295,7 @@ export const MemberDetail = () => {
   const { data, isLoading, error } = useMember(id);
   const membersQuery = useMembers();
   const alignment = useMemberAlignment(id);
-  const { boardName } = useBoardContext();
+  const { boardName, boardSlug } = useBoardContext();
 
   const memberId = Number(id);
   const noVoteItems = useMemo<MemberNoVoteItem[]>(() => {
@@ -322,6 +322,9 @@ export const MemberDetail = () => {
   );
   const hasOfficialContact = Boolean(profile?.officialContactUrl || profile?.officialContactEmail || profile?.officialPhone);
   const sourceLinks = profile?.profileSourceUrls ?? [];
+  const isFccDemo = boardSlug === "fcc";
+  const fccProofMeetingCopy =
+    "Roll-call vote records captured with mover, seconder, and per-member AYE votes for the proof meeting. Full archive ingestion expands the voting history.";
 
   return (
     <div className="space-y-6">
@@ -428,7 +431,7 @@ export const MemberDetail = () => {
           <div className="grid gap-4 md:grid-cols-4">
             <StatCard label="Total votes" value={stats.totalVotes} />
             <StatCard label="Yes rate" value={`${((stats.yesCount / totalVotes) * 100).toFixed(1)}%`} />
-            <StatCard label="No / dissent count" value={stats.noCount} />
+            <StatCard label="Recorded dissent" value={stats.noCount} />
             <StatCard
               label="Majority alignment"
               value={`${(stats.majorityAlignmentRate * 100).toFixed(1)}%`}
@@ -444,7 +447,7 @@ export const MemberDetail = () => {
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Vote-topic breakdown</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Extracted vote records for this member by topic area. No votes indicate a recorded dissent.
+            Extracted vote records for this member by topic area. Recorded No votes are counted as dissent when explicit member votes are present.
           </p>
           <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -452,7 +455,7 @@ export const MemberDetail = () => {
                 <tr>
                   <th className="px-4 py-2">Category</th>
                   <th className="px-4 py-2 text-right">Votes</th>
-                  <th className="px-4 py-2 text-right">No votes</th>
+                  <th className="px-4 py-2 text-right">Recorded No</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -470,12 +473,13 @@ export const MemberDetail = () => {
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">No and abstained votes</h2>
-        <p className="text-sm text-slate-500">Only extracted vote records with a recorded No or Abstain are shown.</p>
+        <h2 className="text-lg font-semibold text-slate-900">Recorded dissent and abstentions</h2>
+        <p className="text-sm text-slate-500">Shown only when explicit No or Abstain records exist.</p>
         <div className="mt-4 space-y-4">
           {noVoteItems.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-              No recorded no votes in the currently extracted dataset.
+              <p>No recorded No or Abstain votes in the currently extracted dataset.</p>
+              {isFccDemo && <p className="mt-1">{fccProofMeetingCopy}</p>}
             </div>
           ) : (
             noVoteItems.map((item) => {

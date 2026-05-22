@@ -20,7 +20,7 @@ export type MemberProfile = {
 const PROFILE_SOURCE_URL = "https://www.bcbe.org/board-of-education/bcbe-board-members";
 const PROFILE_LAST_REVIEWED_AT = "2026-05-01T20:00:00.000Z";
 
-const sourcedMemberProfiles: Record<CanonicalBoardMemberName, Omit<MemberProfile, "canonicalName">> = {
+const sourcedMemberProfiles: Partial<Record<CanonicalBoardMemberName, Omit<MemberProfile, "canonicalName">>> = {
   "Ken Bradley": {
     district: "District 1",
     roleTitle: null,
@@ -177,7 +177,23 @@ const sourcedMemberProfiles: Record<CanonicalBoardMemberName, Omit<MemberProfile
   },
 };
 
-export const getSourcedMemberProfile = (canonicalName: CanonicalBoardMemberName): MemberProfile => ({
-  canonicalName,
-  ...sourcedMemberProfiles[canonicalName],
-});
+const emptyProfile: Omit<MemberProfile, "canonicalName"> = {
+  district: null,
+  roleTitle: null,
+  officialProfileUrl: null,
+  officialContactUrl: null,
+  officialContactEmail: null,
+  officialPhone: null,
+  termStart: null,
+  termEnd: null,
+  districtDescription: null,
+  committees: null,
+  profileSourceUrls: [],
+  profileVerificationStatus: "needs_review",
+  profileLastReviewedAt: null,
+};
+
+export const getSourcedMemberProfile = (canonicalName: CanonicalBoardMemberName): MemberProfile => {
+  const profile = sourcedMemberProfiles[canonicalName] ?? emptyProfile;
+  return { canonicalName, ...profile };
+};

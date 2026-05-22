@@ -62,13 +62,13 @@ export const Members = () => {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold text-slate-900">Board Members</h1>
         <p className="text-sm text-slate-600">
-          Roll-call vote counts for each board member. Only items where individual member votes were recorded are included — unanimous summary items are not counted.
+          Roll-call vote counts for each board member. Only items with explicit per-member votes are included; summary-only voice votes are not counted.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Members tracked" value={data.length} helper="From imported voting records" />
+        <StatCard label="Members tracked" value={data.length} helper="From extracted roll-call records" />
         <StatCard label="Total roll-call votes" value={totalRecordedVotes.toLocaleString()} helper="Explicit per-member records only" />
-        <StatCard label="Yes votes (all members)" value={totalYesVotes.toLocaleString()} helper={`No / abstained: ${totalNoAbstain.toLocaleString()}`} />
+        <StatCard label="AYE/Yes votes" value={totalYesVotes.toLocaleString()} helper={`Recorded No/Abstain: ${totalNoAbstain.toLocaleString()}`} />
       </div>
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -76,9 +76,9 @@ export const Members = () => {
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700">Member</th>
               <th className="px-4 py-3 font-semibold text-slate-700">Roll-call votes</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Yes votes</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">No / abstained</th>
-              <th className="hidden px-4 py-3 font-semibold text-slate-700 sm:table-cell">Top no/abstained category</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">AYE/Yes votes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Recorded No/Abstain</th>
+              <th className="hidden px-4 py-3 font-semibold text-slate-700 sm:table-cell">Top recorded No/Abstain category</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">

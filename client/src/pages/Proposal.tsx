@@ -15,12 +15,12 @@ const features = [
   {
     iconPath: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
     title: "Vote extraction and tracking",
-    desc: "Ordinances, resolutions, and contested items extracted with named AYE / NAY records.",
+    desc: "Roll-call records captured with mover, seconder, and per-member AYE votes where the source supports it.",
   },
   {
     iconPath: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
     title: "Council member voting scorecards and patterns",
-    desc: "Per-member dissent rates, yes-rates, and alignment charts across extracted votes.",
+    desc: "Per-member vote counts, yes-rates, and alignment views expand as archive voting history is ingested.",
   },
   {
     iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8",
@@ -70,7 +70,7 @@ const scanRows = [
   {
     source: "Work sessions & special meetings / YouTube channel / Video captions",
     cadence: "Weekly",
-    captures: "Video recordings, transcripts, work-session actions",
+    captures: "Video recordings, caption text, work-session actions",
     tier: "Weekly Add-On",
     tierClass: "text-indigo-700 bg-indigo-50 border-indigo-200",
   },
@@ -92,7 +92,7 @@ const timelineSteps = [
   {
     range: "Days 3–5",
     title: "Vote extraction and indexing",
-    desc: "Ordinance adoptions, resolutions, and named votes extracted and structured.",
+    desc: "Ordinance adoptions, resolutions, and source-backed member votes extracted and structured.",
   },
   {
     range: "Days 5–7",
@@ -102,7 +102,7 @@ const timelineSteps = [
   {
     range: "Days 7–30",
     title: "Historical backfill + payment portal",
-    desc: "Full archive tier: documents back to 2007 are ingested. Stripe subscription portal configured.",
+    desc: "Full archive ingestion expands the voting history. Stripe subscription portal configured.",
   },
 ];
 
@@ -185,13 +185,12 @@ export const Proposal = () => {
           <div className="rounded-lg border border-l-4 border-l-indigo-400 border-slate-200 bg-slate-50 px-5 py-4">
             <p className="text-2xl font-bold text-slate-900">463</p>
             <p className="mt-0.5 text-sm font-semibold text-slate-700">Council Meeting Recordings</p>
-            <p className="mt-1 text-xs text-slate-500">YouTube, back to October 2016 — auto-generated transcripts confirmed</p>
+            <p className="mt-1 text-xs text-slate-500">YouTube, back to October 2016 — auto-generated captions available on tested recordings</p>
           </div>
           <div className="rounded-lg border border-l-4 border-l-emerald-400 border-slate-200 bg-slate-50 px-5 py-4">
-            <p className="text-sm font-semibold text-slate-700">Named AYE / NAY Votes Confirmed</p>
+            <p className="text-sm font-semibold text-slate-700">Proof Meeting Roll-Call Records Captured</p>
             <p className="mt-1 text-xs text-slate-500">
-              Ordinance adoptions captured with named votes. Routine unanimous motions recorded as voice-vote only
-              per Fairhope minutes format.
+              Roll-call vote records captured with mover, seconder, and per-member AYE votes for the proof meeting. Full archive ingestion expands the voting history.
             </p>
           </div>
           <div className="rounded-lg border border-l-4 border-l-sky-400 border-slate-200 bg-slate-50 px-5 py-4">
@@ -199,7 +198,7 @@ export const Proposal = () => {
               Ordinance No. 1780 · 1781 — Live Demo
             </p>
             <p className="mt-1 text-xs text-slate-500 mb-2">
-              One real Fairhope City Council meeting is already imported and live.
+              One proof Fairhope City Council meeting is live in the demo.
             </p>
             <a
               href="https://fcc.boardvotes.io/dashboard"
@@ -274,7 +273,7 @@ export const Proposal = () => {
             <p className="text-sm font-semibold text-slate-900">Weekly Expanded Scan</p>
             <p className="mt-1 text-xl font-bold text-slate-900">$150<span className="text-sm font-normal text-slate-500">/month</span></p>
             <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-              Weekly YouTube and work-session sweep, transcript ingestion, and caption extraction for all new recordings.
+              Weekly YouTube and work-session sweep, caption indexing, and source-link review for new recordings.
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4">
@@ -360,7 +359,7 @@ export const Proposal = () => {
         <div className="relative">
           <h2 className="text-2xl font-bold text-white sm:text-3xl">View the Live Demo</h2>
           <p className="mt-3 text-slate-300 text-sm max-w-lg mx-auto">
-            One real Fairhope City Council meeting is already imported. See exactly what your platform will look like.
+            One proof Fairhope City Council meeting is live in the demo. See exactly what your platform will look like.
           </p>
           <a
             href="https://fcc.boardvotes.io/dashboard"

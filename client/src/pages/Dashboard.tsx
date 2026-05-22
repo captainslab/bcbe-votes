@@ -117,7 +117,7 @@ const getVoteSummary = (vote: VoteItem): string | null => {
 export const Dashboard = () => {
   const { data, isLoading, error } = useSummary();
   const { data: execSummary } = useExecSessionSummary();
-  const { boardName } = useBoardContext();
+  const { boardName, boardSlug } = useBoardContext();
 
   if (isLoading) return <p>Loading dashboard...</p>;
   if (error) return <p className="text-red-600">Failed to load dashboard.</p>;
@@ -128,6 +128,9 @@ export const Dashboard = () => {
   const hasSmallLeaderboardSamples = [...summary.dissentLeaderboard, ...summary.yesLeaderboard].some(
     (member) => member.totalVotes < leaderboardSampleFloor,
   );
+  const isFccDemo = boardSlug === "fcc";
+  const fccProofMeetingCopy =
+    "Roll-call vote records captured with mover, seconder, and per-member AYE votes for the proof meeting. Full archive ingestion expands the voting history.";
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -186,7 +189,7 @@ export const Dashboard = () => {
         <StatCard
           label="Non-unanimous votes"
           value={summary.nonUnanimousCount}
-          helper="Visible dissent/split items"
+          helper="Explicit dissent/split records"
         />
         <StatCard
           label="Needs-review records"
@@ -356,21 +359,28 @@ export const Dashboard = () => {
             </p>
           )}
           <div className="mt-4 space-y-3">
-            {summary.dissentLeaderboard.map((m) => (
-              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm hover:bg-slate-50 rounded-lg px-2 -mx-2 transition">
-                <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
-                  {m.name}
-                </Link>
-                <div className="text-right">
-                  <span className="inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                    {(m.dissentRate * 100).toFixed(1)}% dissent
-                  </span>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {m.dissentCount} of {m.totalVotes} extracted vote{m.totalVotes === 1 ? "" : "s"}
-                  </p>
-                </div>
+            {summary.dissentLeaderboard.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                <p>No recorded dissent in the currently extracted dataset.</p>
+                {isFccDemo && <p className="mt-1">{fccProofMeetingCopy}</p>}
               </div>
-            ))}
+            ) : (
+              summary.dissentLeaderboard.map((m) => (
+                <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm hover:bg-slate-50 rounded-lg px-2 -mx-2 transition">
+                  <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
+                    {m.name}
+                  </Link>
+                  <div className="text-right">
+                    <span className="inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                      {(m.dissentRate * 100).toFixed(1)}% dissent
+                    </span>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {m.dissentCount} of {m.totalVotes} extracted vote{m.totalVotes === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -385,21 +395,28 @@ export const Dashboard = () => {
             </p>
           )}
           <div className="mt-4 space-y-3">
-            {summary.yesLeaderboard.map((m) => (
-              <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm hover:bg-slate-50 rounded-lg px-2 -mx-2 transition">
-                <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
-                  {m.name}
-                </Link>
-                <div className="text-right">
-                  <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">
-                    {(m.yesRate * 100).toFixed(1)}% yes
-                  </span>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {m.yesCount} of {m.totalVotes} extracted vote{m.totalVotes === 1 ? "" : "s"}
-                  </p>
-                </div>
+            {summary.yesLeaderboard.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                <p>No yes-rate ranking is available until explicit per-member roll-call records are present.</p>
+                {isFccDemo && <p className="mt-1">{fccProofMeetingCopy}</p>}
               </div>
-            ))}
+            ) : (
+              summary.yesLeaderboard.map((m) => (
+                <div key={m.memberId} className="flex items-start justify-between gap-3 text-sm hover:bg-slate-50 rounded-lg px-2 -mx-2 transition">
+                  <Link to={`/members/${m.memberId}`} className="font-medium text-slate-800">
+                    {m.name}
+                  </Link>
+                  <div className="text-right">
+                    <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">
+                      {(m.yesRate * 100).toFixed(1)}% yes
+                    </span>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {m.yesCount} of {m.totalVotes} extracted vote{m.totalVotes === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
