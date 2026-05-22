@@ -78,7 +78,10 @@ export const Request = () => {
     submitterName: "",
     email: "",
   });
-  const [selectedPackageId, setSelectedPackageId] = useState<BoardPackageId>("founder_launch");
+  const preselect = new URLSearchParams(window.location.search).get("package") as BoardPackageId | null;
+  const [selectedPackageId, setSelectedPackageId] = useState<BoardPackageId>(
+    preselect && checkoutPackages.some((p) => p.id === preselect) ? preselect : "founder_launch"
+  );
   const [residentLoading, setResidentLoading] = useState(false);
   const [residentError, setResidentError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<BoardCheckoutSession | null>(null);
