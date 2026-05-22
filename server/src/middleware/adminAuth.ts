@@ -15,6 +15,35 @@ const secureEquals = (expected: string, actual: string) => {
 };
 
 export const adminAuth = (req: Request, _res: Response, next: NextFunction) => {
+  // Public BoardVotes routes must remain publicly readable.
+  // Admin-only routes still require the configured admin token below.
+  const publicPath = req.path || req.originalUrl || "";
+  const publicMethod = (req.method || "GET").toUpperCase();
+  const isPublicBoardVotesRead =
+    publicMethod === "GET" &&
+    (
+      publicPath === "/dashboard" ||
+      publicPath === "/api/dashboard" ||
+      publicPath.includes("/boards/bcbe/dashboard") ||
+      publicPath.includes("/api/boards/bcbe/dashboard") ||
+      publicPath.includes("/public") ||
+      publicPath.includes("/members") ||
+      publicPath.includes("/votes") ||
+      publicPath.includes("/meetings") ||
+      publicPath.includes("/vendors") ||
+      publicPath.includes("/transcripts") ||
+      publicPath.includes("/exec-sessions")
+    );
+
+  const isPublicChatbotRoute =
+    publicPath.includes("/chat") ||
+    publicPath.includes("/chatbot");
+
+  if (isPublicBoardVotesRead || isPublicChatbotRoute) {
+    return next();
+  }
+
+
   if (!config.admin.user || !config.admin.pass) {
     return next(new HttpError(503, "Admin access is not configured"));
   }

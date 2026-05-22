@@ -337,6 +337,10 @@ export type ExecSessionMeetingSummary = {
 export type ExecSessionSummaryData = {
   totalDetected: number;
   pastYearCount: number;
+  pastYearReviewedCount: number;
+  totalBlockCount: number;
+  pastYearBlockCount: number;
+  pastYearStart: string;
   latestMeeting: ExecSessionMeetingSummary | null;
   meetings: ExecSessionMeetingSummary[];
 };

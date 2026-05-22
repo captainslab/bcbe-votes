@@ -17,8 +17,8 @@ TITLE="${2:-unknown}"
 DATE="${3:-unknown}"
 
 COOKIES=~/yt-cookies.txt
-RESEARCH_DIR=/home/jordan/boardvotes-research/bcbe-audio-transcripts
-VENV=/home/jordan/Projects/bcbe-votes/.venv-transcripts
+RESEARCH_DIR="${BOARDVOTES_RESEARCH_DIR:-$HOME/boardvotes-research/bcbe-audio-transcripts}"
+VENV="${BCBE_TRANSCRIPTS_VENV:-$PWD/.venv-transcripts}"
 AUDIO_FILE="$RESEARCH_DIR/${DATE}_${VIDEO_ID}.m4a"
 TRANSCRIPT_FILE="$RESEARCH_DIR/${DATE}_${VIDEO_ID}.txt"
 REPORT_FILE="$RESEARCH_DIR/${DATE}_${VIDEO_ID}_report.json"

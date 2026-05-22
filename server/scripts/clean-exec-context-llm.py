@@ -22,7 +22,7 @@ import psycopg2.extras
 # ---------------------------------------------------------------------------
 
 DB_DSN = "postgresql:///bcbe_votes?host=/var/run/postgresql"
-ENV_FILE = "/home/jordan/bcbe-votes/.env"
+ENV_FILE = os.environ.get("BCBE_ENV_FILE", ".env")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "anthropic/claude-haiku-4-5"
 RATE_LIMIT_SECONDS = 0.5

@@ -15,11 +15,12 @@ Usage:
     --only-id X : run only for video_id X (proof test)
 """
 
-import sys, os, csv, re, json, argparse
+import os
+import sys, csv, re, json, argparse
 from datetime import date as date_type, timedelta
 from pathlib import Path
 
-RESEARCH_DIR = Path("/home/jordan/boardvotes-research/bcbe-audio-transcripts")
+RESEARCH_DIR = Path(os.environ.get("BOARDVOTES_RESEARCH_DIR", "~/boardvotes-research/bcbe-audio-transcripts")).expanduser()
 AUDIO_DIR    = RESEARCH_DIR / "bcbe-exec-audio"
 CSV_PATH     = RESEARCH_DIR / "bcbe-exec-priority-videos.csv"
 DB_DSN       = "postgresql:///bcbe_votes?host=/var/run/postgresql"

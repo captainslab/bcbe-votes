@@ -4,7 +4,7 @@
 #
 # Usage:
 #   bash download-audio-local.sh
-#   scp -r bcbe-audio jordan@boardvotes.io:/home/jordan/boardvotes-research/bcbe-audio-transcripts/
+#   scp -r bcbe-audio <ssh-user>@boardvotes.io:${BOARDVOTES_RESEARCH_DIR:-$HOME/boardvotes-research/bcbe-audio-transcripts}/
 #
 # Then on VPS, run pipeline for each file:
 #   bash server/scripts/audio-transcribe-pipeline.sh <video_id> "<title>" "<date>"
@@ -96,4 +96,4 @@ echo "  Skipped    : $SKIP"
 echo "  Failed     : $FAIL"
 echo ""
 echo "Next:"
-echo "  scp -r bcbe-audio jordan@boardvotes.io:/home/jordan/boardvotes-research/bcbe-audio-transcripts/"
+echo "  scp -r bcbe-audio <ssh-user>@boardvotes.io:${BOARDVOTES_RESEARCH_DIR:-$HOME/boardvotes-research/bcbe-audio-transcripts}/"

@@ -4,8 +4,8 @@
 #
 # Usage: bash server/scripts/batch-transcribe.sh
 
-RESEARCH_DIR=/home/jordan/boardvotes-research/bcbe-audio-transcripts
-PIPELINE=/home/jordan/Projects/bcbe-votes/server/scripts/audio-transcribe-pipeline.sh
+RESEARCH_DIR="${BOARDVOTES_RESEARCH_DIR:-$HOME/boardvotes-research/bcbe-audio-transcripts}"
+PIPELINE=server/scripts/audio-transcribe-pipeline.sh
 
 VIDEOS=(
   "A-TrVE-Sm5s|11/21/24 Board Meeting|2024-11-21"
