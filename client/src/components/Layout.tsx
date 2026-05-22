@@ -14,8 +14,10 @@ function isHubDomain(): boolean {
 
 export const Layout = ({ children }: LayoutProps) => {
   const hubMode = isHubDomain();
-  const activeNavItems = hubMode ? hubNavItems : navItems;
-  const { boardName } = useBoardContext();
+  const { boardName, boardSlug } = useBoardContext();
+  const activeNavItems = hubMode
+    ? hubNavItems
+    : navItems.filter((item) => !item.bcbeOnly || boardSlug === "bcbe");
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
