@@ -10,6 +10,7 @@ export const navItems = [
   { to: "/request", label: "Add a Board" },
   { to: "/faq", label: "FAQ" },
   { to: "/support", label: "Support" },
+  { href: "/proposal.html", label: "Proposal", fccOnly: true },
 ];
 
 export const hubNavItems = [

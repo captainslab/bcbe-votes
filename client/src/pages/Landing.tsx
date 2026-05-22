@@ -168,20 +168,30 @@ export const Landing = () => {
             BoardVotes<span>.io</span>
           </Link>
           <div className="landing-nav-links">
-            {activeNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/"}
-                className={({ isActive }) =>
-                  ["landing-nav-item", isActive ? "landing-nav-item-active" : ""]
-                    .filter(Boolean)
-                    .join(" ")
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {activeNavItems.map((item) =>
+              "href" in item && item.href ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="landing-nav-item"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to!}
+                  end={item.to === "/"}
+                  className={({ isActive }) =>
+                    ["landing-nav-item", isActive ? "landing-nav-item-active" : ""]
+                      .filter(Boolean)
+                      .join(" ")
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              )
+            )}
             {!hubMode && (
               <NavLink to="/votes" className="landing-nav-button landing-nav-cta">
                 View Votes

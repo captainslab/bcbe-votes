@@ -17,7 +17,11 @@ export const Layout = ({ children }: LayoutProps) => {
   const { boardName, boardSlug } = useBoardContext();
   const activeNavItems = hubMode
     ? hubNavItems
-    : navItems.filter((item) => !item.bcbeOnly || boardSlug === "bcbe");
+    : navItems.filter(
+        (item) =>
+          (!item.bcbeOnly || boardSlug === "bcbe") &&
+          (!item.fccOnly || boardSlug === "fcc")
+      );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -35,20 +39,30 @@ export const Layout = ({ children }: LayoutProps) => {
             </p>
           </div>
           <nav className="flex flex-wrap gap-1 text-sm">
-            {activeNavItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === "/"}
-                className={({ isActive }) =>
-                  isActive
-                    ? "bg-indigo-600 text-white rounded-md px-3 py-1.5 text-sm font-medium"
-                    : "text-slate-400 hover:text-white hover:bg-white/10 rounded-md px-3 py-1.5 text-sm font-medium transition"
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {activeNavItems.map((item) =>
+              "href" in item && item.href ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="text-slate-400 hover:text-white hover:bg-white/10 rounded-md px-3 py-1.5 text-sm font-medium transition"
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to!}
+                  end={item.to === "/"}
+                  className={({ isActive }) =>
+                    isActive
+                      ? "bg-indigo-600 text-white rounded-md px-3 py-1.5 text-sm font-medium"
+                      : "text-slate-400 hover:text-white hover:bg-white/10 rounded-md px-3 py-1.5 text-sm font-medium transition"
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              )
+            )}
           </nav>
         </div>
       </header>
