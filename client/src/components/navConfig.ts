@@ -1,4 +1,8 @@
-export const navItems = [
+type NavItem =
+  | { to: string; label: string; bcbeOnly?: boolean; fccOnly?: boolean; href?: never }
+  | { href: string; label: string; bcbeOnly?: boolean; fccOnly?: boolean; to?: never };
+
+export const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/members", label: "Members" },
   { to: "/votes", label: "Votes" },
@@ -10,10 +14,10 @@ export const navItems = [
   { to: "/request", label: "Add a Board" },
   { to: "/faq", label: "FAQ" },
   { to: "/support", label: "Support" },
-  { href: "/proposal.html", label: "Proposal", fccOnly: true },
+  { to: "/proposal", label: "Proposal", fccOnly: true },
 ];
 
-export const hubNavItems = [
+export const hubNavItems: NavItem[] = [
   { to: "/", label: "Home" },
   { to: "/boards", label: "Boards" },
   { to: "/request", label: "Request" },
