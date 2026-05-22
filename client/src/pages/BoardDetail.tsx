@@ -94,7 +94,7 @@ export const BoardDetail = () => {
 
       {showSuccess && (
         <div className="rounded-lg bg-green-50 border border-green-200 px-5 py-4 text-sm text-green-800">
-          Your submission was received! Share this page to help reach the funding goal.
+          Payment confirmed. The payment was recorded and onboarding can begin.
         </div>
       )}
 

@@ -12,7 +12,7 @@ import { HttpError } from "../utils/httpError";
 // ---------------------------------------------------------------------------
 // Email / log helpers
 // ---------------------------------------------------------------------------
-const PURCHASE_LOG = path.resolve("/home/jordan/bcbe-votes/logs/purchases.log");
+const PURCHASE_LOG = path.resolve(process.env.PURCHASE_LOG_PATH ?? "./logs/purchases.log");
 
 function logPurchase(lines: string[]): void {
   const entry = `[${new Date().toISOString()}]\n${lines.join("\n")}\n\n`;
@@ -64,15 +64,135 @@ async function sendEmail(opts: {
   }
 }
 
+const boardCheckoutPackageIds = ["community_request", "founder_launch", "founder_full_history"] as const;
+type BoardCheckoutPackageId = (typeof boardCheckoutPackageIds)[number];
+
+const boardCheckoutPackages: Record<
+  BoardCheckoutPackageId,
+  {
+    name: string;
+    description: string;
+    unitAmount: number;
+    goalAmount: number;
+    pledgedAmount: number;
+    status: "active" | "funded";
+  }
+> = {
+  community_request: {
+    name: "Community Request",
+    description: "Public board request page and community funding starter.",
+    unitAmount: 2500,
+    goalAmount: 500,
+    pledgedAmount: 25,
+    status: "active",
+  },
+  founder_launch: {
+    name: "Founder Launch",
+    description: "One-time BoardVotes launch package with a five-year archive.",
+    unitAmount: 150000,
+    goalAmount: 1500,
+    pledgedAmount: 1500,
+    status: "funded",
+  },
+  founder_full_history: {
+    name: "Founder Launch + Full History",
+    description: "One-time BoardVotes launch package with full available archive backfill.",
+    unitAmount: 300000,
+    goalAmount: 3000,
+    pledgedAmount: 3000,
+    status: "funded",
+  },
+};
+
+const defaultBoardCheckoutPackageId: BoardCheckoutPackageId = "community_request";
+const boardCheckoutPackageIdSchema = z.enum(boardCheckoutPackageIds);
+
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY ?? "";
+const stripe = new Stripe(stripeSecretKey);
+const stripeAutomaticTaxEnabled = process.env.STRIPE_AUTOMATIC_TAX === "true";
+const stripeTaxBehavior = process.env.STRIPE_TAX_BEHAVIOR === "inclusive" ? "inclusive" : "exclusive";
+const stripeTaxCode = process.env.STRIPE_TAX_CODE ?? "txcd_10000000";
+type CheckoutSessionCreateParams = Parameters<typeof stripe.checkout.sessions.create>[0];
+type CheckoutSession = Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
+
 // NOTE: The webhook route must be registered with express.raw() BEFORE express.json()
 // in app.ts. See webhookHandler export below and app.ts registration.
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "");
+function ensureStripeConfigured(): void {
+  if (!stripeSecretKey.startsWith("sk_")) {
+    throw new HttpError(503, "Stripe checkout is not configured");
+  }
+}
+
+function isStripeAuthenticationError(err: unknown): boolean {
+  return (
+    err !== null &&
+    typeof err === "object" &&
+    "type" in err &&
+    (err as { type?: string }).type === "StripeAuthenticationError"
+  );
+}
+
+function isStripeAutomaticTaxSetupError(err: unknown): boolean {
+  if (err === null || typeof err !== "object") return false;
+  const message = "message" in err ? String((err as { message?: string }).message ?? "") : "";
+  return message.toLowerCase().includes("automatic tax") || message.toLowerCase().includes("head office address");
+}
+
+function isAllowedPublicOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    const isBoardVotesHost =
+      url.hostname === "boardvotes.io" ||
+      url.hostname === "www.boardvotes.io" ||
+      url.hostname.endsWith(".boardvotes.io");
+    const isLocalDev =
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1") &&
+      (url.port === "5173" || url.port === "4173");
+    return (url.protocol === "https:" && isBoardVotesHost) || (url.protocol === "http:" && isLocalDev);
+  } catch {
+    return false;
+  }
+}
+
+function getPublicOrigin(req: Request): string {
+  const origin = req.get("origin");
+  if (origin && isAllowedPublicOrigin(origin)) return origin.replace(/\/$/, "");
+
+  const forwardedProto = req.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = req.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || req.get("host");
+  const protocol = forwardedProto || req.protocol;
+  if (host) {
+    const candidate = `${protocol}://${host}`;
+    if (isAllowedPublicOrigin(candidate)) return candidate.replace(/\/$/, "");
+  }
+
+  const configuredOrigin = (process.env.CORS_ORIGIN ?? "http://localhost:5173")
+    .split(",")
+    .map((value) => value.trim())
+    .find(Boolean);
+  return configuredOrigin ?? "http://localhost:5173";
+}
+
+function resolvePaymentIntentId(paymentIntent: string | { id: string } | null | undefined): string | null {
+  if (!paymentIntent) return null;
+  return typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
+}
+
+function dollarsFromCents(cents: number): string {
+  return `$${(cents / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function parseMetadataInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
 
 const router = Router();
 
 // ---------------------------------------------------------------------------
 // POST /boards/create-checkout
-// Creates a Stripe Checkout session for the $25 submission fee
+// Creates a Stripe Checkout session for board request/service packages
 // ---------------------------------------------------------------------------
 router.post(
   "/create-checkout",
@@ -83,21 +203,27 @@ router.post(
         state: z.string().min(2).max(50),
         submitterName: z.string().min(1).max(100),
         submitterEmail: z.string().email(),
+        packageId: boardCheckoutPackageIdSchema.default(defaultBoardCheckoutPackageId),
       }),
     }),
   ),
-  async (_req, res, next) => {
+  async (req, res, next) => {
     try {
+      ensureStripeConfigured();
+
       const { body } = res.locals.validatedRequest as {
         body: {
           boardName: string;
           state: string;
           submitterName: string;
           submitterEmail: string;
+          packageId: BoardCheckoutPackageId;
         };
       };
 
       const { boardName, state, submitterName, submitterEmail } = body;
+      const packageId = body.packageId ?? defaultBoardCheckoutPackageId;
+      const selectedPackage = boardCheckoutPackages[packageId] ?? boardCheckoutPackages[defaultBoardCheckoutPackageId];
 
       // Generate a slug: lowercase boardName + state, replace spaces/special chars
       // with hyphens, append 4 random alphanumeric chars for uniqueness
@@ -108,29 +234,72 @@ router.post(
         .replace(/^-+|-+$/g, "");
       const slug = `${slugBase}-${randomSuffix}`;
 
-      const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+      const publicOrigin = getPublicOrigin(req);
 
-      const session = await stripe.checkout.sessions.create({
+      const buildSessionParams = (automaticTaxEnabled: boolean): CheckoutSessionCreateParams => ({
         mode: "payment",
+        customer_email: submitterEmail,
+        client_reference_id: slug,
+        billing_address_collection: automaticTaxEnabled ? "required" : "auto",
+        automatic_tax: { enabled: automaticTaxEnabled },
         line_items: [
           {
             quantity: 1,
             price_data: {
               currency: "usd",
-              unit_amount: 2500,
+              unit_amount: selectedPackage.unitAmount,
+              tax_behavior: stripeTaxBehavior,
               product_data: {
-                name: `BoardVotes Submission: ${boardName}`,
+                name: `BoardVotes ${selectedPackage.name}: ${boardName}`,
+                description: selectedPackage.description,
+                tax_code: stripeTaxCode,
               },
             },
           },
         ],
-        success_url: `${corsOrigin}/boards/${slug}?success=1`,
-        cancel_url: `${corsOrigin}/request`,
-        metadata: { boardName, state, submitterName, submitterEmail, slug },
+        payment_intent_data: {
+          receipt_email: submitterEmail,
+        },
+        success_url: `${publicOrigin}/request?success=1&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${publicOrigin}/request?canceled=1`,
+        metadata: {
+          boardName,
+          state,
+          submitterName,
+          submitterEmail,
+          slug,
+          publicOrigin,
+          packageId,
+          packageName: selectedPackage.name,
+          packageAmount: String(selectedPackage.unitAmount),
+          goalAmount: String(selectedPackage.goalAmount),
+          pledgedAmount: String(selectedPackage.pledgedAmount),
+          status: selectedPackage.status,
+          automaticTaxRequested: String(stripeAutomaticTaxEnabled),
+          automaticTaxEnabled: String(automaticTaxEnabled),
+          taxBehavior: stripeTaxBehavior,
+          taxCode: stripeTaxCode,
+        },
       });
+
+      let session: CheckoutSession;
+      try {
+        session = await stripe.checkout.sessions.create(buildSessionParams(stripeAutomaticTaxEnabled));
+      } catch (err) {
+        if (stripeAutomaticTaxEnabled && isStripeAutomaticTaxSetupError(err)) {
+          console.warn("[boards] Stripe automatic tax unavailable; retrying checkout without automatic tax. Configure Stripe Tax head office address in the Stripe dashboard.");
+          session = await stripe.checkout.sessions.create(buildSessionParams(false));
+        } else {
+          throw err;
+        }
+      }
 
       res.json({ url: session.url });
     } catch (err) {
+      if (isStripeAuthenticationError(err)) {
+        next(new HttpError(503, "Stripe checkout is not configured"));
+        return;
+      }
       next(err);
     }
   },
@@ -165,23 +334,71 @@ export const webhookHandler = async (req: Request, res: Response): Promise<void>
     const session = event.data.object as { metadata?: Record<string, string> | null; payment_intent?: string | { id: string } | null };
     const meta = session.metadata ?? {};
     const { boardName, state, submitterName, submitterEmail, slug } = meta;
+    const packageId = boardCheckoutPackageIdSchema.safeParse(meta.packageId).success
+      ? (meta.packageId as BoardCheckoutPackageId)
+      : defaultBoardCheckoutPackageId;
+    const selectedPackage = boardCheckoutPackages[packageId];
+    const packageName = meta.packageName || selectedPackage.name;
+    const packageAmount = parseMetadataInteger(meta.packageAmount, selectedPackage.unitAmount);
+    const goalAmount = parseMetadataInteger(meta.goalAmount, selectedPackage.goalAmount);
+    const pledgedAmount = parseMetadataInteger(meta.pledgedAmount, selectedPackage.pledgedAmount);
+    const status = meta.status === "funded" ? "funded" : "active";
+    const paymentIntentId = resolvePaymentIntentId(session.payment_intent);
+    const publicOrigin = meta.publicOrigin && isAllowedPublicOrigin(meta.publicOrigin)
+      ? meta.publicOrigin
+      : (process.env.CORS_ORIGIN ?? "https://boardvotes.io").split(",")[0];
 
     if (boardName && state && submitterName && submitterEmail && slug) {
       try {
-        await db.insert(boardSubmissions).values({
-          boardName,
-          state,
-          submitterName,
-          submitterEmail,
-          slug,
-          goalAmount: 500,
-          pledgedAmount: 25,
-          status: "active",
-          stripePaymentIntentId: session.payment_intent as string | null,
-        });
+        const [existingSubmission] = await db
+          .select({ id: boardSubmissions.id })
+          .from(boardSubmissions)
+          .where(eq(boardSubmissions.slug, slug))
+          .limit(1);
 
-        // TODO: send alert email to help@boardvotes.io when a new board is submitted
-        console.log(`[boards] New submission activated: ${boardName} (${state}) — slug: ${slug}`);
+        if (!existingSubmission) {
+          await db.insert(boardSubmissions).values({
+            boardName,
+            state,
+            submitterName,
+            submitterEmail,
+            slug,
+            goalAmount,
+            pledgedAmount,
+            status,
+            stripePaymentIntentId: paymentIntentId,
+          });
+
+          await sendEmail({
+            to: submitterEmail,
+            subject: `BoardVotes payment confirmed: ${packageName}`,
+            text: [
+              `Hi ${submitterName},`,
+              "",
+              `Payment confirmed for ${packageName} (${dollarsFromCents(packageAmount)}) for ${boardName}, ${state}.`,
+              `Your BoardVotes page is: ${publicOrigin}/boards/${slug}`,
+              "",
+              "BoardVotes will follow up with next steps for source review and onboarding.",
+            ].join("\n"),
+          });
+
+          await sendEmail({
+            to: process.env.PURCHASE_ALERT_EMAIL ?? "help@boardvotes.io",
+            subject: `BoardVotes payment received: ${packageName}`,
+            text: [
+              `Package: ${packageName}`,
+              `Amount: ${dollarsFromCents(packageAmount)}`,
+              `Board: ${boardName}`,
+              `State: ${state}`,
+              `Submitter: ${submitterName}`,
+              `Email: ${submitterEmail}`,
+              `Slug: ${slug}`,
+              `Stripe payment intent: ${paymentIntentId ?? "unknown"}`,
+            ].join("\n"),
+          });
+
+          console.log(`[boards] Payment confirmed: ${packageName} — ${boardName} (${state}) — slug: ${slug}`);
+        }
       } catch (err) {
         console.error("[boards] Failed to insert board submission from webhook:", err);
         res.status(500).json({ error: "DB insert failed" });
@@ -222,6 +439,54 @@ router.get("/", async (_req, res, next) => {
     next(err);
   }
 });
+
+// ---------------------------------------------------------------------------
+// GET /boards/checkout-session/:sessionId
+// Verifies a returned Stripe Checkout session without exposing secret data
+// ---------------------------------------------------------------------------
+router.get(
+  "/checkout-session/:sessionId",
+  validateRequest(
+    z.object({
+      params: z.object({
+        sessionId: z.string().regex(/^cs_(test|live)_[A-Za-z0-9]+$/),
+      }),
+    }),
+  ),
+  async (_req, res, next) => {
+    try {
+      ensureStripeConfigured();
+
+      const { params } = res.locals.validatedRequest as { params: { sessionId: string } };
+      const session = await stripe.checkout.sessions.retrieve(params.sessionId);
+      const metadata = session.metadata ?? {};
+      const publicOrigin = metadata.publicOrigin && isAllowedPublicOrigin(metadata.publicOrigin)
+        ? metadata.publicOrigin
+        : (process.env.CORS_ORIGIN ?? "https://boardvotes.io").split(",")[0];
+
+      res.json({
+        id: session.id,
+        status: session.status,
+        paymentStatus: session.payment_status,
+        amountTotal: session.amount_total,
+        currency: session.currency,
+        automaticTaxEnabled: session.automatic_tax?.enabled ?? false,
+        customerEmail: session.customer_details?.email ?? session.customer_email ?? null,
+        boardName: metadata.boardName ?? null,
+        state: metadata.state ?? null,
+        packageId: metadata.packageId ?? null,
+        packageName: metadata.packageName ?? null,
+        boardUrl: metadata.slug ? `${publicOrigin}/boards/${metadata.slug}` : null,
+      });
+    } catch (err) {
+      if (isStripeAuthenticationError(err)) {
+        next(new HttpError(503, "Stripe checkout is not configured"));
+        return;
+      }
+      next(err);
+    }
+  },
+);
 
 // ---------------------------------------------------------------------------
 // GET /boards/:slug

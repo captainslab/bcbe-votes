@@ -207,8 +207,29 @@ export const createBoardCheckout = async (data: {
   state: string;
   submitterName: string;
   submitterEmail: string;
+  packageId?: "community_request" | "founder_launch" | "founder_full_history";
 }) => {
   const res = await api.post<{ url: string }>("/boards/create-checkout", data);
+  return res.data;
+};
+
+export type BoardCheckoutSession = {
+  id: string;
+  status: string | null;
+  paymentStatus: string | null;
+  amountTotal: number | null;
+  currency: string | null;
+  automaticTaxEnabled: boolean;
+  customerEmail: string | null;
+  boardName: string | null;
+  state: string | null;
+  packageId: string | null;
+  packageName: string | null;
+  boardUrl: string | null;
+};
+
+export const getBoardCheckoutSession = async (sessionId: string) => {
+  const res = await api.get<BoardCheckoutSession>(`/boards/checkout-session/${encodeURIComponent(sessionId)}`);
   return res.data;
 };
 
