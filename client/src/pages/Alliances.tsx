@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAlignment, useMembers } from "../api/hooks";
+import { useBoardContext } from "../context/BoardContext";
 import { Badge } from "../components/Badge";
 import type { PairwiseAlignment } from "../types";
 
-const canonicalMembers = [
+// Default canonical roster used only on the BCBE board; other boards derive
+// their roster dynamically from the /api/members response so we never leak
+// BCBE-specific identities into another board's view.
+const bcbeCanonicalMembers = [
   "Ken Bradley",
   "Andrea Lindsey",
   "Tony Myrick",
@@ -46,8 +50,6 @@ const getMemberVoteTone = (voteValue?: string) => {
   return "slate" as const;
 };
 
-const canonicalMemberNameSet = new Set(canonicalMembers);
-
 type HeatCell = {
   memberA: string;
   memberB: string;
@@ -57,10 +59,22 @@ type HeatCell = {
 };
 
 export const Alliances = () => {
+  const { boardSlug } = useBoardContext();
+  const isBcbe = boardSlug === null || boardSlug === "bcbe";
+
   const { data, isLoading, error } = useAlignment();
   const members = useMembers();
 
-  const [minimumOverlap, setMinimumOverlap] = useState(3);
+  // For BCBE we keep the curated canonical roster; for other boards we trust
+  // the members API (already board-scoped server-side) as the roster.
+  const rosterNames = useMemo<string[]>(() => {
+    if (isBcbe) return [...bcbeCanonicalMembers];
+    return (members.data ?? []).map((m) => m.name).filter(Boolean);
+  }, [isBcbe, members.data]);
+
+  const rosterSet = useMemo(() => new Set<string>(rosterNames), [rosterNames]);
+
+  const [minimumOverlap, setMinimumOverlap] = useState(isBcbe ? 3 : 1);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [unanimityFilter, setUnanimityFilter] = useState<"all" | "non-unanimous-only" | "unanimous-only">("all");
   const [startDate, setStartDate] = useState("");
@@ -75,7 +89,7 @@ export const Alliances = () => {
   const canonicalMemberById = useMemo(() => {
     const map = new Map<number, string>();
     (members.data ?? []).forEach((member) => {
-      if (!canonicalMemberNameSet.has(member.name as (typeof canonicalMembers)[number])) return;
+      if (!rosterSet.has(member.name)) return;
       map.set(member.memberId, member.name);
     });
     return map;
@@ -86,8 +100,8 @@ export const Alliances = () => {
       const memberAName = pair.memberAName || memberNameById.get(pair.memberAId);
       const memberBName = pair.memberBName || memberNameById.get(pair.memberBId);
       if (!memberAName || !memberBName) return false;
-      if (!canonicalMemberNameSet.has(memberAName as (typeof canonicalMembers)[number])) return false;
-      if (!canonicalMemberNameSet.has(memberBName as (typeof canonicalMembers)[number])) return false;
+      if (!rosterSet.has(memberAName)) return false;
+      if (!rosterSet.has(memberBName)) return false;
       if (memberAName === memberBName) return false;
       if (parserArtifactPattern.test(memberAName) || parserArtifactPattern.test(memberBName)) return false;
       return true;
@@ -184,8 +198,8 @@ export const Alliances = () => {
     filteredPairs.forEach((pair) => {
       const memberA = (pair.memberAName || memberNameById.get(pair.memberAId) || "Needs review").trim();
       const memberB = (pair.memberBName || memberNameById.get(pair.memberBId) || "Needs review").trim();
-      if (!canonicalMemberNameSet.has(memberA as (typeof canonicalMembers)[number])) return;
-      if (!canonicalMemberNameSet.has(memberB as (typeof canonicalMembers)[number])) return;
+      if (!rosterSet.has(memberA)) return;
+      if (!rosterSet.has(memberB)) return;
 
       map.set(`${memberA}|${memberB}`, {
         memberA,
@@ -346,7 +360,7 @@ export const Alliances = () => {
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 bg-white px-3 py-2 text-left font-semibold text-slate-700">Member</th>
-                {canonicalMembers.map((member) => (
+                {rosterNames.map((member) => (
                   <th key={member} className="px-3 py-2 text-left font-semibold text-slate-700">
                     {member}
                   </th>
@@ -354,10 +368,10 @@ export const Alliances = () => {
               </tr>
             </thead>
             <tbody>
-              {canonicalMembers.map((rowMember) => (
+              {rosterNames.map((rowMember) => (
                 <tr key={rowMember}>
                   <th className="sticky left-0 z-10 bg-white px-3 py-2 text-left font-medium text-slate-800">{rowMember}</th>
-                  {canonicalMembers.map((colMember) => {
+                  {rosterNames.map((colMember) => {
                     if (rowMember === colMember) {
                       return (
                         <td key={`${rowMember}-${colMember}`} className="px-3 py-2 text-center text-xs text-slate-500">

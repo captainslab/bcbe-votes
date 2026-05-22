@@ -163,7 +163,10 @@ export const countTranscriptMentions = async ({
   };
 };
 
-export const searchTranscripts = async (query: string): Promise<TranscriptSearchResult[]> => {
+export const searchTranscripts = async (
+  query: string,
+  boardId?: number | null,
+): Promise<TranscriptSearchResult[]> => {
   if (!query || query.trim().length < 2) return [];
 
   type RawSearchRow = {
@@ -175,17 +178,31 @@ export const searchTranscripts = async (query: string): Promise<TranscriptSearch
   };
 
   const result = await db.execute(
-    sql`
-      SELECT
-        meeting_id,
-        video_id,
-        video_title,
-        meeting_date,
-        timed_segments
-      FROM meeting_transcripts
-      WHERE to_tsvector('english', transcript_text) @@ plainto_tsquery('english', ${query})
-      ORDER BY meeting_date DESC NULLS LAST
-    `,
+    boardId != null
+      ? sql`
+          SELECT
+            mt.meeting_id,
+            mt.video_id,
+            mt.video_title,
+            mt.meeting_date,
+            mt.timed_segments
+          FROM meeting_transcripts mt
+          JOIN meetings m ON m.id = mt.meeting_id
+          WHERE m.board_id = ${boardId}
+            AND to_tsvector('english', mt.transcript_text) @@ plainto_tsquery('english', ${query})
+          ORDER BY mt.meeting_date DESC NULLS LAST
+        `
+      : sql`
+          SELECT
+            meeting_id,
+            video_id,
+            video_title,
+            meeting_date,
+            timed_segments
+          FROM meeting_transcripts
+          WHERE to_tsvector('english', transcript_text) @@ plainto_tsquery('english', ${query})
+          ORDER BY meeting_date DESC NULLS LAST
+        `,
   );
 
   const queryWords = query
@@ -225,7 +242,9 @@ export const searchTranscripts = async (query: string): Promise<TranscriptSearch
   });
 };
 
-export const listTranscripts = async (): Promise<TranscriptListItem[]> => {
+export const listTranscripts = async (
+  boardId?: number | null,
+): Promise<TranscriptListItem[]> => {
   type RawListRow = {
     meeting_id: number | null;
     video_id: string;
@@ -237,18 +256,33 @@ export const listTranscripts = async (): Promise<TranscriptListItem[]> => {
   };
 
   const result = await db.execute(
-    sql`
-      SELECT
-        meeting_id,
-        video_id,
-        video_title,
-        meeting_date,
-        word_count,
-        duration_seconds,
-        exec_session_detected
-      FROM meeting_transcripts
-      ORDER BY meeting_date DESC NULLS LAST
-    `,
+    boardId != null
+      ? sql`
+          SELECT
+            mt.meeting_id,
+            mt.video_id,
+            mt.video_title,
+            mt.meeting_date,
+            mt.word_count,
+            mt.duration_seconds,
+            mt.exec_session_detected
+          FROM meeting_transcripts mt
+          JOIN meetings m ON m.id = mt.meeting_id
+          WHERE m.board_id = ${boardId}
+          ORDER BY mt.meeting_date DESC NULLS LAST
+        `
+      : sql`
+          SELECT
+            meeting_id,
+            video_id,
+            video_title,
+            meeting_date,
+            word_count,
+            duration_seconds,
+            exec_session_detected
+          FROM meeting_transcripts
+          ORDER BY meeting_date DESC NULLS LAST
+        `,
   );
 
   return (result.rows as RawListRow[]).map((row) => ({

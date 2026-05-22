@@ -408,7 +408,7 @@ type CacheEntry = {
   expiresAt: number;
 };
 
-let cache: CacheEntry | null = null;
+let cache: Map<string, CacheEntry> = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 // ---------------------------------------------------------------------------
@@ -432,10 +432,12 @@ type VoteItemRow = {
   meeting_date: Date | string | null;
 };
 
-export async function getVendors(): Promise<VendorsResponse> {
+export async function getVendors(boardId?: number | null): Promise<VendorsResponse> {
   const now = Date.now();
-  if (cache && cache.expiresAt > now) {
-    return cache.data;
+  const cacheKey = boardId != null ? `b:${boardId}` : "all";
+  const hit = cache.get(cacheKey);
+  if (hit && hit.expiresAt > now) {
+    return hit.data;
   }
 
   const whereClauses = PROCUREMENT_KEYWORDS.map(
@@ -456,6 +458,7 @@ export async function getVendors(): Promise<VendorsResponse> {
     WHERE (
       ${sql.join(whereClauses, sql` OR `)}
     )
+    ${boardId != null ? sql`AND m.board_id = ${boardId}` : sql``}
     ORDER BY m.date DESC
   `);
 
@@ -544,7 +547,7 @@ export async function getVendors(): Promise<VendorsResponse> {
     generated_at: new Date().toISOString(),
   };
 
-  cache = { data: result, expiresAt: now + CACHE_TTL_MS };
+  cache.set(cacheKey, { data: result, expiresAt: now + CACHE_TTL_MS });
   return result;
 }
 
@@ -570,9 +573,9 @@ type VoteRecordRow = {
   member_name: string | null;
 };
 
-export async function getVendorBySlug(slug: string): Promise<VendorProfile | null> {
+export async function getVendorBySlug(slug: string, boardId?: number | null): Promise<VendorProfile | null> {
   // First get the full vendor list to find canonical name + aliases
-  const { vendors } = await getVendors();
+  const { vendors } = await getVendors(boardId);
   const vendor = vendors.find((v) => v.slug === slug);
   if (!vendor) return null;
 
@@ -600,6 +603,7 @@ export async function getVendorBySlug(slug: string): Promise<VendorProfile | nul
     WHERE (
       ${sql.join(titleConditions, sql` OR `)}
     )
+    ${boardId != null ? sql`AND m.board_id = ${boardId}` : sql``}
     ORDER BY m.date DESC
   `);
 

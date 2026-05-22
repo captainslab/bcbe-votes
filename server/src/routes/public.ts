@@ -379,9 +379,9 @@ router.post(
   },
 );
 
-router.get("/vendors", async (_req, res, next) => {
+router.get("/vendors", async (req, res, next) => {
   try {
-    const data = await getVendors();
+    const data = await getVendors(req.board?.id);
     res.json(data);
   } catch (err) {
     next(err);
@@ -398,7 +398,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { params } = res.locals.validatedRequest as { params: { slug: string } };
-      const profile = await getVendorBySlug(params.slug);
+      const profile = await getVendorBySlug(params.slug, req.board?.id);
       if (!profile) throw new HttpError(404, "Vendor not found");
       res.json(profile);
     } catch (err) {
@@ -425,9 +425,9 @@ router.get("/district-requests/counts", async (_req, res, next) => {
   }
 });
 
-router.get("/transcripts", async (_req, res, next) => {
+router.get("/transcripts", async (req, res, next) => {
   try {
-    const list = await listTranscripts();
+    const list = await listTranscripts(req.board?.id);
     res.json(list);
   } catch (err) {
     next(err);
@@ -446,7 +446,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { query } = res.locals.validatedRequest as { query: { q: string } };
-      const results = await searchTranscripts(query.q);
+      const results = await searchTranscripts(query.q, req.board?.id);
       res.json(results);
     } catch (err) {
       next(err);
