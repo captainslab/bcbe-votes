@@ -25,7 +25,7 @@ const checkoutPackages: Array<{
     name: "Request page",
     price: "$25",
     summary: "Create a public funding page and validate community demand.",
-    bullets: ["Public board request page", "$500 starter funding goal", "Best for citizen-led requests"],
+    bullets: ["Public board request page", "Best for citizen-led requests"],
   },
   {
     id: "founder_launch",
@@ -54,8 +54,8 @@ const faqItems = [
     answer: "It creates a public funding page for the requested board and helps filter serious requests from spam.",
   },
   {
-    question: "What happens when a board reaches $500?",
-    answer: "BoardVotes.io begins source review and onboarding. That includes checking public records, meeting history, available minutes, agendas, and vote documentation. $500 is our starting goal — actual setup cost may vary depending on the board, and each request is reviewed case by case.",
+    question: "What happens after a community request is submitted?",
+    answer: "BoardVotes.io begins source review and onboarding. That includes checking public records, meeting history, available minutes, agendas, and vote documentation. Each request is reviewed case by case.",
   },
   {
     question: "What if the public records are incomplete?",
