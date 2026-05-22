@@ -1,4 +1,4 @@
-import { eq, ilike, or, sql } from "drizzle-orm";
+import { and, eq, ilike, or, sql } from "drizzle-orm";
 import { db, schema } from "../db";
 import {
   buildMemberNoVoteItems,
@@ -74,10 +74,11 @@ const enrichVoteItem = <T extends {
   };
 };
 
-export const listMeetings = async (limit = 200, offset = 0) => {
+export const listMeetings = async (limit = 200, offset = 0, boardId?: number | null) => {
   const meetings = await db.query.meetings.findMany({
     limit,
     offset,
+    where: boardId != null ? eq(schema.meetings.boardId, boardId) : undefined,
     orderBy: (meeting, { desc }) => [desc(meeting.date)],
     with: {
       voteItems: {
@@ -118,9 +119,17 @@ export const getMeeting = async (id: number) => {
   };
 };
 
-export const listVotes = async (nonUnanimousOnly = true, limit = 5000, offset = 0) => {
+export const listVotes = async (nonUnanimousOnly = true, limit = 5000, offset = 0, boardId?: number | null) => {
   const votes = await db.query.voteItems.findMany({
-    where: nonUnanimousOnly ? eq(schema.voteItems.isNonUnanimous, true) : undefined,
+    where: (() => {
+      const nonUnanFilter = nonUnanimousOnly ? eq(schema.voteItems.isNonUnanimous, true) : undefined;
+      // boardId filtering via a subquery on meeting
+      if (boardId != null) {
+        const boardFilter = sql`${schema.voteItems.meetingId} IN (SELECT id FROM meetings WHERE board_id = ${boardId})`;
+        return nonUnanFilter ? and(nonUnanFilter, boardFilter) : boardFilter;
+      }
+      return nonUnanFilter;
+    })(),
     with: {
       meeting: true,
       voteRecords: {
@@ -156,8 +165,9 @@ export const getVote = async (id: number) => {
   return vote ? enrichVoteItem(vote) : null;
 };
 
-export const listMembers = async () => {
+export const listMembers = async (boardId?: number | null) => {
   const members = await db.query.boardMembers.findMany({
+    where: boardId != null ? eq(schema.boardMembers.boardId, boardId) : undefined,
     orderBy: (member, { asc }) => [asc(member.name)],
   });
 

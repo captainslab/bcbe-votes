@@ -130,6 +130,7 @@ const resolveBoardMemberId = async (tx: any, rawName?: string | null) => {
 const upsertMeeting = async (
   tx: any,
   meeting: ReturnType<typeof parseMeetingDetail>["meeting"] & { simbliId: string },
+  boardId?: number | null,
 ) => {
   const [saved] = await tx
     .insert(schema.meetings)
@@ -143,6 +144,7 @@ const upsertMeeting = async (
       minutesUrl: meeting.minutesUrl,
       ingestionStatus: "in_progress",
       verificationStatus: "unverified",
+      ...(boardId != null ? { boardId } : {}),
     })
     .onConflictDoUpdate({
       target: schema.meetings.simbliId,
@@ -152,6 +154,7 @@ const upsertMeeting = async (
         type: meeting.type,
         sourceUrl: meeting.sourceUrl,
         minutesUrl: meeting.minutesUrl,
+        ...(boardId != null ? { boardId } : {}),
         updatedAt: new Date(),
       },
     })
@@ -307,14 +310,16 @@ const extractAndPersistPropertyEntities = async (items: SavedVoteItemStub[]) => 
 export const persistImportedMeetingVoteItems = async ({
   meeting,
   voteItems,
+  boardId,
 }: {
   meeting: ReturnType<typeof parseMeetingDetail>["meeting"] & { simbliId: string };
   voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"];
+  boardId?: number | null;
 }) => {
   let savedItems: SavedVoteItemStub[] = [];
 
   const result = await db.transaction(async (tx) => {
-    const meetingRow = await upsertMeeting(tx, meeting);
+    const meetingRow = await upsertMeeting(tx, meeting, boardId);
     savedItems = await persistVoteItems(tx, meetingRow, voteItems);
 
     await tx
@@ -375,7 +380,7 @@ const toParsedVoteItem = (
   return item;
 };
 
-const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inferSelect) => {
+const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inferSelect, boardId?: number | null) => {
   const seenAgendaIds = new Set<string>();
   const voteItems: ReturnType<typeof parseMeetingDetail>["voteItems"] = [];
   let minutesUrl = meeting.minutesUrl ?? null;
@@ -435,7 +440,7 @@ const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inf
       type: meeting.type,
       sourceUrl: meeting.sourceUrl,
       minutesUrl: minutesUrl ?? undefined,
-    });
+    }, boardId);
 
     savedItems = await persistVoteItems(tx, meetingRow, voteItems);
     await tx
@@ -455,7 +460,7 @@ const importMeetingByMinutesSearch = async (meeting: typeof schema.meetings.$inf
   return result;
 };
 
-export const importMeetingById = async (simbliId: string) => {
+export const importMeetingById = async (simbliId: string, boardId?: number | null) => {
   const log = await createImportLog("meeting");
   try {
     const existingMeeting = await db.query.meetings.findFirst({
@@ -463,7 +468,7 @@ export const importMeetingById = async (simbliId: string) => {
     });
 
     if (existingMeeting?.ingestionStatus === "failed") {
-      const fallback = await importMeetingByMinutesSearch(existingMeeting);
+      const fallback = await importMeetingByMinutesSearch(existingMeeting, boardId);
       await completeImportLog(log.id, {
         meetingsProcessed: 1,
         votesCreated: fallback.voteItemsCreated,
@@ -476,7 +481,7 @@ export const importMeetingById = async (simbliId: string) => {
     const parsed = parseMeetingDetail(html, sourceUrl);
     if (parsed.voteItems.length === 0) {
       if (existingMeeting) {
-        const fallback = await importMeetingByMinutesSearch(existingMeeting);
+        const fallback = await importMeetingByMinutesSearch(existingMeeting, boardId);
         await completeImportLog(log.id, {
           meetingsProcessed: 1,
           votesCreated: fallback.voteItemsCreated,
@@ -489,7 +494,7 @@ export const importMeetingById = async (simbliId: string) => {
 
     let htmlSavedItems: SavedVoteItemStub[] = [];
     const savedMeeting = await db.transaction(async (tx) => {
-      const meetingRow = await upsertMeeting(tx, { ...parsed.meeting, simbliId });
+      const meetingRow = await upsertMeeting(tx, { ...parsed.meeting, simbliId }, boardId);
       htmlSavedItems = await persistVoteItems(tx, meetingRow, parsed.voteItems);
 
       await tx

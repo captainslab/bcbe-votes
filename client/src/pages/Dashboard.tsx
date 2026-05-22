@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useExecSessionSummary, useSummary } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
+import { useBoardContext } from "../context/BoardContext";
 import type { CategoryStat, VoteItem } from "../types";
 
 const normalizeText = (value?: string | null) => (typeof value === "string" ? value.trim() : "");
@@ -116,6 +117,7 @@ const getVoteSummary = (vote: VoteItem): string | null => {
 export const Dashboard = () => {
   const { data, isLoading, error } = useSummary();
   const { data: execSummary } = useExecSessionSummary();
+  const { boardName } = useBoardContext();
 
   if (isLoading) return <p>Loading dashboard...</p>;
   if (error) return <p className="text-red-600">Failed to load dashboard.</p>;
@@ -140,7 +142,7 @@ export const Dashboard = () => {
             Source-first civic vote records
           </span>
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
-            Baldwin County Board of Education
+            {boardName}
             <br />
             <span className="text-indigo-400">vote records, source-traced.</span>
           </h1>
@@ -212,19 +214,19 @@ export const Dashboard = () => {
               </p>
               {displayCount > 0 && (
                 <p className="mt-0.5 text-sm text-slate-700">
-                  {displayCount} executive session{displayCount !== 1 ? "s" : ""} detected in the past 12 months
+                  {displayCount} executive-session meeting{displayCount !== 1 ? "s" : ""} detected in the past 12 months
                   {latestDate ? ` — most recent ${latestDate}` : ""}
                 </p>
               )}
               <p className="mt-1 text-xs text-slate-500">
                 Detected from meeting video transcripts.{" "}
-                {voiceTriggers > 0 && `${voiceTriggers} voice vote trigger${voiceTriggers !== 1 ? "s" : ""}`}
+                {voiceTriggers > 0 && `${voiceTriggers} voice-vote marker${voiceTriggers !== 1 ? "s" : ""}`}
                 {voiceTriggers > 0 && motionCount > 0 && " and "}
                 {motionCount > 0 && `${motionCount} motion${motionCount !== 1 ? "s" : ""}`}
                 {(voiceTriggers > 0 || motionCount > 0) && " detected across available recordings."}
               </p>
               <Link to="/exec-sessions" className="mt-2 inline-block text-xs font-semibold text-indigo-600 hover:underline">
-                View all executive sessions
+                View executive-session meetings
               </Link>
             </div>
             <span className="shrink-0 inline-flex items-center rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">

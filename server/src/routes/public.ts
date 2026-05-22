@@ -40,6 +40,11 @@ router.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+router.get("/board", (req, res) => {
+  if (!req.board) return res.json({ slug: null, name: "BoardVotes", shortName: "BoardVotes" });
+  res.json({ id: req.board.id, slug: req.board.slug, name: req.board.name });
+});
+
 router.get("/boards", async (_req, res, next) => {
   try {
     const rows = await db
@@ -122,7 +127,7 @@ router.get(
         query?: { limit?: number; offset?: number };
       };
       const { limit = 200, offset = 0 } = query ?? {};
-      const meetings = await listMeetings(limit, offset);
+      const meetings = await listMeetings(limit, offset, req.board?.id);
       res.json(meetings);
     } catch (err) {
       next(err);
@@ -192,7 +197,7 @@ router.get(
         };
       };
       const { limit = 50, offset = 0, nonUnanimousOnly = true } = query ?? {};
-      const votes = await listVotes(nonUnanimousOnly, limit, offset);
+      const votes = await listVotes(nonUnanimousOnly, limit, offset, req.board?.id);
       res.json(votes);
     } catch (err) {
       next(err);
@@ -219,9 +224,9 @@ router.get(
   },
 );
 
-router.get("/members", async (_req, res, next) => {
+router.get("/members", async (req, res, next) => {
   try {
-    const members = await getMemberStats();
+    const members = await getMemberStats(req.board?.id);
     res.json(members);
   } catch (err) {
     next(err);
@@ -255,12 +260,13 @@ router.get(
   },
 );
 
-router.get("/stats", async (_req, res, next) => {
+router.get("/stats", async (req, res, next) => {
   try {
+    const boardId = req.board?.id;
     const [summary, recentVotes, categoryStats] = await Promise.all([
-      getSummaryStats(),
-      getRecentVotes(8),
-      getCategoryStats(),
+      getSummaryStats(boardId),
+      getRecentVotes(8, boardId),
+      getCategoryStats(boardId),
     ]);
     res.json({ summary, recentVotes, categoryStats });
   } catch (err) {
@@ -277,13 +283,13 @@ router.get(
       }),
     }),
   ),
-  async (_req, res, next) => {
+  async (req, res, next) => {
     try {
       const { query } = res.locals.validatedRequest as {
         query?: { limit?: number };
       };
       const { limit = 8 } = query ?? {};
-      const recentVotes = await getRecentVotes(limit);
+      const recentVotes = await getRecentVotes(limit, req.board?.id);
       res.json(recentVotes);
     } catch (err) {
       next(err);
@@ -291,9 +297,9 @@ router.get(
   },
 );
 
-router.get("/alliances", async (_req, res, next) => {
+router.get("/alliances", async (req, res, next) => {
   try {
-    const alliances = await getPairwiseAlignment();
+    const alliances = await getPairwiseAlignment(req.board?.id);
     res.json(alliances);
   } catch (err) {
     next(err);
@@ -312,7 +318,7 @@ router.get(
     try {
       const { params } = res.locals.validatedRequest as { params: { id: number } };
       const memberId = params.id;
-      const alignment = await getMemberAlignment(memberId);
+      const alignment = await getMemberAlignment(memberId, req.board?.id);
       res.json(alignment);
     } catch (err) {
       next(err);

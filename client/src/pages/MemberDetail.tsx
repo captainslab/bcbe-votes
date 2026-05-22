@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMember, useMemberAlignment, useMembers } from "../api/hooks";
 import { StatCard } from "../components/StatCard";
 import { Badge } from "../components/Badge";
+import { useBoardContext } from "../context/BoardContext";
 import type { MemberCategoryStat, MemberMotionItem, MemberNoVoteItem, MemberProfile, PairwiseAlignment, PersonnelAction, PropertyAction } from "../types";
 
 const memberPortraits: Record<string, string> = {
@@ -294,6 +295,7 @@ export const MemberDetail = () => {
   const { data, isLoading, error } = useMember(id);
   const membersQuery = useMembers();
   const alignment = useMemberAlignment(id);
+  const { boardName } = useBoardContext();
 
   const memberId = Number(id);
   const noVoteItems = useMemo<MemberNoVoteItem[]>(() => {
@@ -327,7 +329,7 @@ export const MemberDetail = () => {
         <div className="flex items-start gap-5">
           <MemberPortrait name={data.name} />
           <div>
-            <p className="text-sm text-slate-600">Baldwin County Board of Education</p>
+            <p className="text-sm text-slate-600">{boardName}</p>
             <h1 className="text-3xl font-semibold text-slate-900">{data.name}</h1>
             <p className="mt-1 text-sm text-slate-600">{profile?.district || data.district || "District not yet sourced"}</p>
             {profile?.roleTitle ? <p className="mt-1 text-sm text-slate-600">{profile.roleTitle}</p> : null}

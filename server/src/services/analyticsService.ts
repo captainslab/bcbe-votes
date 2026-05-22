@@ -1,4 +1,4 @@
-import { count, eq, sql } from "drizzle-orm";
+import { count, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "../db";
 import {
   buildSourceAuditInfo,
@@ -121,36 +121,84 @@ const enrichVoteItemAudit = <T extends {
   };
 };
 
-export const getSummaryStats = async () => {
-  const [meetingsCount] = await db.select({ count: count() }).from(schema.meetings);
-  const [voteItemsCount] = await db.select({ count: count() }).from(schema.voteItems);
-  const [voteRecordsCount] = await db.select({ count: count() }).from(schema.voteRecords);
-  const [nonUnanimousCount] = await db
-    .select({ count: count() })
-    .from(schema.voteItems)
-    .where(eq(schema.voteItems.isNonUnanimous, true));
+export const getSummaryStats = async (boardId?: number | null) => {
+  const boardMeetingIds = boardId != null
+    ? (await db.select({ id: schema.meetings.id }).from(schema.meetings).where(eq(schema.meetings.boardId, boardId))).map((r) => r.id)
+    : null;
+  const boardMemberIds = boardId != null
+    ? (await db.select({ id: schema.boardMembers.id }).from(schema.boardMembers).where(eq(schema.boardMembers.boardId, boardId))).map((r) => r.id)
+    : null;
 
-  const [needsReviewCount] = await db
-    .select({
-      count: count(),
-    })
-    .from(schema.voteItems)
-    .where(
-      sql`(
-        ${schema.voteItems.verificationStatus} != 'verified'
-        OR ${schema.voteItems.confidenceScore} IS NULL
-        OR ${schema.voteItems.confidenceScore} < 0.6
-      )`,
-    );
+  const [meetingsCount] = boardMeetingIds !== null
+    ? await db.select({ count: count() }).from(schema.meetings).where(eq(schema.meetings.boardId, boardId!))
+    : await db.select({ count: count() }).from(schema.meetings);
 
-  const [execSessionCount] = await db
-    .select({ count: count() })
-    .from(schema.voteItems)
-    .innerJoin(schema.meetings, eq(schema.voteItems.meetingId, schema.meetings.id))
-    .where(
-      sql`${schema.voteItems.itemTitle} ILIKE '%executive session%'
-        AND ${schema.meetings.date} >= NOW() - INTERVAL '1 year'`,
-    );
+  const [voteItemsCount] = boardMeetingIds !== null && boardMeetingIds.length > 0
+    ? await db.select({ count: count() }).from(schema.voteItems).where(inArray(schema.voteItems.meetingId, boardMeetingIds))
+    : boardMeetingIds !== null
+      ? await db.select({ count: count() }).from(schema.voteItems).where(sql`false`)
+      : await db.select({ count: count() }).from(schema.voteItems);
+
+  const [voteRecordsCount] = boardMeetingIds !== null && boardMeetingIds.length > 0
+    ? await db.select({ count: count() }).from(schema.voteRecords).where(
+        sql`${schema.voteRecords.voteItemId} IN (SELECT id FROM vote_items WHERE meeting_id = ANY(${sql.raw(`ARRAY[${boardMeetingIds.join(",")}]::int[]`)}))`
+      )
+    : boardMeetingIds !== null
+      ? await db.select({ count: count() }).from(schema.voteRecords).where(sql`false`)
+      : await db.select({ count: count() }).from(schema.voteRecords);
+
+  const [nonUnanimousCount] = boardMeetingIds !== null && boardMeetingIds.length > 0
+    ? await db.select({ count: count() }).from(schema.voteItems).where(
+        sql`${schema.voteItems.isNonUnanimous} = true AND ${schema.voteItems.meetingId} = ANY(${sql.raw(`ARRAY[${boardMeetingIds.join(",")}]::int[]`)})`
+      )
+    : boardMeetingIds !== null
+      ? await db.select({ count: count() }).from(schema.voteItems).where(sql`false`)
+      : await db.select({ count: count() }).from(schema.voteItems).where(eq(schema.voteItems.isNonUnanimous, true));
+
+  const [needsReviewCount] = boardMeetingIds !== null && boardMeetingIds.length > 0
+    ? await db
+        .select({ count: count() })
+        .from(schema.voteItems)
+        .where(
+          sql`(
+            ${schema.voteItems.verificationStatus} != 'verified'
+            OR ${schema.voteItems.confidenceScore} IS NULL
+            OR ${schema.voteItems.confidenceScore} < 0.6
+          ) AND ${schema.voteItems.meetingId} = ANY(${sql.raw(`ARRAY[${boardMeetingIds.join(",")}]::int[]`)})`,
+        )
+    : boardMeetingIds !== null
+      ? await db.select({ count: count() }).from(schema.voteItems).where(sql`false`)
+      : await db
+          .select({ count: count() })
+          .from(schema.voteItems)
+          .where(
+            sql`(
+              ${schema.voteItems.verificationStatus} != 'verified'
+              OR ${schema.voteItems.confidenceScore} IS NULL
+              OR ${schema.voteItems.confidenceScore} < 0.6
+            )`,
+          );
+
+  const [execSessionCount] = boardMeetingIds !== null && boardMeetingIds.length > 0
+    ? await db
+        .select({ count: count() })
+        .from(schema.voteItems)
+        .innerJoin(schema.meetings, eq(schema.voteItems.meetingId, schema.meetings.id))
+        .where(
+          sql`${schema.voteItems.itemTitle} ILIKE '%executive session%'
+            AND ${schema.meetings.date} >= NOW() - INTERVAL '1 year'
+            AND ${schema.meetings.id} = ANY(${sql.raw(`ARRAY[${boardMeetingIds.join(",")}]::int[]`)})`,
+        )
+    : boardMeetingIds !== null
+      ? await db.select({ count: count() }).from(schema.voteItems).where(sql`false`)
+      : await db
+          .select({ count: count() })
+          .from(schema.voteItems)
+          .innerJoin(schema.meetings, eq(schema.voteItems.meetingId, schema.meetings.id))
+          .where(
+            sql`${schema.voteItems.itemTitle} ILIKE '%executive session%'
+              AND ${schema.meetings.date} >= NOW() - INTERVAL '1 year'`,
+          );
 
   const transcriptStatsRow = await db.execute(
     sql`
@@ -172,7 +220,7 @@ export const getSummaryStats = async () => {
     total_motions: number;
   } | undefined;
 
-  const memberVoteRows = await db
+  const memberVoteRowsQuery = db
     .select({
       memberId: schema.voteRecords.boardMemberId,
       memberName: schema.boardMembers.name,
@@ -184,7 +232,19 @@ export const getSummaryStats = async () => {
     .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
     .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
 
-  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const memberVoteRows = boardMemberIds !== null && boardMemberIds.length > 0
+    ? await memberVoteRowsQuery.where(inArray(schema.voteRecords.boardMemberId, boardMemberIds))
+    : boardMemberIds !== null
+      ? []
+      : await memberVoteRowsQuery;
+
+  const membersQuery = boardMemberIds !== null && boardMemberIds.length > 0
+    ? db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers).where(inArray(schema.boardMembers.id, boardMemberIds))
+    : boardMemberIds !== null
+      ? db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers).where(sql`false`)
+      : db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+
+  const members = await membersQuery;
   const canonicalDirectory = buildCanonicalMemberDirectory(members);
   const memberStats = new Map<number, MemberStats>();
 
@@ -258,28 +318,87 @@ export type ExecSessionMeetingSummary = {
 export type ExecSessionSummaryResult = {
   totalDetected: number;
   pastYearCount: number;
+  pastYearReviewedCount: number;
+  totalBlockCount: number;
+  pastYearBlockCount: number;
+  pastYearStart: string;
   latestMeeting: ExecSessionMeetingSummary | null;
   meetings: ExecSessionMeetingSummary[];
 };
+
+type ExecSessionContextBlock = {
+  time?: string;
+  context?: string;
+  reasons?: string[];
+};
+
+const MAX_EXEC_CONTEXT_CHARS = 400;
+
+function capContextExcerpt(context: string): string {
+  if (context.length <= MAX_EXEC_CONTEXT_CHARS) return context;
+  return `${context.slice(0, MAX_EXEC_CONTEXT_CHARS - 3).trimEnd()}...`;
+}
+
+function parseExecSessionContext(value: unknown): ExecSessionContextBlock[] {
+  return Array.isArray(value) ? (value as ExecSessionContextBlock[]) : [];
+}
+
+function execBlockMinuteKey(block: ExecSessionContextBlock, index: number): string {
+  const time = block.time ?? "";
+  const minuteKey = time.split(":").slice(0, -1).join(":");
+  if (minuteKey) return minuteKey;
+  return `${index}:${(block.context ?? "").slice(0, 80)}`;
+}
+
+function dedupeExecBlocks(blocks: ExecSessionContextBlock[]): ExecSessionContextBlock[] {
+  const seen = new Map<string, ExecSessionContextBlock>();
+  blocks.forEach((block, index) => {
+    const key = execBlockMinuteKey(block, index);
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, block);
+      return;
+    }
+    const score = (candidate: ExecSessionContextBlock) => {
+      const actors = parseMotionActors(candidate.context ?? "");
+      return (
+        ((candidate.reasons?.length ?? 0) > 0 ? 2 : 0) +
+        (actors.movedBy ? 1 : 0) +
+        (actors.secondedBy ? 1 : 0)
+      );
+    };
+    if (score(block) > score(existing)) seen.set(key, block);
+  });
+  return Array.from(seen.values());
+}
+
+function transcriptMeetingKey(row: { meeting_id: number | null; video_id?: string | null; video_title: string; meeting_date: Date | string | null }): string {
+  if (row.meeting_id !== null && row.meeting_id !== undefined) return `meeting:${row.meeting_id}`;
+  if (row.video_id) return `video:${row.video_id}`;
+  return `title:${row.video_title}:${row.meeting_date ?? ""}`;
+}
 
 export const getExecSessionSummary = async (): Promise<ExecSessionSummaryResult> => {
   const rows = await db.execute(
     sql`
       SELECT
         mt.meeting_id,
+        mt.video_id,
         mt.video_title,
         mt.meeting_date,
+        mt.exec_session_detected,
         mt.exec_session_context
       FROM meeting_transcripts mt
-      WHERE mt.exec_session_detected = true
       ORDER BY mt.meeting_date DESC NULLS LAST
     `,
   );
 
   type RawExecRow = {
     meeting_id: number | null;
+    video_id: string | null;
     video_title: string;
     meeting_date: Date | string | null;
+    exec_session_detected: boolean;
     exec_session_context: unknown;
   };
 
@@ -293,11 +412,19 @@ export const getExecSessionSummary = async (): Promise<ExecSessionSummaryResult>
 
   const now = new Date();
   const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  const pastYearStart = oneYearAgo.toISOString().slice(0, 10);
 
-  const meetings: ExecSessionMeetingSummary[] = allRows.map((row) => {
-    const ctx = Array.isArray(row.exec_session_context)
-      ? (row.exec_session_context as Array<{ reasons?: string[] }>)
-      : [];
+  const detectedRows = allRows.filter((row) => row.exec_session_detected === true);
+  const recentReviewedKeys = new Set<string>();
+
+  allRows.forEach((row) => {
+    const date = toDateStr(row.meeting_date);
+    if (!date) return;
+    if (new Date(date) >= oneYearAgo) recentReviewedKeys.add(transcriptMeetingKey(row));
+  });
+
+  const meetings: ExecSessionMeetingSummary[] = detectedRows.map((row) => {
+    const ctx = dedupeExecBlocks(parseExecSessionContext(row.exec_session_context));
     const reasons = ctx
       .flatMap((b) => b.reasons ?? [])
       .filter((r, i, arr) => arr.indexOf(r) === i);
@@ -318,18 +445,14 @@ export const getExecSessionSummary = async (): Promise<ExecSessionSummaryResult>
   return {
     totalDetected: meetings.length,
     pastYearCount: pastYearMeetings.length,
+    pastYearReviewedCount: recentReviewedKeys.size,
+    totalBlockCount: meetings.reduce((sum, meeting) => sum + meeting.blockCount, 0),
+    pastYearBlockCount: pastYearMeetings.reduce((sum, meeting) => sum + meeting.blockCount, 0),
+    pastYearStart,
     latestMeeting: meetings[0] ?? null,
     meetings,
   };
 };
-
-function tsToSeconds(time: string): number | null {
-  const parts = time.split(":").map(Number);
-  if (parts.some((p) => isNaN(p))) return null;
-  if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
-  if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-  return null;
-}
 
 const FILLER_WORDS = new Set(["a", "an", "on", "so", "in", "it", "is", "by", "to", "the", "and", "or"]);
 function isName(word: string | undefined): boolean {
@@ -439,22 +562,16 @@ export const getExecSessionDetail = async (): Promise<ExecSessionDetailRow[]> =>
   };
 
   return (transcriptRows.rows as RawRow[]).map((row) => {
-    const ctx = Array.isArray(row.exec_session_context)
-      ? (row.exec_session_context as Array<{ time: string; context: string; reasons?: string[] }>)
-      : [];
+    const ctx = dedupeExecBlocks(parseExecSessionContext(row.exec_session_context));
     const blocks: ExecSessionBlock[] = ctx.map((b) => {
       const actors = parseMotionActors(b.context ?? "");
-      const secs = tsToSeconds(b.time ?? "");
       return {
         time: b.time ?? "",
-        context: b.context ?? "",
+        context: capContextExcerpt(b.context ?? ""),
         reasons: b.reasons ?? [],
         movedBy: resolveFullName(actors.movedBy, memberLookup),
         secondedBy: resolveFullName(actors.secondedBy, memberLookup),
-        timestampUrl:
-          row.video_id && secs !== null
-            ? `https://youtube.com/watch?v=${row.video_id}&t=${secs}`
-            : null,
+        timestampUrl: null,
       };
     });
     return {
@@ -469,8 +586,12 @@ export const getExecSessionDetail = async (): Promise<ExecSessionDetailRow[]> =>
   });
 };
 
-export const getMemberStats = async () => {
-  const memberVoteRows = await db
+export const getMemberStats = async (boardId?: number | null) => {
+  const boardMemberIds = boardId != null
+    ? (await db.select({ id: schema.boardMembers.id }).from(schema.boardMembers).where(eq(schema.boardMembers.boardId, boardId))).map((r) => r.id)
+    : null;
+
+  const baseQuery = db
     .select({
       memberId: schema.voteRecords.boardMemberId,
       memberName: schema.boardMembers.name,
@@ -486,7 +607,18 @@ export const getMemberStats = async () => {
     .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
     .leftJoin(schema.boardMembers, eq(schema.voteRecords.boardMemberId, schema.boardMembers.id));
 
-  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name, isActive: schema.boardMembers.isActive }).from(schema.boardMembers);
+  const memberVoteRows = boardMemberIds !== null && boardMemberIds.length > 0
+    ? await baseQuery.where(inArray(schema.voteRecords.boardMemberId, boardMemberIds))
+    : boardMemberIds !== null
+      ? []
+      : await baseQuery;
+
+  const membersBaseQuery = db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name, isActive: schema.boardMembers.isActive }).from(schema.boardMembers);
+  const members = boardMemberIds !== null && boardMemberIds.length > 0
+    ? await membersBaseQuery.where(inArray(schema.boardMembers.id, boardMemberIds))
+    : boardMemberIds !== null
+      ? []
+      : await membersBaseQuery;
   const isActiveById = new Map(members.map((m) => [m.id, m.isActive]));
   const canonicalDirectory = buildCanonicalMemberDirectory(members);
   const stats = new Map<number, MemberStats>();
@@ -596,8 +728,12 @@ const toDisplayVoteValue = (voteValue: string) => {
   return `${voteValue.charAt(0).toUpperCase()}${voteValue.slice(1).toLowerCase()}`;
 };
 
-export const getPairwiseAlignment = async () => {
-  const records = await db
+export const getPairwiseAlignment = async (boardId?: number | null) => {
+  const boardMemberIds = boardId != null
+    ? (await db.select({ id: schema.boardMembers.id }).from(schema.boardMembers).where(eq(schema.boardMembers.boardId, boardId))).map((r) => r.id)
+    : null;
+
+  const baseRecordsQuery = db
     .select({
       voteItemId: schema.voteRecords.voteItemId,
       memberName: schema.boardMembers.name,
@@ -621,7 +757,18 @@ export const getPairwiseAlignment = async () => {
     .leftJoin(schema.voteItems, eq(schema.voteRecords.voteItemId, schema.voteItems.id))
     .leftJoin(schema.meetings, eq(schema.voteItems.meetingId, schema.meetings.id));
 
-  const members = await db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const records = boardMemberIds !== null && boardMemberIds.length > 0
+    ? await baseRecordsQuery.where(inArray(schema.voteRecords.boardMemberId, boardMemberIds))
+    : boardMemberIds !== null
+      ? []
+      : await baseRecordsQuery;
+
+  const membersBaseQuery = db.select({ id: schema.boardMembers.id, name: schema.boardMembers.name }).from(schema.boardMembers);
+  const members = boardMemberIds !== null && boardMemberIds.length > 0
+    ? await membersBaseQuery.where(inArray(schema.boardMembers.id, boardMemberIds))
+    : boardMemberIds !== null
+      ? []
+      : await membersBaseQuery;
   const canonicalDirectory = buildCanonicalMemberDirectory(members);
 
   const byVoteItem = new Map<
@@ -772,12 +919,12 @@ export const getPairwiseAlignment = async () => {
   });
 };
 
-export const getMemberAlignment = async (memberId: number) => {
-  const pairs = await getPairwiseAlignment();
+export const getMemberAlignment = async (memberId: number, boardId?: number | null) => {
+  const pairs = await getPairwiseAlignment(boardId);
   return pairs.filter((pair) => pair.memberAId === memberId || pair.memberBId === memberId);
 };
 
-export const getCategoryStats = async () => {
+export const getCategoryStats = async (boardId?: number | null) => {
   const items = await db.query.voteItems.findMany({
     columns: {
       itemTitle: true,
@@ -786,6 +933,9 @@ export const getCategoryStats = async () => {
       sourceExcerpt: true,
       isNonUnanimous: true,
     },
+    where: boardId != null
+      ? sql`${schema.voteItems.meetingId} IN (SELECT id FROM meetings WHERE board_id = ${boardId})`
+      : undefined,
     with: {
       meeting: { columns: { date: true } },
     },
@@ -866,8 +1016,11 @@ export const getMemberCategoryStats = async (memberId: number) => {
     .sort((a, b) => b.totalVotes - a.totalVotes);
 };
 
-export const getRecentVotes = async (limit = 10) => {
+export const getRecentVotes = async (limit = 10, boardId?: number | null) => {
   const votes = await db.query.voteItems.findMany({
+    where: boardId != null
+      ? sql`${schema.voteItems.meetingId} IN (SELECT id FROM meetings WHERE board_id = ${boardId})`
+      : undefined,
     with: {
       meeting: true,
     },

@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
 import { navItems, hubNavItems } from "./navConfig";
+import { useBoardContext } from "../context/BoardContext";
 
 type LayoutProps = {
   children?: ReactNode;
@@ -14,6 +15,7 @@ function isHubDomain(): boolean {
 export const Layout = ({ children }: LayoutProps) => {
   const hubMode = isHubDomain();
   const activeNavItems = hubMode ? hubNavItems : navItems;
+  const { boardName } = useBoardContext();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -27,7 +29,7 @@ export const Layout = ({ children }: LayoutProps) => {
             <p className="text-xs text-slate-400">
               {hubMode
                 ? "School board transparency, everywhere"
-                : "Public vote records · Baldwin County Board of Education"}
+                : `Public vote records · ${boardName}`}
             </p>
           </div>
           <nav className="flex flex-wrap gap-1 text-sm">

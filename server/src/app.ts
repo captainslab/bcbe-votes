@@ -10,6 +10,7 @@ import donationsRouter from "./routes/donations";
 import { logger } from "./logging/logger";
 import { chatRouter } from "./routes/chat";
 import { boardCompatRouter, dashboardCompatRouter } from "./routes/compat";
+import { boardContext } from "./middleware/boardContext";
 
 export const app = express();
 
@@ -30,6 +31,9 @@ if (config.enableRequestLogs) {
 }
 
 applySecurity(app);
+
+// Resolve board context from X-Board-Slug header or subdomain
+app.use(boardContext);
 
 // Public compatibility routes restored after cleanup.
 // Must mount before broad API routes so slug/dashboard/chat paths do not get swallowed.

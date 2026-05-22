@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { useBoardContext } from "../context/BoardContext";
 
 type ChatCitation = {
   label: string;
@@ -41,6 +42,7 @@ const askBoardVotesAssistant = async (
 };
 
 export const BoardVotesChat = () => {
+  const { boardName } = useBoardContext();
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -48,9 +50,20 @@ export const BoardVotesChat = () => {
     {
       id: "welcome",
       role: "assistant",
-      text: "Hey! I know everything on this site — meetings, votes, member patterns, split decisions, property actions, you name it. What do you want to know about the Baldwin County school board?",
+      text: `Hey! I know everything on this site — meetings, votes, member patterns, split decisions, property actions, you name it. What do you want to know about the ${boardName}?`,
     },
   ]);
+
+  // Update welcome message when boardName resolves from API (changes from "BoardVotes" default)
+  useEffect(() => {
+    setMessages((current) =>
+      current.map((msg) =>
+        msg.id === "welcome"
+          ? { ...msg, text: `Hey! I know everything on this site — meetings, votes, member patterns, split decisions, property actions, you name it. What do you want to know about the ${boardName}?` }
+          : msg,
+      ),
+    );
+  }, [boardName]);
 
   const submitQuestion = async (rawQuestion: string) => {
     const trimmed = rawQuestion.trim();
