@@ -10,3 +10,9 @@ client/dist
 server/node_modules
 server/dist
 /drizzle
+
+logs/
+*.log
+
+__pycache__/
+*.py[cod]

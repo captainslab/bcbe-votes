@@ -14,7 +14,7 @@ allowed-tools:
 
 **Target:** $ARGUMENTS *(blank = full batch run; a Simbli meeting ID = single-meeting run)*
 
-All commands run from `/home/jordan/Projects/bcbe-votes/server`. The server must have `DATABASE_URL` in its environment (`.env` is loaded automatically by the scripts).
+All commands run from `$PWD/server`. The server must have `DATABASE_URL` in its environment (`.env` is loaded automatically by the scripts).
 
 ---
 
@@ -22,7 +22,7 @@ All commands run from `/home/jordan/Projects/bcbe-votes/server`. The server must
 *Skip this step for single-meeting runs.*
 
 ```bash
-cd /home/jordan/Projects/bcbe-votes/server && npm run import:meetings
+cd $PWD/server && npm run import:meetings
 ```
 
 Upserts the meeting listing from Simbli. Sets `ingestionStatus = "partial"` for new meetings. Safe to rerun.
@@ -50,7 +50,7 @@ This fetches vote items and vote records for each meeting, resolves board member
 ## Step 3 — Normalize board member aliases
 
 ```bash
-cd /home/jordan/Projects/bcbe-votes/server && npm run normalize:member-aliases
+cd $PWD/server && npm run normalize:member-aliases
 ```
 
 Merges duplicate board member rows created by name spelling variants. Reassigns `vote_records`, `motionMadeByMemberId`, and `motionSecondedByMemberId` to the canonical member, then deletes the duplicates. Run after every import.
@@ -63,13 +63,13 @@ Merges duplicate board member rows created by name spelling variants. Reassigns 
 
 - **Agent A — Personnel entities:**
   ```bash
-  cd /home/jordan/Projects/bcbe-votes/server && npm run extract:personnel-entities
+  cd $PWD/server && npm run extract:personnel-entities
   ```
   Extracts `{personName, actionType, position, school, effectiveDate}` from Personnel/HR vote items via GPT-4o-mini. Only processes rows where `personnelEntities IS NULL`. Idempotent.
 
 - **Agent B — Property entities:**
   ```bash
-  cd /home/jordan/Projects/bcbe-votes/server && npm run extract:property-entities
+  cd $PWD/server && npm run extract:property-entities
   ```
   Extracts `{actionType, partyName, location, address, statedUse, term}` from Facilities & Property vote items via GPT-4o-mini. Only processes rows where `propertyEntities IS NULL`. Idempotent.
 
